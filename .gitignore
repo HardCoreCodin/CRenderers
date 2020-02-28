@@ -32,6 +32,15 @@
 *.app
 
 # Directories
-/cmake-build-debug/
 /bin/
+
+# Visual Studio
+/.vs/
+/out/
+CMakeSettings.json
+launch.vs.json
+
+# CLion
 /.idea/
+/cmake-build-debug/
+/cmake-build-release/

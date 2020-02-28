@@ -1,44 +1,30 @@
 #include <windows.h>
-#include "renderer.c"
+#include "renderer.h"
 
-#define PERFORMANCE_RESULT_STRING_LENGTH 16
-#define INITIAL_WIDTH 800
-#define INITIAL_HEIGHT 600
-#define PIXEL_SIZE 4
+#ifdef PERF
+#define DEBUG(work, message, multiplier) QueryPerformanceCounter(&before);work;QueryPerformanceCounter(&after);print_to_string(message,(u32)((f64)(after.QuadPart-before.QuadPart)*multiplier),message_string);OutputDebugStringA(message_string); 
+#else
+#define DEBUG(work, message) work;
+#endif // PERF 
 
-static char* CLASS = "Renderer";
-static char* TITLE = "RendererClass";
-
-static void* memory;
-static u64 MAX_RENDER_TARGET_SIZE = Megabytes(8 * PIXEL_SIZE);
-static u64 PERMANENT_MEMORY_SIZE = Megabytes(64);
-static u64 MEMORY_SIZE = Gigabytes(1);
-static u64 MEMORY_BASE = Terabytes(2);
-
-static void* permanent_memory;
-static void* transient_memory;
-
-static u8 quit;
-static u8* pixels; // BB GG RR XX
-static u16 width;
-static u16 height;
-static u32 pitch;
-static u32 pixel_count;
-static size_t window_size;
-static Keyboard keyboard;
+static char* CLASS = "RenderEngineClass";
+static char title_string[32];
+static LARGE_INTEGER before, after;
+static u64 duration;
+static f64 milliseconds_multiplier;
+static f64 microseconds_multiplier;
 
 static BITMAPINFO info;
-static PAINTSTRUCT paint;
+//static PAINTSTRUCT paint;
+POINTS point;
+f32 dpi_scale_x;
+f32 dpi_scale_y;
+
 static MSG message;
 static HDC device_context;
 static HWND window;
 static RECT rect = {0, 0, INITIAL_WIDTH, INITIAL_HEIGHT};
 
-#ifdef PERF
-static char performance_results[16];
-static f64 microseconds_multiplier;
-static LARGE_INTEGER before_rendering, after_rendering, after_blitting;
-#endif // PERF
 
 //typedef struct Win32DLL {
 //    HMODULE dll;
@@ -50,54 +36,133 @@ static LARGE_INTEGER before_rendering, after_rendering, after_blitting;
 
 inline void init_frame_buffer() {
     GetClientRect(window, &rect);
-    width = rect.right - rect.left;
-    height = rect.bottom - rect.top;
-    pixel_count = width * height;
-    pitch = width * PIXEL_SIZE;
-    info.bmiHeader.biWidth = width;
-    info.bmiHeader.biHeight = -height;
+    frame_buffer.width = (u16)(rect.right - rect.left);
+    frame_buffer.height = (u16)(rect.bottom - rect.top);
+    frame_buffer.size = frame_buffer.width * frame_buffer.height;
+    frame_buffer.pitch = frame_buffer.width * PIXEL_SIZE;
+    info.bmiHeader.biWidth = frame_buffer.width;
+    info.bmiHeader.biHeight = frame_buffer.height;
 }
 
-inline void update_frame_buffer() {
-#ifdef PERF
-    QueryPerformanceCounter(&before_rendering);
-#endif // PERF
-    render(width, height, pixels);
-#ifdef PERF
-    QueryPerformanceCounter(&after_rendering);
-#endif // PERF 
-    //StretchDIBits(device_context, 0, 0, width, height, 0, 0, width, height, pixels, &info, DIB_RGB_COLORS, SRCCOPY);
-    SetDIBitsToDevice(device_context, 0, 0, width, height, 0, 0, 0, height, pixels, &info, DIB_RGB_COLORS);
-#ifdef PERF
-    QueryPerformanceCounter(&after_blitting);
-	
-    print_numbers_to_string(
-        (u32)((f64)(after_rendering.QuadPart - before_rendering.QuadPart) * microseconds_multiplier),
-        (u32)((f64)(after_blitting.QuadPart - after_rendering.QuadPart) * microseconds_multiplier),
-        performance_results
-    );
-    OutputDebugStringA(performance_results);
-#endif // PERF 
+void update_and_render() {
+    update();
+    QueryPerformanceCounter(&before);
+    render();
+    QueryPerformanceCounter(&after);
+    duration = after.QuadPart - before.QuadPart;
+    print_title_to_string(frame_buffer.width, frame_buffer.height, (u16)(1000.0/(duration*milliseconds_multiplier)), TITLE, title_string);
+    SetWindowTextA(window, title_string);
 }
 
-LRESULT CALLBACK windowCallback(HWND window, UINT message, WPARAM WParam, LPARAM LParam) {
-    switch(message) {
-        case WM_SIZE: init_frame_buffer(); return 0;
-        case WM_PAINT: update_frame_buffer(); return 0;
-        default: return DefWindowProcA(window, message, WParam, LParam);
-        //case WM_ACTIVATEAPP: return 0;
-        //case WM_CREATE: SetWindowLongPtrA(window, GWLP_USERDATA, ((LPCREATESTRUCT)LParam)->lpCreateParams); return 0;
-        //case WM_CLOSE:
-        //case WM_DESTROY: quit = 1; PostQuitMessage(0); return 0;
+LRESULT CALLBACK windowCallback(HWND wnd, UINT msg, WPARAM WParam, LPARAM LParam) {
+    switch(msg) {
+        case WM_SIZE: 
+            init_frame_buffer(); 
+            on_resize();
+            update_and_render();
+            return 0;
+
+        case WM_QUIT: 
+            app.should_quit = 1; 
+            return 0;
+
+        case WM_KEYDOWN:
+            switch ((u32)message.wParam) {
+                case 'W': keyboard.pressed |= FORWARD; break;
+                case 'A': keyboard.pressed |= LEFT; break;
+                case 'S': keyboard.pressed |= BACKWARD; break;
+                case 'D': keyboard.pressed |= RIGHT; break;
+                case 'R': keyboard.pressed |= UP; break;
+                case 'F': keyboard.pressed |= DOWN; break;
+
+                case VK_ESCAPE: 
+                    app.should_quit = 1; 
+                    break;
+            }
+            return 0;
+
+        case WM_KEYUP:
+            switch ((u32)message.wParam) {
+                case 'W': keyboard.pressed &= ~FORWARD; break;
+                case 'A': keyboard.pressed &= ~LEFT; break;
+                case 'S': keyboard.pressed &= ~BACKWARD; break;
+                case 'D': keyboard.pressed &= ~RIGHT; break;
+                case 'R': keyboard.pressed &= ~UP; break;
+                case 'F': keyboard.pressed &= ~DOWN; break;
+            }
+            return 0;
+
+        case WM_LBUTTONDBLCLK:
+            if (app.is_active) {
+                app.is_active = 0;
+                mouse.prior_position.x = -1;
+                ReleaseCapture();
+            } else {
+                app.is_active = 1;
+                SetCapture(window);
+            }
+            return 0;
+
+        case WM_MOUSEWHEEL:
+            on_mouse_wheel(GET_WHEEL_DELTA_WPARAM(message.wParam) / 120.0f);
+            return 0;
+
+        case WM_MOUSEMOVE:
+            if (app.is_active) {
+                point = MAKEPOINTS(message.lParam);
+                if (mouse.prior_position.x == -1) {
+                    mouse.prior_position.x = point.x * dpi_scale_x;
+                    mouse.prior_position.y = point.y * dpi_scale_y;
+                } else {
+                    mouse.current_position.x = point.x * dpi_scale_x;
+                    mouse.current_position.y = point.y * dpi_scale_y;
+
+                    on_mouse_move();
+
+                    mouse.prior_position = mouse.current_position;
+                }
+            }
+            return 0;
+
+        case WM_PAINT: 
+            //StretchDIBits(device_context, 0, 0, width, height, 0, 0, width, height, pixels, &info, DIB_RGB_COLORS, SRCCOPY);
+            SetDIBitsToDevice(device_context, 0, 0, frame_buffer.width, frame_buffer.height, 0, 0, 0, frame_buffer.height, frame_buffer.pixels, &info, DIB_RGB_COLORS);
+            //DEBUG(SetDIBitsToDevice(device_context, 0, 0, frame_buffer.width, frame_buffer.height, 0, 0, 0, frame_buffer.height, frame_buffer.pixels, &info, DIB_RGB_COLORS), "Blit:");
+            return 0;
+
+        case WM_ACTIVATEAPP: 
+            return 0;
+        
+        //case WM_CREATE: 
+        //    SetWindowLongPtrA(window, GWLP_USERDATA, ((LPCREATESTRUCT)LParam)->lpCreateParams); 
+        //    return 0;
+        
+        case WM_CLOSE:
+        case WM_DESTROY: 
+            app.should_quit = 1; 
+            PostQuitMessage(0); 
+            return 0;
+
+        default: 
+            return DefWindowProcA(wnd, msg, WParam, LParam);
     }
 }
 
 int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int show_code) {
-#ifdef PERF
     LARGE_INTEGER performance_frequency;
     QueryPerformanceFrequency(&performance_frequency);
-    microseconds_multiplier = 1000000.0f / performance_frequency.QuadPart;
-#endif // PERF
+    microseconds_multiplier = 1000000.0 / performance_frequency.QuadPart;
+    milliseconds_multiplier = 1000.0 / performance_frequency.QuadPart;
+
+    // Initialize the memory:
+    memory.address = (u8*)VirtualAlloc((LPVOID)memory.base, memory.size, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    if (!memory.address)
+        return -1;
+
+    init_math();
+    init_core();
+    init_scene();
+    init_renderer();
 
     info.bmiHeader.biSize = sizeof(info.bmiHeader);
     info.bmiHeader.biPlanes = 1;
@@ -105,17 +170,20 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
     info.bmiHeader.biCompression = BI_RGB;
 
     // Initialize the window and it's class:
-    WNDCLASSEXA window_class = {
-        sizeof(WNDCLASSEXA),
-        CS_HREDRAW|CS_VREDRAW,
-        windowCallback, 0, 0, 
-        instance,
-        LoadIcon(NULL, IDI_APPLICATION),
-        LoadCursor(NULL, IDC_ARROW),
-        (HBRUSH)COLOR_WINDOW, 0,
-        CLASS,
-        LoadIcon(NULL, IDI_APPLICATION)
-    };	
+    WNDCLASSEXA window_class;
+    window_class.cbSize = sizeof(WNDCLASSEXA);
+    window_class.style = CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS;
+    window_class.lpfnWndProc = windowCallback;
+    window_class.cbClsExtra = 0;
+    window_class.cbWndExtra = 0;
+    window_class.hInstance = instance;
+    window_class.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    window_class.hCursor = LoadCursor(NULL, IDC_ARROW);
+    window_class.hbrBackground =(HBRUSH)COLOR_WINDOW;
+    window_class.lpszMenuName = 0;
+    window_class.lpszClassName = CLASS;
+    window_class.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
+
     if (!RegisterClassExA(&window_class))
         return -1;
 
@@ -136,59 +204,103 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
     );
     if (!window) 
         return -1;
-    
-    // Initialize the device context and the frame buffer:
+
+    // Initialize the device context:
     device_context = GetDC(window);
     GetClientRect(window, &rect);
-    init_frame_buffer();
-                
-    // Initialize the memory:
-    memory = VirtualAlloc(MEMORY_BASE, MEMORY_SIZE, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-    pixels = (u32*)memory; 
-    permanent_memory = (u8*)memory + MAX_RENDER_TARGET_SIZE;
-    transient_memory = (u8*)memory + PERMANENT_MEMORY_SIZE;
 
-    // The engine loop:
-    while (PeekMessage(&message, 0, 0, 0, PM_REMOVE)) {
-        switch (message.message) {
-            case WM_QUIT: 
-                quit = 1; 
-                break;
-                
-            case WM_KEYDOWN:
-                switch ((u32)message.wParam) {
-                    case 'W': keyboard |= FORWARD; break;
-                    case 'A': keyboard |= LEFT; break;
-                    case 'S': keyboard |= BACKWARD; break;
-                    case 'D': keyboard |= RIGHT; break;
-                    case 'R': keyboard |= UP; break;
-                    case 'F': keyboard |= DOWN; break;
+    dpi_scale_x = 96.0f / GetDeviceCaps(device_context, LOGPIXELSX);
+    dpi_scale_y = 96.0f / GetDeviceCaps(device_context, LOGPIXELSY);
 
-                    case VK_ESCAPE: 
-                        quit = 1; 
-                        break;
-                }
-                break;
+    
+    while (!app.should_quit) {
+        ULONGLONG currentTick = GetTickCount64();
+        ULONGLONG endTick = currentTick + 1000/60;
 
-            case WM_KEYUP:
-                switch ((u32)message.wParam) {
-                    case 'W': keyboard &= ~FORWARD; break;
-                    case 'A': keyboard &= ~LEFT; break;
-                    case 'S': keyboard &= ~BACKWARD; break;
-                    case 'D': keyboard &= ~RIGHT; break;
-                    case 'R': keyboard &= ~UP; break;
-                    case 'F': keyboard &= ~DOWN; break;
-                }
-                break;
-
-            default:
+        while (currentTick < endTick) {
+            if (PeekMessageA(&message, window, 0, 0, PM_REMOVE)) {
                 TranslateMessage(&message);
                 DispatchMessageA(&message);
+                currentTick = GetTickCount64();
+            } else
+                break;
         }
-
-        if (quit) 
-            break;
+        update_and_render();
+        //DEBUG(update_and_render(), "Render (ms):", milliseconds_multiplier);
     }
+
+    //while (PeekMessage(&message, 0, 0, 0, PM_REMOVE)) {
+    //    switch (message.message) {
+    //        case WM_QUIT: 
+    //            app.should_quit = 1; 
+    //            break;
+    //            
+    //        case WM_KEYDOWN:
+    //            switch ((u32)message.wParam) {
+    //                case 'W': keyboard.pressed |= FORWARD; break;
+    //                case 'A': keyboard.pressed |= LEFT; break;
+    //                case 'S': keyboard.pressed |= BACKWARD; break;
+    //                case 'D': keyboard.pressed |= RIGHT; break;
+    //                case 'R': keyboard.pressed |= UP; break;
+    //                case 'F': keyboard.pressed |= DOWN; break;
+
+    //                case VK_ESCAPE: 
+    //                    app.should_quit = 1; 
+    //                    break;
+    //            }
+    //            break;
+
+    //        case WM_KEYUP:
+    //            switch ((u32)message.wParam) {
+    //                case 'W': keyboard.pressed &= ~FORWARD; break;
+    //                case 'A': keyboard.pressed &= ~LEFT; break;
+    //                case 'S': keyboard.pressed &= ~BACKWARD; break;
+    //                case 'D': keyboard.pressed &= ~RIGHT; break;
+    //                case 'R': keyboard.pressed &= ~UP; break;
+    //                case 'F': keyboard.pressed &= ~DOWN; break;
+    //            }
+    //            break;
+
+    //        case WM_LBUTTONDBLCLK:
+    //            if (app.is_active) {
+    //                app.is_active = 0;
+    //                ReleaseCapture();
+    //            } else {
+    //                app.is_active = 1;
+    //                SetCapture(window);
+    //            }
+
+    //            break;
+
+    //        case WM_MOUSEWHEEL:
+    //            on_mouse_wheel(GET_WHEEL_DELTA_WPARAM(message.wParam) / 120.0f);
+    //            break;
+
+    //        case WM_MOUSEMOVE:
+    //            if (app.is_active) {
+    //                point = MAKEPOINTS(message.lParam);
+    //                if (mouse.prior_position.x == -1) {
+    //                    mouse.prior_position.x = point.x * dpi_scale_x;
+    //                    mouse.prior_position.y = point.y * dpi_scale_y;
+    //                } else {
+    //                    mouse.current_position.x = point.x * dpi_scale_x;
+    //                    mouse.current_position.y = point.y * dpi_scale_y;
+
+    //                    on_mouse_move();
+
+    //                    mouse.prior_position = mouse.current_position;
+    //                }
+    //            }
+    //            break;
+
+    //        default:
+    //            TranslateMessage(&message);
+    //            DispatchMessageA(&message);
+    //    }
+
+    //    if (app.should_quit) 
+    //        break;
+    //}
     
     return 0;
 }
