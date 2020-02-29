@@ -1,3 +1,4 @@
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include "renderer.h"
 
@@ -195,8 +196,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 		WS_OVERLAPPEDWINDOW|WS_VISIBLE,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
-		INITIAL_WIDTH,
-		INITIAL_HEIGHT, 
+		rect.right - rect.left,
+		rect.bottom - rect.top, 
         NULL, 
         NULL,
         instance, 
@@ -228,79 +229,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
         update_and_render();
         //DEBUG(update_and_render(), "Render (ms):", milliseconds_multiplier);
     }
-
-    //while (PeekMessage(&message, 0, 0, 0, PM_REMOVE)) {
-    //    switch (message.message) {
-    //        case WM_QUIT: 
-    //            app.should_quit = 1; 
-    //            break;
-    //            
-    //        case WM_KEYDOWN:
-    //            switch ((u32)message.wParam) {
-    //                case 'W': keyboard.pressed |= FORWARD; break;
-    //                case 'A': keyboard.pressed |= LEFT; break;
-    //                case 'S': keyboard.pressed |= BACKWARD; break;
-    //                case 'D': keyboard.pressed |= RIGHT; break;
-    //                case 'R': keyboard.pressed |= UP; break;
-    //                case 'F': keyboard.pressed |= DOWN; break;
-
-    //                case VK_ESCAPE: 
-    //                    app.should_quit = 1; 
-    //                    break;
-    //            }
-    //            break;
-
-    //        case WM_KEYUP:
-    //            switch ((u32)message.wParam) {
-    //                case 'W': keyboard.pressed &= ~FORWARD; break;
-    //                case 'A': keyboard.pressed &= ~LEFT; break;
-    //                case 'S': keyboard.pressed &= ~BACKWARD; break;
-    //                case 'D': keyboard.pressed &= ~RIGHT; break;
-    //                case 'R': keyboard.pressed &= ~UP; break;
-    //                case 'F': keyboard.pressed &= ~DOWN; break;
-    //            }
-    //            break;
-
-    //        case WM_LBUTTONDBLCLK:
-    //            if (app.is_active) {
-    //                app.is_active = 0;
-    //                ReleaseCapture();
-    //            } else {
-    //                app.is_active = 1;
-    //                SetCapture(window);
-    //            }
-
-    //            break;
-
-    //        case WM_MOUSEWHEEL:
-    //            on_mouse_wheel(GET_WHEEL_DELTA_WPARAM(message.wParam) / 120.0f);
-    //            break;
-
-    //        case WM_MOUSEMOVE:
-    //            if (app.is_active) {
-    //                point = MAKEPOINTS(message.lParam);
-    //                if (mouse.prior_position.x == -1) {
-    //                    mouse.prior_position.x = point.x * dpi_scale_x;
-    //                    mouse.prior_position.y = point.y * dpi_scale_y;
-    //                } else {
-    //                    mouse.current_position.x = point.x * dpi_scale_x;
-    //                    mouse.current_position.y = point.y * dpi_scale_y;
-
-    //                    on_mouse_move();
-
-    //                    mouse.prior_position = mouse.current_position;
-    //                }
-    //            }
-    //            break;
-
-    //        default:
-    //            TranslateMessage(&message);
-    //            DispatchMessageA(&message);
-    //    }
-
-    //    if (app.should_quit) 
-    //        break;
-    //}
     
     return 0;
 }

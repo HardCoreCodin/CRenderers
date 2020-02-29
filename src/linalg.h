@@ -1,4 +1,5 @@
 #pragma once
+#pragma warning(disable : 4201)
 #include "types.h"
 
 f32 m11, m12, m13, 
@@ -13,21 +14,7 @@ typedef struct Vector3 {
 	f32 x, y, z;
 } Vector3;
 
-typedef struct Matrix3x3_components {
-    f32 m11, m12, m13,
-        m21, m22, m23,
-        m31, m32, m33;	
-} Matrix3x3_components;
-
-typedef struct Matrix3x3_vectors {
-    Vector3 i, j, k;	
-} Matrix3x3_vectors;
-
-typedef struct Matrix3x3_array {
-    f32 m[9];	
-} Matrix3x3_array;
-
-typedef union Matrix3x3 {
+typedef union {
     struct {
         f32 m11, m12, m13,
             m21, m22, m23,
@@ -35,9 +22,6 @@ typedef union Matrix3x3 {
     };
     struct {
         Vector3 i, j, k;
-    };
-    struct {
-        f32 m[9];
     };
 } Matrix3x3;
 
