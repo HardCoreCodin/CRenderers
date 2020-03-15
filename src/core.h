@@ -21,6 +21,8 @@
 #define MEMORY_SIZE Gigabytes(1)
 #define MEMORY_BASE Terabytes(2)
 
+static char* WINDOW_CLASS = "RnDer";
+
 typedef struct Memory {
     u64 base, size, occupied;
     u8* address;
