@@ -126,7 +126,7 @@ u8 rayIntersectsASphere() {
 
         sub3D(&closest_hit.position, closest_hit_sphere_position, closest_hit_surface_normal);
         if (sphere.radius != 1)
-            idiv3D(closest_hit_surface_normal, sphere.radius);
+            iscale3D(closest_hit_surface_normal, 1/sphere.radius);
     }
 
     return any_hit;
@@ -138,43 +138,37 @@ void render() {
 
     for (u32 i = 0; i < frame_buffer.size; i++) {
         if (rayIntersectsASphere()) {
-            pixel->R = (u8)((closest_hit_surface_normal->x + 1) * COLOR_FACTOR);
-            pixel->G = (u8)((closest_hit_surface_normal->y + 1) * COLOR_FACTOR);
-            pixel->B = (u8)((closest_hit_surface_normal->z + 1) * COLOR_FACTOR);
-            pixel->A = 255;
-        } else pixel->color = 0;
+            color.R = (u8)((closest_hit_surface_normal->x + 1) * COLOR_FACTOR);
+            color.G = (u8)((closest_hit_surface_normal->y + 1) * COLOR_FACTOR);
+            color.B = (u8)((closest_hit_surface_normal->z + 1) * COLOR_FACTOR);
+        } else color.value = BLACK;
 
-        pixel++;
+        *pixel++ = color.value;
         ray.direction++;
     }
 }
-void onFrameBufferResized() {
+
+void resetRayDirections() {
     generateRayDirections();
     rotateRayDirections();
 }
 
+void onFrameBufferResized() {resetRayDirections();}
+
 void update(f32 delta_time) {
-    if (controller.zoom.changed) {
-        camera.focal_length += controller.zoom.in * delta_time;
-        
-        generateRayDirections();
-        rotateRayDirections();
-        
-        onMouseWheelChangeHandled();
+    if (delta_time > 1)
+        delta_time = 1;
+
+    if (mouse.is_captured) {
+        if (zoom(delta_time)) resetRayDirections();
+        if (look(delta_time)) rotateRayDirections();
+    } else {
+        if (orbit(delta_time)) rotateRayDirections();
+        pan(delta_time);
+        dolly(delta_time);
     }
 
-    if (controller.rotation.changed) {
-        rotate(&camera.matrix,
-                controller.rotation.yaw * delta_time,
-                controller.rotation.pitch * delta_time,
-                0);
-        rotateRayDirections();
-
-        onMousePositionChangeHandled();
-    }
-
-    if (keyboard.pressed)
-        processKeyboardInputs(delta_time);
+    move(delta_time);
 }
 
 void init_spheres(u8 radius, u8 horizontal_count, u8 vertical_count) {
@@ -210,7 +204,7 @@ void init_renderer() {
     init_core3D();
     init_spheres(1, 2, 2);
 
-    frame_buffer.pixels = (Pixel*)allocate_memory(RENDER_SIZE);
+    frame_buffer.pixels = (u32*)allocate_memory(RENDER_SIZE);
     
     source_ray_directions = (Vector3*)allocate_memory(RENDER_SIZE);
     ray_directions = (Vector3*)allocate_memory(RENDER_SIZE);
@@ -222,7 +216,7 @@ void init_renderer() {
     closest_hit_surface_normal = (Vector3*)allocate_memory(sizeof(Vector3));
     
     camera.position = ray.origin = (Vector3*)allocate_memory(sizeof(Vector3));
-    camera.position->x = 5;
-    camera.position->y = 5;
-    camera.position->z = -10;
+    camera.position->x = 0;
+    camera.position->y = 0;
+    camera.position->z = 0;
 }

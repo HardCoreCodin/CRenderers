@@ -61,11 +61,6 @@ inline void imul3D(Vector3* v, Matrix3x3* matrix) {
     v->y = x*matrix->m12 + y*matrix->m22 + z*matrix->m32;
     v->z = x*matrix->m13 + y*matrix->m23 + z*matrix->m33;    
 }
-inline void idiv3D(Vector3* v, f32 factor) {
-    v->x /= factor;
-    v->y /= factor;
-    v->z /= factor;
-}
 inline void cross3D(Vector3* p1, Vector3* p2, Vector3* out) {
     out->x = (p1->y * p2->z) - (p1->z * p2->y);
     out->y = (p1->z * p2->x) - (p1->x * p2->z);
@@ -248,7 +243,7 @@ void relative_rotate(Matrix3x3* matrix, f32 yaw_amount, f32 pitch_amount, f32 ro
     if (roll_amount) relative_roll(roll_amount, matrix);
 }
 
-void absolute_rotate(Matrix3x3* matrix, f32 yaw_amount, f32 pitch_amount, f32 roll_amount) {
+void absolute_rotate(f32 yaw_amount, f32 pitch_amount, f32 roll_amount) {
     if (roll_amount)
         set_roll(roll_amount);
     else
@@ -265,18 +260,16 @@ void absolute_rotate(Matrix3x3* matrix, f32 yaw_amount, f32 pitch_amount, f32 ro
         setMatrix3x3ToIdentity(&yaw_matrix);
 
     matmul(&roll_matrix, &pitch_matrix, &rotation_matrix);
-    imatmul(&rotation_matrix, &yaw_matrix);    
-    imatmul(matrix, &rotation_matrix);
+    imatmul(&rotation_matrix, &yaw_matrix);
 }
 
-void rotate(Matrix3x3* matrix, f32 yaw_amount, f32 pitch_amount, f32 roll_amount) {
+void rotate(f32 yaw_amount, f32 pitch_amount, f32 roll_amount) {
     if (roll_amount) roll(roll_amount);
     if (pitch_amount) pitch(pitch_amount);
     if (yaw_amount) yaw(yaw_amount);
     
     matmul(&roll_matrix, &pitch_matrix, &rotation_matrix);
-    imatmul(&rotation_matrix, &yaw_matrix);    
-    imatmul(matrix, &rotation_matrix);
+    imatmul(&rotation_matrix, &yaw_matrix);
 }
 
 void init_math3D() {

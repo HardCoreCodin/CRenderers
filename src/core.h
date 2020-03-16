@@ -21,8 +21,6 @@
 #define MEMORY_SIZE Gigabytes(1)
 #define MEMORY_BASE Terabytes(2)
 
-static char* WINDOW_CLASS = "RnDer";
-
 typedef struct Memory {
     u64 base, size, occupied;
     u8* address;
@@ -33,14 +31,19 @@ Memory memory = {
 };
 
 typedef struct App {
-    u8 is_active, is_running;
+    u8 is_running;
 } App;
-App app = {0, 1};
+App app = {1};
 
 typedef struct Keyboard {
     u8 pressed;
 } Keyboard;
 Keyboard keyboard = {0};
+
+typedef struct Mouse {
+    u8 pressed, is_captured;
+} Mouse;
+Mouse mouse = {0, false};
 
 u8 FORWARD  = 1;
 u8 BACKWARD = 2;
@@ -48,19 +51,21 @@ u8 LEFT     = 4;
 u8 RIGHT    = 8;
 u8 UP       = 16;
 u8 DOWN     = 32;
+u8 MIDDLE   = 64;
 
-typedef union Pixel {
-    u32 color;
+typedef union Color {
     struct {
         u8 R, G, B, A;
     };
-} Pixel;
-Pixel* pixel;
+    u32 value;
+} Color;
+Color color = {0, 0, 0, 255};
+u32 BLACK = 0xFF000000;
 
 typedef struct FrameBuffer {
     u16 width, height;
     u32 size;
-    Pixel* pixels;
+    u32* pixels;
 
 } FrameBuffer;
 FrameBuffer frame_buffer = {
@@ -68,6 +73,7 @@ FrameBuffer frame_buffer = {
     INITIAL_HEIGHT,
     INITIAL_WIDTH * INITIAL_HEIGHT
 };
+u32* pixel;
 
 void* allocate_memory(u64 size) {
     memory.occupied += size;
@@ -142,6 +148,13 @@ void printTitleIntoString(u16 width, u16 height, u16 fps, char* title, char* tit
         *ptr++ = *title++;
 }
 
+inline f32 approach(f32 from, f32 to, f32 step) {
+    f32 delta = to - from;
+    if (delta > step) return from + step;
+    if (delta < -step) return from - step;
+    return to;
+}
+
 void init_core() {
-    frame_buffer.pixels = (Pixel*)allocate_memory(RENDER_SIZE);
+    frame_buffer.pixels = (u32*)allocate_memory(RENDER_SIZE);
 }

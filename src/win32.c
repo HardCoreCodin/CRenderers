@@ -46,19 +46,19 @@ void updateAndRender() {
 //    SetWindowTextA(window, title_string);
 
 //    RedrawWindow(window, NULL, NULL, RDW_INVALIDATE|RDW_NOCHILDREN|RDW_UPDATENOW);
-    InvalidateRgn(window, NULL, FALSE);
+    InvalidateRgn(window, NULL, false);
     UpdateWindow(window);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_DESTROY:
-            app.is_running = FALSE;
+            app.is_running = false;
             PostQuitMessage(0);
             break;
-
-        case WM_ERASEBKGND:
-            return 1;
+//
+//        case WM_ERASEBKGND:
+//            return 1;
 
         case WM_SIZE:
             resizeFrameBuffer();
@@ -66,7 +66,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             break;
 
         case WM_PAINT:
-            ValidateRgn(window, NULL);
             SetDIBitsToDevice(
                     device_context, 0, 0,
                     frame_buffer.width,
@@ -75,6 +74,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                     frame_buffer.pixels,
                     &info,
                     DIB_RGB_COLORS);
+            ValidateRgn(window, NULL);
 //            RedrawWindow(window, NULL, NULL, RDW_VALIDATE|RDW_NOERASE);
             break;
 
@@ -89,7 +89,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                 case 'F': keyboard.pressed |= DOWN; break;
 
                 case VK_ESCAPE:
-                    app.is_running = FALSE;
+                    app.is_running = false;
                     break;
             }
             break;
@@ -106,34 +106,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             }
             break;
 
+        case WM_LBUTTONDOWN: mouse.pressed |= LEFT; break;
+        case WM_RBUTTONDOWN: mouse.pressed |= RIGHT; break;
+        case WM_MBUTTONDOWN: mouse.pressed |= MIDDLE; break;
+
+        case WM_LBUTTONUP: mouse.pressed &= (u8)~LEFT; break;
+        case WM_RBUTTONUP: mouse.pressed &= (u8)~RIGHT; break;
+        case WM_MBUTTONUP: mouse.pressed &= (u8)~MIDDLE; break;
+
         case WM_LBUTTONDBLCLK:
-            if (app.is_active) {
-                app.is_active = FALSE;
+            if (mouse.is_captured) {
+                mouse.is_captured = false;
                 ReleaseCapture();
-                ShowCursor(TRUE);
+                ShowCursor(true);
             } else {
-                app.is_active = TRUE;
-                GetCursorPos(&current_mouse_position);
+                mouse.is_captured = true;
                 SetCapture(window);
-                ShowCursor(FALSE);
+                ShowCursor(false);
             }
             break;
 
         case WM_MOUSEWHEEL:
             onMouseWheelChanged(GET_WHEEL_DELTA_WPARAM(wParam) / 120.0f);
-            break;
-
-        case WM_MOUSEMOVE:
-            if (!app.is_active) {
-//                switch (wParam) {
-//                    case MK_RBUTTON:
-//                        break;
-//                    case MK_MBUTTON:
-//                        break;
-//                    default:
-//                        break;
-//                }
-            }
             break;
 
         default:
@@ -166,7 +160,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     info.bmiHeader.biCompression = BI_RGB;
 
     WNDCLASSA window_class;
-    window_class.lpszClassName  = WINDOW_CLASS;
+    window_class.lpszClassName  = "RnDer";
     window_class.hInstance      = hInstance;
     window_class.lpfnWndProc    = WndProc;
     window_class.style          = CS_OWNDC|CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS;
@@ -181,9 +175,9 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 
     RegisterClassA(&window_class);
 
-    AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
+    AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false);
     window = CreateWindowA(
-            WINDOW_CLASS,
+            window_class.lpszClassName,
             TITLE,
             WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT,
@@ -201,7 +195,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     device_context = GetDC(window);  //GetDCEx(window, NULL, DCX_WINDOW);
 
     ShowWindow(window, nCmdShow);
-
+    GetCursorPos(&current_mouse_position);
     MSG message;
 
     while (app.is_running) {
@@ -210,14 +204,12 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
             DispatchMessageA(&message);
         }
 
-        if (app.is_active) {
-            prior_mouse_position = current_mouse_position;
-            GetCursorPos(&current_mouse_position);
-            f32 dx = (f32)(current_mouse_position.x - prior_mouse_position.x);
-            f32 dy = (f32)(current_mouse_position.y - prior_mouse_position.y);
-            if (dx || dy)
-                onMousePositionChanged(dx, dy);
-        }
+        prior_mouse_position = current_mouse_position;
+        GetCursorPos(&current_mouse_position);
+        f32 dx = (f32)(current_mouse_position.x - prior_mouse_position.x);
+        f32 dy = (f32)(current_mouse_position.y - prior_mouse_position.y);
+        if (dx || dy)
+            onMousePositionChanged(dx, dy);
 
         updateAndRender();
     }
