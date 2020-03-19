@@ -216,7 +216,7 @@ void init_renderer() {
     closest_hit_surface_normal = (Vector3*)allocate_memory(sizeof(Vector3));
     
     camera.position = ray.origin = (Vector3*)allocate_memory(sizeof(Vector3));
-    camera.position->x = 0;
-    camera.position->y = 0;
-    camera.position->z = 0;
+    camera.position->x = 5;
+    camera.position->y = 5;
+    camera.position->z = -10;
 }
