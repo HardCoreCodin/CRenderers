@@ -32,7 +32,7 @@ Memory memory = {
 };
 
 typedef struct App {
-    u8 is_running;
+    u8 is_running, is_HUD_visible;
 } App;
 App app = {1};
 
@@ -204,7 +204,7 @@ static TextLine NAVIGATION;
 //static TextLine RAW_INPUTS;
 
 void init_core() {
-    frame_buffer.pixels = (u32*)allocate_memory(RENDER_SIZE);
+//    frame_buffer.pixels = (u32*)allocate_memory(RENDER_SIZE);
 
     RESOLUTION.string = (char*)allocate_memory(OVR_WIDTH);
     FRAME_RATE.string = (char*)allocate_memory(OVR_WIDTH);
