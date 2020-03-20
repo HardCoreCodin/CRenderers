@@ -141,7 +141,7 @@ void render() {
             color.R = (u8)((closest_hit_surface_normal->x + 1) * COLOR_FACTOR);
             color.G = (u8)((closest_hit_surface_normal->y + 1) * COLOR_FACTOR);
             color.B = (u8)((closest_hit_surface_normal->z + 1) * COLOR_FACTOR);
-        } else color.value = BLACK;
+        } else color.value = 0;
 
         *pixel++ = color.value;
         ray.direction++;

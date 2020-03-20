@@ -2,77 +2,42 @@
 #include <windows.h>
 #include "ray_trace.h"
 
-static char title_string[32];
-static f64 counts_per_second, counts_per_millisecond;
+static f64 ticks_per_second, seconds_per_ticks, milliseconds_per_ticks;
 
 static WNDCLASSA window_class;
 static HWND window;
-static HDC winDC, memDC, memDC2;
-static HBITMAP bitmap;
-static HBITMAP memory_bitmap;
+static HDC win_dc, ovr_dc;
+static HBITMAP ovr_bp;
 static BITMAPINFO info;
-static RECT rect;
+static RECT win_rect, ovr_rect;
 static POINT current_mouse_position, prior_mouse_position;
-static HFONT font;
-static LARGE_INTEGER before_rendering, after_rendering;
+static LARGE_INTEGER current_frame_ticks, last_frame_ticks;
+static PAINTSTRUCT ps;
 
 inline void resizeFrameBuffer() {
-//    if (memory_bitmap) DeleteObject(memory_bitmap);
-//
-//    GetClientRect(window, &rect);
-//
-//    info.bmiHeader.biWidth = rect.right - rect.left;
-//    info.bmiHeader.biHeight = rect.bottom - rect.top;
-//
-////    memory_bitmap = CreateCompatibleBitmap(winDC, info.bmiHeader.biWidth, info.bmiHeader.biHeight);
-////    SelectObject(memDC, memory_bitmap);
-//
-//    memory_bitmap = CreateDIBSection(
-//            memDC,
-//            &info,
-//            DIB_RGB_COLORS,
-//            (void*)&frame_buffer.pixels,
-//            0,
-//            0);
-//    SelectObject(memDC, memory_bitmap);
-//
-//    frame_buffer.width = (u16)info.bmiHeader.biWidth;
-//    frame_buffer.height = (u16)info.bmiHeader.biHeight;
-//    frame_buffer.size = frame_buffer.width * frame_buffer.height;
+    GetClientRect(window, &win_rect);
+
+    info.bmiHeader.biWidth = win_rect.right - win_rect.left;
+    info.bmiHeader.biHeight = win_rect.bottom - win_rect.top;
+
+    frame_buffer.width = (u16)info.bmiHeader.biWidth;
+    frame_buffer.height = (u16)info.bmiHeader.biHeight;
+    frame_buffer.size = frame_buffer.width * frame_buffer.height;
+
+    printNumberIntoString(frame_buffer.width, RESOLUTION_STRING+8);
+    printNumberIntoString(frame_buffer.height, RESOLUTION_STRING+13);
 
     onFrameBufferResized();
 }
 
 void updateAndRender() {
-    static LARGE_INTEGER current_frame_time;
-    LARGE_INTEGER last_frame_time = current_frame_time;
-    QueryPerformanceCounter(&current_frame_time);
-    update((f32)(
-        (f64)(
-            current_frame_time.QuadPart - last_frame_time.QuadPart
-        ) / counts_per_second
-    ));
-
-//    QueryPerformanceCounter(&before_rendering);
+    last_frame_ticks = current_frame_ticks;
+    QueryPerformanceCounter(&current_frame_ticks);
+    update((f32)(seconds_per_ticks * (f64)(current_frame_ticks.QuadPart - last_frame_ticks.QuadPart)));
     render();
-//    QueryPerformanceCounter(&after_rendering);
-
-    RedrawWindow(window, NULL, NULL, RDW_INVALIDATE|RDW_NOCHILDREN|RDW_UPDATENOW);
-//    InvalidateRgn(window, 0, false);
-//    UpdateWindow(window);
+    InvalidateRgn(window, 0, false);
 }
-//BOOL DrawBitmap (HBITMAP hBitmap, DWORD dwROP)
-//{
-//    BITMAP    Bitmap;
-//    BOOL      bResult;
-//
-//    GetObject(hBitmap, sizeof(BITMAP), (LPSTR)&Bitmap);
-//    SelectObject(hDCBits, hBitmap);
-//    bResult = BitBlt(hDC, 0, 0, Bitmap.bmWidth, Bitmap.bmHeight, hDCBits, 0, 0, dwROP);
-//    DeleteDC(hDCBits);
-//
-//    return bResult;
-//}
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_DESTROY:
@@ -80,51 +45,30 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             PostQuitMessage(0);
             break;
 
-        case WM_ERASEBKGND:
-            return 1;
-
         case WM_SIZE:
             resizeFrameBuffer();
             updateAndRender();
             break;
 
         case WM_PAINT:
-            QueryPerformanceCounter(&before_rendering);
-
-
-            // 9)
-            GdiFlush();
-            BitBlt(memDC2, 0, 0, frame_buffer.width, frame_buffer.height,
-                   memDC, 0, 0, SRCCOPY);
-            BitBlt(winDC, 0, 0, frame_buffer.width, frame_buffer.height,
-                   memDC2, 0, 0, SRCCOPY);
-
-
-//            SetDIBitsToDevice(
-//                    winDC, 0, 0,
-//                    frame_buffer.width,
-//                    frame_buffer.height, 0, 0, 0,
-//                    frame_buffer.height,
-//                    frame_buffer.pixels,
-//                    &info,
-//                    DIB_RGB_COLORS);
-////            RedrawWindow(window, NULL, NULL, RDW_VALIDATE|RDW_NOERASE);
-
-            QueryPerformanceCounter(&after_rendering);
-            printTitleIntoString(
+            BeginPaint(window, &ps);
+            SetDIBitsToDevice(
+                    win_dc, 0, 0,
                     frame_buffer.width,
+                    frame_buffer.height, 0, 0, 0,
                     frame_buffer.height,
-                    (u16)(
-                            (
-                                    after_rendering.QuadPart - before_rendering.QuadPart
-                            )),
-                    "RT",
-                    title_string);
+                    frame_buffer.pixels,
+                    &info,
+                    DIB_RGB_COLORS);
 
-//            ExtTextOutA(winDC, 10, 50, ETO_OPAQUE, NULL, title_string, 32, NULL);
-//            SetWindowTextA(window, title_string);
-            TextOutA(winDC, 10, 50, title_string, strlen(title_string));
-            ValidateRgn(window, NULL);
+            FillRect(ovr_dc, &ovr_rect, (HBRUSH) (COLOR_BACKGROUND + 1));
+            TextOutA(ovr_dc, OVR_LEFT, RESOLUTION_STRING_START, RESOLUTION_STRING, RESOLUTION_STRING_LENGTH);
+            TextOutA(ovr_dc, OVR_LEFT, FRAME_RATE_STRING_START, FRAME_RATE_STRING, FRAME_RATE_STRING_LENGTH);
+            TextOutA(ovr_dc, OVR_LEFT, FRAME_TIME_STRING_START, FRAME_TIME_STRING, FRAME_TIME_STRING_LENGTH);
+            TextOutA(ovr_dc, OVR_LEFT, NAVIGATION_STRING_START, RESOLUTION_STRING, NAVIGATION_STRING_LENGTH);
+            BitBlt(win_dc, OVR_LEFT, OVR_TOP, OVR_WIDTH, OVR_HEIGHT, ovr_dc, OVR_LEFT, OVR_TOP, SRCPAINT);
+
+            EndPaint(window, &ps);
             break;
 
         case WM_SYSKEYDOWN:
@@ -165,11 +109,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
         case WM_LBUTTONDBLCLK:
             if (mouse.is_captured) {
-                mouse.is_captured = false;
+                onMouseUnCaptured();
                 ReleaseCapture();
                 ShowCursor(true);
             } else {
-                mouse.is_captured = true;
+                onMouseCaptured();
                 SetCapture(window);
                 ShowCursor(false);
             }
@@ -192,18 +136,24 @@ int APIENTRY WinMain(HINSTANCE hInstance,
                      int       nCmdShow) {
     LARGE_INTEGER performance_frequency;
     QueryPerformanceFrequency(&performance_frequency);
-    counts_per_second = (f64)performance_frequency.QuadPart;
-    counts_per_millisecond = (f64)performance_frequency.QuadPart / 1000;
+    ticks_per_second = (f64)performance_frequency.QuadPart;
+    seconds_per_ticks = 1 / ticks_per_second;
+    milliseconds_per_ticks = 1000 * seconds_per_ticks;
 
+    f64 ticks_per_interval = ticks_per_second / 4;;
     // Initialize the memory:
     memory.address = (u8*)VirtualAlloc((LPVOID)memory.base, memory.size, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
     if (!memory.address)
         return -1;
 
-//    init_core();
+    init_core();
     init_renderer();
 
-    //    AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false);
+    ovr_rect.left = OVR_LEFT;
+    ovr_rect.right = OVR_LEFT + OVR_WIDTH;
+    ovr_rect.top = OVR_TOP;
+    ovr_rect.bottom = OVR_TOP + OVR_HEIGHT;
+
     info.bmiHeader.biSize        = sizeof(info.bmiHeader);
     info.bmiHeader.biCompression = BI_RGB;
     info.bmiHeader.biBitCount    = 32;
@@ -215,16 +165,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     window_class.style          = CS_OWNDC|CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS;
     window_class.hCursor        = LoadCursorA(0, IDC_ARROW);
 
-    window_class.hbrBackground  = 0;
-    window_class.hIcon          = 0;
-    window_class.lpszMenuName   = 0;
-    window_class.cbClsExtra     = 0;
-    window_class.cbWndExtra     = 0;
-//    window_class.hbrBackground  = (HBRUSH)COLOR_WINDOW+1;
-//    window_class.hCursor        = NULL;
-
     RegisterClassA(&window_class);
-//    CreateCompatibleBitmap
+
     window = CreateWindowA(
             window_class.lpszClassName,
             TITLE,
@@ -243,54 +185,30 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     if (!window)
         return -1;
 
-    winDC = GetDC(window);  //GetDCEx(window, NULL, DCX_WINDOW);
-    SetBkMode( winDC, TRANSPARENT );
+    win_dc = GetDC(window);  //GetDCEx(window, NULL, DCX_WINDOW);
+    GetClientRect(window, &win_rect);
+    SetBkMode(win_dc, TRANSPARENT);
 
-    GetClientRect(window, &rect);
-
-    info.bmiHeader.biWidth = rect.right - rect.left;
-    info.bmiHeader.biHeight = rect.bottom - rect.top;
-
-    frame_buffer.width = (u16)info.bmiHeader.biWidth;
-    frame_buffer.height = (u16)info.bmiHeader.biHeight;
-    frame_buffer.size = frame_buffer.width * frame_buffer.height;
-
-
-    // 1)
-    memory_bitmap = CreateDIBSection(
-            winDC,
-            &info,
-            DIB_RGB_COLORS,
-            (void**)&frame_buffer.pixels,
-            0,
-            0);
-    // 2)
-    memDC = CreateCompatibleDC(winDC);
-    // 3)
-    SelectObject(memDC, memory_bitmap);
-
-    // 4)
-    bitmap = CreateCompatibleBitmap(winDC, info.bmiHeader.biWidth, info.bmiHeader.biHeight);
-    // 5)
-    memDC2 = CreateCompatibleDC(winDC);
-    // 6)
-    SelectObject(memDC2, bitmap);
-
-//    NONCLIENTMETRICS ncm = {0};
-//    ncm.cbSize= sizeof(NONCLIENTMETRICS);
-//    //Creates a font from the current theme's caption font
-//    SystemParametersInfo(SPI_GETNONCLIENTMETRICS, NULL, &ncm, NULL);
-//    font = CreateFontIndirect(&ncm.lfCaptionFont);
-
-    font = GetStockObject(SYSTEM_FONT);
-    SelectObject(winDC, font);
-    SetTextColor(winDC, 0x0000FF00);
+    ovr_dc = CreateCompatibleDC(win_dc);
+    ovr_bp = CreateCompatibleBitmap(win_dc, OVR_WIDTH, OVR_HEIGHT);
+    HFONT ovr_font = GetStockObject(SYSTEM_FONT);
+    SelectObject(ovr_dc, ovr_bp);
+    SelectObject(ovr_dc, ovr_font);
+    SetTextColor(ovr_dc, 0x0000FF00);
+    SetBkMode(ovr_dc, TRANSPARENT);
 
     ShowWindow(window, nCmdShow);
+
     GetCursorPos(&current_mouse_position);
     MSG message;
+    u8 frames = 0;
+
+    LARGE_INTEGER start_frame_counter, end_frame_counter;
+    f64 ticks = 0;
 
     while (app.is_running) {
+        QueryPerformanceCounter(&start_frame_counter);
+
         while (PeekMessageA(&message, 0, 0, 0, PM_REMOVE)) {
             TranslateMessage(&message);
             DispatchMessageA(&message);
@@ -304,6 +222,17 @@ int APIENTRY WinMain(HINSTANCE hInstance,
             onMousePositionChanged(dx, dy);
 
         updateAndRender();
+
+        QueryPerformanceCounter(&end_frame_counter);
+        ticks += (f64)(end_frame_counter.QuadPart - start_frame_counter.QuadPart);
+        frames++;
+
+        if (ticks >= ticks_per_interval) {
+            printNumberIntoString((u16)(frames / ticks * ticks_per_second), FRAME_RATE_STRING+8);
+            printNumberIntoString((u16)(ticks / frames * milliseconds_per_ticks), FRAME_TIME_STRING+8);
+
+            ticks = frames = 0;
+        }
     }
 
     return (int)message.wParam;

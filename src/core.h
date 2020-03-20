@@ -2,8 +2,6 @@
 #include "types.h"
 #include "math2D.h"
 
-#define TRUE 1
-#define FALSE 0
 #define INT_MAX	2147483647
 #define flr(x) (x < (u32)x ? (u32)x - 1 : (u32)x)
 
@@ -20,6 +18,12 @@
 #define RENDER_SIZE Megabytes(8 * PIXEL_SIZE)
 #define MEMORY_SIZE Gigabytes(1)
 #define MEMORY_BASE Terabytes(2)
+
+#define OVR_LEFT 10
+#define OVR_TOP 10
+#define OVR_WIDTH 120
+#define OVR_HEIGHT 100
+
 
 typedef struct Memory {
     u64 base, size, occupied;
@@ -55,12 +59,11 @@ u8 MIDDLE   = 64;
 
 typedef union Color {
     struct {
-        u8 R, G, B, A;
+        u8 B, G, R, A;
     };
     u32 value;
 } Color;
-Color color = {0, 0, 0, 255};
-u32 BLACK = 0xFF000000;
+static Color color;
 
 typedef struct FrameBuffer {
     u16 width, height;
@@ -83,6 +86,47 @@ void* allocate_memory(u64 size) {
     void* address = memory.address;
     memory.address += size;
     return address;
+}
+
+void printNumberIntoString(u16 number, char* str) {
+    char *string = str;
+    if (number) {
+        u16 temp;
+        temp = number;
+        number /= 10;
+        *string-- = (char)('0' + temp - number * 10);
+
+        if (number) {
+            temp = number;
+            number /= 10;
+            *string-- = (char)('0' + temp - number * 10);
+
+            if (number) {
+                temp = number;
+                number /= 10;
+                *string-- = (char)('0' + temp - number * 10);
+
+                if (number) {
+                    temp = number;
+                    number /= 10;
+                    *string = (char)('0' + temp - number * 10);
+                } else
+                    *string = ' ';
+            } else {
+                *string-- = ' ';
+                *string-- = ' ';
+            }
+        } else {
+            *string-- = ' ';
+            *string-- = ' ';
+            *string-- = ' ';
+        }
+    } else {
+        *string-- = '0';
+        *string-- = ' ';
+        *string-- = ' ';
+        *string   = ' ';
+    }
 }
 
 void printIntoString(char* message, u32 number, char* string) {
@@ -155,6 +199,54 @@ inline f32 approach(f32 from, f32 to, f32 step) {
     return to;
 }
 
+static char* RESOLUTION_STRING = "RES: 9999x9999";
+static char* FRAME_RATE_STRING = "FPS: 9999";
+static char* FRAME_TIME_STRING = "FMS: 9999";
+static char* NAVIGATION_STRING = "NAV: Orb";
+
+static u8 RESOLUTION_STRING_LENGTH;
+static u8 FRAME_RATE_STRING_LENGTH;
+static u8 FRAME_TIME_STRING_LENGTH;
+static u8 NAVIGATION_STRING_LENGTH;
+
+static u8 RESOLUTION_STRING_START;
+static u8 FRAME_RATE_STRING_START;
+static u8 FRAME_TIME_STRING_START;
+static u8 NAVIGATION_STRING_START;
+
 void init_core() {
+    RESOLUTION_STRING = (char*)allocate_memory(OVR_WIDTH);
+    FRAME_RATE_STRING = (char*)allocate_memory(OVR_WIDTH);
+    FRAME_TIME_STRING = (char*)allocate_memory(OVR_WIDTH);
+    NAVIGATION_STRING = (char*)allocate_memory(OVR_WIDTH);
+
+    RESOLUTION_STRING = "RES: 9999x9999";
+    FRAME_RATE_STRING = "FPS: 9999";
+    FRAME_TIME_STRING = "FMS: 9999";
+    NAVIGATION_STRING = "NAV: Orb";
+
     frame_buffer.pixels = (u32*)allocate_memory(RENDER_SIZE);
+
+    RESOLUTION_STRING_LENGTH = (u8)strlen(RESOLUTION_STRING);
+    FRAME_RATE_STRING_LENGTH = (u8)strlen(FRAME_RATE_STRING);
+    FRAME_TIME_STRING_LENGTH = (u8)strlen(FRAME_TIME_STRING);
+    NAVIGATION_STRING_LENGTH = (u8)strlen(NAVIGATION_STRING);
+
+    RESOLUTION_STRING_START = 10;
+    FRAME_RATE_STRING_START = 30;
+    FRAME_TIME_STRING_START = 50;
+    NAVIGATION_STRING_START = 70;
+}
+
+void onMouseCaptured() {
+    mouse.is_captured = true;
+    NAVIGATION_STRING[5] = 'F';
+    NAVIGATION_STRING[6] = 'p';
+    NAVIGATION_STRING[7] = 's';
+}
+void onMouseUnCaptured() {
+    mouse.is_captured = false;
+    NAVIGATION_STRING[5] = 'O';
+    NAVIGATION_STRING[6] = 'r';
+    NAVIGATION_STRING[7] = 'b';
 }
