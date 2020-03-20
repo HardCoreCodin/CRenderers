@@ -20,7 +20,7 @@
 #define OVR_LEFT 10
 #define OVR_TOP 10
 #define OVR_WIDTH 120
-#define OVR_HEIGHT 100
+#define OVR_HEIGHT 120
 
 typedef struct Memory {
     u64 base, size, occupied;
@@ -201,6 +201,7 @@ static TextLine RESOLUTION;
 static TextLine FRAME_RATE;
 static TextLine FRAME_TIME;
 static TextLine NAVIGATION;
+//static TextLine RAW_INPUTS;
 
 void init_core() {
     frame_buffer.pixels = (u32*)allocate_memory(RENDER_SIZE);
@@ -209,6 +210,7 @@ void init_core() {
     FRAME_RATE.string = (char*)allocate_memory(OVR_WIDTH);
     FRAME_TIME.string = (char*)allocate_memory(OVR_WIDTH);
     NAVIGATION.string = (char*)allocate_memory(OVR_WIDTH);
+//    RAW_INPUTS.string = (char*)allocate_memory(OVR_WIDTH);
 
     RESOLUTION.string[0] = 'R';
     RESOLUTION.string[1] = 'E';
@@ -258,20 +260,40 @@ void init_core() {
     NAVIGATION.string[7] = 'b';
     NAVIGATION.string[8] = '\0';
 
+//    RAW_INPUTS.string[0] = 'R';
+//    RAW_INPUTS.string[1] = 'A';
+//    RAW_INPUTS.string[2] = 'W';
+//    RAW_INPUTS.string[3] = ':';
+//    RAW_INPUTS.string[4] = ' ';
+//    RAW_INPUTS.string[5] = '9';
+//    RAW_INPUTS.string[6] = '9';
+//    RAW_INPUTS.string[7] = '9';
+//    RAW_INPUTS.string[8] = '9';
+//    RAW_INPUTS.string[9] = 'x';
+//    RAW_INPUTS.string[10] = '9';
+//    RAW_INPUTS.string[11] = '9';
+//    RAW_INPUTS.string[12] = '9';
+//    RAW_INPUTS.string[13] = '9';
+//    RAW_INPUTS.string[14] = '\0';
+
     RESOLUTION.length = (u8)strlen(RESOLUTION.string);
     FRAME_RATE.length = (u8)strlen(FRAME_RATE.string);
     FRAME_TIME.length = (u8)strlen(FRAME_TIME.string);
     NAVIGATION.length = (u8)strlen(NAVIGATION.string);
+//    RAW_INPUTS.length = (u8)strlen(RAW_INPUTS.string);
 
     RESOLUTION.y = 10;
     FRAME_RATE.y = 30;
     FRAME_TIME.y = 50;
     NAVIGATION.y = 70;
+//    RAW_INPUTS.y = 90;
 
     RESOLUTION.n1 = 8;
     RESOLUTION.n2 = 13;
     FRAME_RATE.n1 = 8;
     FRAME_TIME.n1 = 8;
+//    RAW_INPUTS.n1 = 8;
+//    RAW_INPUTS.n2 = 13;
 }
 
 void onMouseCaptured() {

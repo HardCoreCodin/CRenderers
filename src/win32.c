@@ -1,6 +1,9 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <rpc.h>
 #include "ray_trace.h"
+
+#define RAW_INPUT_MAX_SIZE Kilobytes(1)
 
 static f64 ticks_per_second, seconds_per_tick, milliseconds_per_tick;
 
@@ -13,6 +16,9 @@ static RECT win_rect, ovr_rect;
 static POINT current_mouse_position, prior_mouse_position;
 static LARGE_INTEGER current_frame_ticks, last_frame_ticks;
 static PAINTSTRUCT ps;
+static RAWINPUTDEVICE rid;
+static RAWINPUT* raw_inputs;
+static UINT raw_input_size;
 
 inline void resizeFrameBuffer() {
     GetClientRect(window, &win_rect);
@@ -50,8 +56,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             updateAndRender();
             break;
 
+//        case WM_ERASEBKGND:
+//
+//            1;
+
         case WM_PAINT:
             BeginPaint(window, &ps);
+
             SetDIBitsToDevice(
                     win_dc, 0, 0,
                     frame_buffer.width,
@@ -66,9 +77,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             TextOutA(ovr_dc, OVR_LEFT, FRAME_RATE.y, FRAME_RATE.string, FRAME_RATE.length);
             TextOutA(ovr_dc, OVR_LEFT, FRAME_TIME.y, FRAME_TIME.string, FRAME_TIME.length);
             TextOutA(ovr_dc, OVR_LEFT, NAVIGATION.y, NAVIGATION.string, NAVIGATION.length);
+//            TextOutA(ovr_dc, OVR_LEFT, RAW_INPUTS.y, RAW_INPUTS.string, RAW_INPUTS.length);
+
             BitBlt(win_dc, OVR_LEFT, OVR_TOP, OVR_WIDTH, OVR_HEIGHT, ovr_dc, OVR_LEFT, OVR_TOP, SRCPAINT);
 
             EndPaint(window, &ps);
+
             break;
 
         case WM_SYSKEYDOWN:
@@ -99,13 +113,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             }
             break;
 
-        case WM_LBUTTONDOWN: mouse.pressed |= LEFT; break;
-        case WM_RBUTTONDOWN: mouse.pressed |= RIGHT; break;
-        case WM_MBUTTONDOWN: mouse.pressed |= MIDDLE; break;
-
-        case WM_LBUTTONUP: mouse.pressed &= (u8)~LEFT; break;
-        case WM_RBUTTONUP: mouse.pressed &= (u8)~RIGHT; break;
-        case WM_MBUTTONUP: mouse.pressed &= (u8)~MIDDLE; break;
+//        case WM_LBUTTONDOWN: mouse.pressed |= LEFT; break;
+//        case WM_RBUTTONDOWN: mouse.pressed |= RIGHT; break;
+//        case WM_MBUTTONDOWN: mouse.pressed |= MIDDLE; break;
+//
+//        case WM_LBUTTONUP: mouse.pressed &= (u8)~LEFT; break;
+//        case WM_RBUTTONUP: mouse.pressed &= (u8)~RIGHT; break;
+//        case WM_MBUTTONUP: mouse.pressed &= (u8)~MIDDLE; break;
 
         case WM_LBUTTONDBLCLK:
             if (mouse.is_captured) {
@@ -122,6 +136,30 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         case WM_MOUSEWHEEL:
             onMouseWheelChanged(GET_WHEEL_DELTA_WPARAM(wParam) / 120.0f);
             break;
+
+        case WM_INPUT:
+            raw_input_size = 0;
+            if (!GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &raw_input_size, sizeof(RAWINPUTHEADER)) && raw_input_size &&
+                 GetRawInputData((HRAWINPUT)lParam, RID_INPUT, raw_inputs, &raw_input_size, sizeof(RAWINPUTHEADER)) == raw_input_size &&
+                 raw_inputs->header.dwType == RIM_TYPEMOUSE) {
+//                printNumberIntoString(raw_inputs->data.mouse.lLastX, RAW_INPUTS.string + RAW_INPUTS.n1);
+//                printNumberIntoString(raw_inputs->data.mouse.lLastY, RAW_INPUTS.string + RAW_INPUTS.n2);
+                onMousePositionChanged((f32)raw_inputs->data.mouse.lLastX, (f32)raw_inputs->data.mouse.lLastY);
+                if (raw_inputs->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
+                    mouse.pressed |= LEFT;
+                else if (raw_inputs->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)
+                    mouse.pressed &= (u8)~LEFT;;
+
+                if (raw_inputs->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN)
+                    mouse.pressed |= RIGHT;
+                else if (raw_inputs->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)
+                    mouse.pressed &= (u8)~RIGHT;;
+
+                if (raw_inputs->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)
+                    mouse.pressed |= MIDDLE;
+                else if (raw_inputs->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)
+                    mouse.pressed &= (u8)~MIDDLE;;
+            }
 
         default:
             return DefWindowProc(hWnd, message, wParam, lParam);
@@ -185,6 +223,14 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     if (!window)
         return -1;
 
+
+    raw_inputs = (RAWINPUT*)allocate_memory(RAW_INPUT_MAX_SIZE);
+
+    rid.usUsagePage = 0x01;
+    rid.usUsage = 0x02;
+    if (!RegisterRawInputDevices(&rid, 1, sizeof(rid)))
+        return -1;
+
     win_dc = GetDC(window);  //GetDCEx(window, NULL, DCX_WINDOW);
     GetClientRect(window, &win_rect);
     SetBkMode(win_dc, TRANSPARENT);
@@ -199,7 +245,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
     ShowWindow(window, nCmdShow);
 
-    GetCursorPos(&current_mouse_position);
+//    GetCursorPos(&current_mouse_position);
     MSG message;
     u8 frames = 0;
 
@@ -214,12 +260,12 @@ int APIENTRY WinMain(HINSTANCE hInstance,
             DispatchMessageA(&message);
         }
 
-        prior_mouse_position = current_mouse_position;
-        GetCursorPos(&current_mouse_position);
-        f32 dx = (f32)(current_mouse_position.x - prior_mouse_position.x);
-        f32 dy = (f32)(current_mouse_position.y - prior_mouse_position.y);
-        if (dx || dy)
-            onMousePositionChanged(dx, dy);
+//        prior_mouse_position = current_mouse_position;
+//        GetCursorPos(&current_mouse_position);
+//        f32 dx = (f32)(current_mouse_position.x - prior_mouse_position.x);
+//        f32 dy = (f32)(current_mouse_position.y - prior_mouse_position.y);
+//        if (dx || dy)
+//            onMousePositionChanged(dx, dy);
 
         updateAndRender();
 
