@@ -11,8 +11,6 @@
 #define Terabytes(value) (Gigabytes(value)*1024LL)
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
-#define INITIAL_WIDTH 800
-#define INITIAL_HEIGHT 600
 #define PIXEL_SIZE 4
 
 #define RENDER_SIZE Megabytes(8 * PIXEL_SIZE)
@@ -23,7 +21,6 @@
 #define OVR_TOP 10
 #define OVR_WIDTH 120
 #define OVR_HEIGHT 100
-
 
 typedef struct Memory {
     u64 base, size, occupied;
@@ -71,11 +68,7 @@ typedef struct FrameBuffer {
     u32* pixels;
 
 } FrameBuffer;
-FrameBuffer frame_buffer = {
-    INITIAL_WIDTH,
-    INITIAL_HEIGHT,
-    INITIAL_WIDTH * INITIAL_HEIGHT
-};
+static FrameBuffer frame_buffer;
 u32* pixel;
 
 void* allocate_memory(u64 size) {
@@ -199,54 +192,97 @@ inline f32 approach(f32 from, f32 to, f32 step) {
     return to;
 }
 
-static char* RESOLUTION_STRING = "RES: 9999x9999";
-static char* FRAME_RATE_STRING = "FPS: 9999";
-static char* FRAME_TIME_STRING = "FMS: 9999";
-static char* NAVIGATION_STRING = "NAV: Orb";
+typedef struct TextLine {
+    char* string;
+    u8 length, y, n1, n2;
+} TextLine;
 
-static u8 RESOLUTION_STRING_LENGTH;
-static u8 FRAME_RATE_STRING_LENGTH;
-static u8 FRAME_TIME_STRING_LENGTH;
-static u8 NAVIGATION_STRING_LENGTH;
-
-static u8 RESOLUTION_STRING_START;
-static u8 FRAME_RATE_STRING_START;
-static u8 FRAME_TIME_STRING_START;
-static u8 NAVIGATION_STRING_START;
+static TextLine RESOLUTION;
+static TextLine FRAME_RATE;
+static TextLine FRAME_TIME;
+static TextLine NAVIGATION;
 
 void init_core() {
-    RESOLUTION_STRING = (char*)allocate_memory(OVR_WIDTH);
-    FRAME_RATE_STRING = (char*)allocate_memory(OVR_WIDTH);
-    FRAME_TIME_STRING = (char*)allocate_memory(OVR_WIDTH);
-    NAVIGATION_STRING = (char*)allocate_memory(OVR_WIDTH);
-
-    RESOLUTION_STRING = "RES: 9999x9999";
-    FRAME_RATE_STRING = "FPS: 9999";
-    FRAME_TIME_STRING = "FMS: 9999";
-    NAVIGATION_STRING = "NAV: Orb";
-
     frame_buffer.pixels = (u32*)allocate_memory(RENDER_SIZE);
 
-    RESOLUTION_STRING_LENGTH = (u8)strlen(RESOLUTION_STRING);
-    FRAME_RATE_STRING_LENGTH = (u8)strlen(FRAME_RATE_STRING);
-    FRAME_TIME_STRING_LENGTH = (u8)strlen(FRAME_TIME_STRING);
-    NAVIGATION_STRING_LENGTH = (u8)strlen(NAVIGATION_STRING);
+    RESOLUTION.string = (char*)allocate_memory(OVR_WIDTH);
+    FRAME_RATE.string = (char*)allocate_memory(OVR_WIDTH);
+    FRAME_TIME.string = (char*)allocate_memory(OVR_WIDTH);
+    NAVIGATION.string = (char*)allocate_memory(OVR_WIDTH);
 
-    RESOLUTION_STRING_START = 10;
-    FRAME_RATE_STRING_START = 30;
-    FRAME_TIME_STRING_START = 50;
-    NAVIGATION_STRING_START = 70;
+    RESOLUTION.string[0] = 'R';
+    RESOLUTION.string[1] = 'E';
+    RESOLUTION.string[2] = 'S';
+    RESOLUTION.string[3] = ':';
+    RESOLUTION.string[4] = ' ';
+    RESOLUTION.string[5] = '9';
+    RESOLUTION.string[6] = '9';
+    RESOLUTION.string[7] = '9';
+    RESOLUTION.string[8] = '9';
+    RESOLUTION.string[9] = 'x';
+    RESOLUTION.string[10] = '9';
+    RESOLUTION.string[11] = '9';
+    RESOLUTION.string[12] = '9';
+    RESOLUTION.string[13] = '9';
+    RESOLUTION.string[14] = '\0';
+
+    FRAME_RATE.string[0] = 'F';
+    FRAME_RATE.string[1] = 'P';
+    FRAME_RATE.string[2] = 'S';
+    FRAME_RATE.string[3] = ':';
+    FRAME_RATE.string[4] = ' ';
+    FRAME_RATE.string[5] = '9';
+    FRAME_RATE.string[6] = '9';
+    FRAME_RATE.string[7] = '9';
+    FRAME_RATE.string[8] = '9';
+    FRAME_RATE.string[9] = '\0';
+
+    FRAME_TIME.string[0] = 'F';
+    FRAME_TIME.string[1] = 'M';
+    FRAME_TIME.string[2] = 'S';
+    FRAME_TIME.string[3] = ':';
+    FRAME_TIME.string[4] = ' ';
+    FRAME_TIME.string[5] = '9';
+    FRAME_TIME.string[6] = '9';
+    FRAME_TIME.string[7] = '9';
+    FRAME_TIME.string[8] = '9';
+    FRAME_TIME.string[9] = '\0';
+
+    NAVIGATION.string[0] = 'N';
+    NAVIGATION.string[1] = 'A';
+    NAVIGATION.string[2] = 'V';
+    NAVIGATION.string[3] = ':';
+    NAVIGATION.string[4] = ' ';
+    NAVIGATION.string[5] = 'O';
+    NAVIGATION.string[6] = 'r';
+    NAVIGATION.string[7] = 'b';
+    NAVIGATION.string[8] = '\0';
+
+    RESOLUTION.length = (u8)strlen(RESOLUTION.string);
+    FRAME_RATE.length = (u8)strlen(FRAME_RATE.string);
+    FRAME_TIME.length = (u8)strlen(FRAME_TIME.string);
+    NAVIGATION.length = (u8)strlen(NAVIGATION.string);
+
+    RESOLUTION.y = 10;
+    FRAME_RATE.y = 30;
+    FRAME_TIME.y = 50;
+    NAVIGATION.y = 70;
+
+    RESOLUTION.n1 = 8;
+    RESOLUTION.n2 = 13;
+    FRAME_RATE.n1 = 8;
+    FRAME_TIME.n1 = 8;
 }
 
 void onMouseCaptured() {
     mouse.is_captured = true;
-    NAVIGATION_STRING[5] = 'F';
-    NAVIGATION_STRING[6] = 'p';
-    NAVIGATION_STRING[7] = 's';
+    NAVIGATION.string[5] = 'F';
+    NAVIGATION.string[6] = 'p';
+    NAVIGATION.string[7] = 's';
 }
 void onMouseUnCaptured() {
     mouse.is_captured = false;
-    NAVIGATION_STRING[5] = 'O';
-    NAVIGATION_STRING[6] = 'r';
-    NAVIGATION_STRING[7] = 'b';
+    NAVIGATION.string[5] = 'O';
+    NAVIGATION.string[6] = 'r';
+    NAVIGATION.string[7] = 'b';
 }

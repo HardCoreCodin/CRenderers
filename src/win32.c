@@ -2,7 +2,7 @@
 #include <windows.h>
 #include "ray_trace.h"
 
-static f64 ticks_per_second, seconds_per_ticks, milliseconds_per_ticks;
+static f64 ticks_per_second, seconds_per_tick, milliseconds_per_tick;
 
 static WNDCLASSA window_class;
 static HWND window;
@@ -24,8 +24,8 @@ inline void resizeFrameBuffer() {
     frame_buffer.height = (u16)info.bmiHeader.biHeight;
     frame_buffer.size = frame_buffer.width * frame_buffer.height;
 
-    printNumberIntoString(frame_buffer.width, RESOLUTION_STRING+8);
-    printNumberIntoString(frame_buffer.height, RESOLUTION_STRING+13);
+    printNumberIntoString(frame_buffer.width, RESOLUTION.string + RESOLUTION.n1);
+    printNumberIntoString(frame_buffer.height, RESOLUTION.string + RESOLUTION.n2);
 
     onFrameBufferResized();
 }
@@ -33,7 +33,7 @@ inline void resizeFrameBuffer() {
 void updateAndRender() {
     last_frame_ticks = current_frame_ticks;
     QueryPerformanceCounter(&current_frame_ticks);
-    update((f32)(seconds_per_ticks * (f64)(current_frame_ticks.QuadPart - last_frame_ticks.QuadPart)));
+    update((f32)(seconds_per_tick * (f64)(current_frame_ticks.QuadPart - last_frame_ticks.QuadPart)));
     render();
     InvalidateRgn(window, 0, false);
 }
@@ -62,10 +62,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                     DIB_RGB_COLORS);
 
             FillRect(ovr_dc, &ovr_rect, (HBRUSH) (COLOR_BACKGROUND + 1));
-            TextOutA(ovr_dc, OVR_LEFT, RESOLUTION_STRING_START, RESOLUTION_STRING, RESOLUTION_STRING_LENGTH);
-            TextOutA(ovr_dc, OVR_LEFT, FRAME_RATE_STRING_START, FRAME_RATE_STRING, FRAME_RATE_STRING_LENGTH);
-            TextOutA(ovr_dc, OVR_LEFT, FRAME_TIME_STRING_START, FRAME_TIME_STRING, FRAME_TIME_STRING_LENGTH);
-            TextOutA(ovr_dc, OVR_LEFT, NAVIGATION_STRING_START, RESOLUTION_STRING, NAVIGATION_STRING_LENGTH);
+            TextOutA(ovr_dc, OVR_LEFT, RESOLUTION.y, RESOLUTION.string, RESOLUTION.length);
+            TextOutA(ovr_dc, OVR_LEFT, FRAME_RATE.y, FRAME_RATE.string, FRAME_RATE.length);
+            TextOutA(ovr_dc, OVR_LEFT, FRAME_TIME.y, FRAME_TIME.string, FRAME_TIME.length);
+            TextOutA(ovr_dc, OVR_LEFT, NAVIGATION.y, NAVIGATION.string, NAVIGATION.length);
             BitBlt(win_dc, OVR_LEFT, OVR_TOP, OVR_WIDTH, OVR_HEIGHT, ovr_dc, OVR_LEFT, OVR_TOP, SRCPAINT);
 
             EndPaint(window, &ps);
@@ -137,8 +137,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     LARGE_INTEGER performance_frequency;
     QueryPerformanceFrequency(&performance_frequency);
     ticks_per_second = (f64)performance_frequency.QuadPart;
-    seconds_per_ticks = 1 / ticks_per_second;
-    milliseconds_per_ticks = 1000 * seconds_per_ticks;
+    seconds_per_tick = 1.0f / ticks_per_second;
+    milliseconds_per_tick = 1000.0f / ticks_per_second;
 
     f64 ticks_per_interval = ticks_per_second / 4;;
     // Initialize the memory:
@@ -174,8 +174,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
             CW_USEDEFAULT,
             CW_USEDEFAULT,
-            INITIAL_WIDTH,
-            INITIAL_HEIGHT,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
 
             0,
             0,
@@ -228,8 +228,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
         frames++;
 
         if (ticks >= ticks_per_interval) {
-            printNumberIntoString((u16)(frames / ticks * ticks_per_second), FRAME_RATE_STRING+8);
-            printNumberIntoString((u16)(ticks / frames * milliseconds_per_ticks), FRAME_TIME_STRING+8);
+            printNumberIntoString((u16)(frames / ticks * ticks_per_second), FRAME_RATE.string + FRAME_RATE.n1);
+            printNumberIntoString((u16)(ticks / frames * milliseconds_per_tick), FRAME_TIME.string + FRAME_TIME.n1);
 
             ticks = frames = 0;
         }
