@@ -6,34 +6,70 @@
 #define RAW_INPUT_MAX_SIZE Kilobytes(1)
 
 static f64 ticks_per_second, seconds_per_tick, milliseconds_per_tick;
+static f32 dx, dy;
 
 static WNDCLASSA window_class;
 static HWND window;
 static HDC win_dc, ovr_dc;
-static HBITMAP ovr_bp;
+static HBITMAP ovr_bm, dib_bm;
 static BITMAPINFO info;
 static RECT win_rect, ovr_rect;
-static POINT current_mouse_position, prior_mouse_position;
 static LARGE_INTEGER current_frame_ticks, last_frame_ticks;
 static PAINTSTRUCT ps;
 static RAWINPUTDEVICE rid;
 static RAWINPUT* raw_inputs;
-static UINT raw_input_size;
+static RAWMOUSE raw_mouse;
+static UINT size_ri, size_rih = sizeof(RAWINPUTHEADER);
+static HFONT font;
+//
+//inline void resizeFrameBuffer() {
+//    GetClientRect(window, &win_rect);
+//
+//    info.bmiHeader.biWidth = win_rect.right - win_rect.left;
+//    info.bmiHeader.biHeight = win_rect.bottom - win_rect.top;
+//
+//    HDC hdc = GetDC(window);
+//    if (dib_bm) DeleteObject(dib_bm);
+//    dib_bm = CreateDIBSection(
+//            hdc,
+//            &info,
+//            DIB_RGB_COLORS,
+//            (void**)&frame_buffer.pixels,
+//            0,
+//            0);
+//    ReleaseDC(window, hdc);
+//
+//    frame_buffer.width = (u16)info.bmiHeader.biWidth;
+//    frame_buffer.height = (u16)info.bmiHeader.biHeight;
+//    frame_buffer.size = frame_buffer.width * frame_buffer.height;
+//
+//    printNumberIntoString(frame_buffer.width, RESOLUTION.string + RESOLUTION.n1);
+//    printNumberIntoString(frame_buffer.height, RESOLUTION.string + RESOLUTION.n2);
+//
+//    onFrameBufferResized();
+//}
 
-inline void resizeFrameBuffer() {
-    GetClientRect(window, &win_rect);
+void refreshDisplay() {
+    HDC hdc = GetDC(window);
+    HDC mdc = CreateCompatibleDC(hdc);
 
-    info.bmiHeader.biWidth = win_rect.right - win_rect.left;
-    info.bmiHeader.biHeight = win_rect.bottom - win_rect.top;
+    SetBkMode(mdc, TRANSPARENT);
+    SelectObject(mdc, dib_bm);
+    BitBlt(hdc, 0, 0, frame_buffer.width, frame_buffer.height,
+           mdc, 0, 0, SRCCOPY);
 
-    frame_buffer.width = (u16)info.bmiHeader.biWidth;
-    frame_buffer.height = (u16)info.bmiHeader.biHeight;
-    frame_buffer.size = frame_buffer.width * frame_buffer.height;
+    SelectObject(mdc, font);
+    SetTextColor(mdc, 0x0000FF00);
+        TextOutA(mdc, OVR_LEFT, RESOLUTION.y, RESOLUTION.string, RESOLUTION.length);
+        TextOutA(mdc, OVR_LEFT, FRAME_RATE.y, FRAME_RATE.string, FRAME_RATE.length);
+        TextOutA(mdc, OVR_LEFT, FRAME_TIME.y, FRAME_TIME.string, FRAME_TIME.length);
+        TextOutA(mdc, OVR_LEFT, NAVIGATION.y, NAVIGATION.string, NAVIGATION.length);
 
-    printNumberIntoString(frame_buffer.width, RESOLUTION.string + RESOLUTION.n1);
-    printNumberIntoString(frame_buffer.height, RESOLUTION.string + RESOLUTION.n2);
+    BitBlt(hdc, 0, 0, frame_buffer.width, frame_buffer.height,
+           mdc, 0, 0, SRCPAINT);
 
-    onFrameBufferResized();
+    DeleteDC(mdc);
+    ReleaseDC(window, hdc);
 }
 
 void updateAndRender() {
@@ -41,7 +77,7 @@ void updateAndRender() {
     QueryPerformanceCounter(&current_frame_ticks);
     update((f32)(seconds_per_tick * (f64)(current_frame_ticks.QuadPart - last_frame_ticks.QuadPart)));
     render();
-    InvalidateRgn(window, 0, false);
+    refreshDisplay();
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -49,40 +85,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         case WM_DESTROY:
             app.is_running = false;
             PostQuitMessage(0);
-            break;
-
-        case WM_SIZE:
-            resizeFrameBuffer();
-            updateAndRender();
-            break;
-
-//        case WM_ERASEBKGND:
-//
-//            1;
-
-        case WM_PAINT:
-            BeginPaint(window, &ps);
-
-            SetDIBitsToDevice(
-                    win_dc, 0, 0,
-                    frame_buffer.width,
-                    frame_buffer.height, 0, 0, 0,
-                    frame_buffer.height,
-                    frame_buffer.pixels,
-                    &info,
-                    DIB_RGB_COLORS);
-
-            FillRect(ovr_dc, &ovr_rect, (HBRUSH) (COLOR_BACKGROUND + 1));
-            TextOutA(ovr_dc, OVR_LEFT, RESOLUTION.y, RESOLUTION.string, RESOLUTION.length);
-            TextOutA(ovr_dc, OVR_LEFT, FRAME_RATE.y, FRAME_RATE.string, FRAME_RATE.length);
-            TextOutA(ovr_dc, OVR_LEFT, FRAME_TIME.y, FRAME_TIME.string, FRAME_TIME.length);
-            TextOutA(ovr_dc, OVR_LEFT, NAVIGATION.y, NAVIGATION.string, NAVIGATION.length);
-//            TextOutA(ovr_dc, OVR_LEFT, RAW_INPUTS.y, RAW_INPUTS.string, RAW_INPUTS.length);
-
-            BitBlt(win_dc, OVR_LEFT, OVR_TOP, OVR_WIDTH, OVR_HEIGHT, ovr_dc, OVR_LEFT, OVR_TOP, SRCPAINT);
-
-            EndPaint(window, &ps);
-
             break;
 
         case WM_SYSKEYDOWN:
@@ -94,6 +96,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                 case 'D': keyboard.pressed |= RIGHT; break;
                 case 'R': keyboard.pressed |= UP; break;
                 case 'F': keyboard.pressed |= DOWN; break;
+
+                case VK_SPACE:
+                    if (mouse.is_captured) {
+                        onMouseUnCaptured();
+                        ReleaseCapture();
+                        ShowCursor(true);
+                    } else {
+                        onMouseCaptured();
+                        SetCapture(window);
+                        ShowCursor(false);
+                    }
+                    break;
+
+                case VK_TAB:
+                    app.is_HUD_visible =! app.is_HUD_visible;
+                    break;
 
                 case VK_ESCAPE:
                     app.is_running = false;
@@ -113,52 +131,31 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             }
             break;
 
-//        case WM_LBUTTONDOWN: mouse.pressed |= LEFT; break;
-//        case WM_RBUTTONDOWN: mouse.pressed |= RIGHT; break;
-//        case WM_MBUTTONDOWN: mouse.pressed |= MIDDLE; break;
-//
-//        case WM_LBUTTONUP: mouse.pressed &= (u8)~LEFT; break;
-//        case WM_RBUTTONUP: mouse.pressed &= (u8)~RIGHT; break;
-//        case WM_MBUTTONUP: mouse.pressed &= (u8)~MIDDLE; break;
-
-        case WM_LBUTTONDBLCLK:
-            if (mouse.is_captured) {
-                onMouseUnCaptured();
-                ReleaseCapture();
-                ShowCursor(true);
-            } else {
-                onMouseCaptured();
-                SetCapture(window);
-                ShowCursor(false);
-            }
-            break;
-
         case WM_MOUSEWHEEL:
             onMouseWheelChanged(GET_WHEEL_DELTA_WPARAM(wParam) / 120.0f);
             break;
 
         case WM_INPUT:
-            raw_input_size = 0;
-            if (!GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &raw_input_size, sizeof(RAWINPUTHEADER)) && raw_input_size &&
-                 GetRawInputData((HRAWINPUT)lParam, RID_INPUT, raw_inputs, &raw_input_size, sizeof(RAWINPUTHEADER)) == raw_input_size &&
+            size_ri = 0;
+            if (!GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &size_ri, size_rih) && size_ri &&
+                 GetRawInputData((HRAWINPUT)lParam, RID_INPUT, raw_inputs, &size_ri, size_rih) == size_ri &&
                  raw_inputs->header.dwType == RIM_TYPEMOUSE) {
-//                printNumberIntoString(raw_inputs->data.mouse.lLastX, RAW_INPUTS.string + RAW_INPUTS.n1);
-//                printNumberIntoString(raw_inputs->data.mouse.lLastY, RAW_INPUTS.string + RAW_INPUTS.n2);
-                onMousePositionChanged((f32)raw_inputs->data.mouse.lLastX, (f32)raw_inputs->data.mouse.lLastY);
-                if (raw_inputs->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
-                    mouse.pressed |= LEFT;
-                else if (raw_inputs->data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)
-                    mouse.pressed &= (u8)~LEFT;;
+                raw_mouse = raw_inputs->data.mouse;
 
-                if (raw_inputs->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN)
-                    mouse.pressed |= RIGHT;
-                else if (raw_inputs->data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)
-                    mouse.pressed &= (u8)~RIGHT;;
+                if (     raw_mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) mouse.pressed |= LEFT;
+                else if (raw_mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)   mouse.pressed &= (u8)~LEFT;;
 
-                if (raw_inputs->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)
-                    mouse.pressed |= MIDDLE;
-                else if (raw_inputs->data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)
-                    mouse.pressed &= (u8)~MIDDLE;;
+                if (     raw_mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) mouse.pressed |= RIGHT;
+                else if (raw_mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)   mouse.pressed &= (u8)~RIGHT;;
+
+                if (     raw_mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) mouse.pressed |= MIDDLE;
+                else if (raw_mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)   mouse.pressed &= (u8)~MIDDLE;;
+
+                dx = (f32)raw_mouse.lLastX;
+                dy = (f32)raw_mouse.lLastY;
+
+                if ((dx || dy) && (mouse.is_captured || (mouse.pressed & RIGHT || mouse.pressed & MIDDLE)))
+                    onMousePositionChanged(dx, dy);
             }
 
         default:
@@ -200,7 +197,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     window_class.lpszClassName  = "RnDer";
     window_class.hInstance      = hInstance;
     window_class.lpfnWndProc    = WndProc;
-    window_class.style          = CS_OWNDC|CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS;
+    window_class.style          = CS_BYTEALIGNCLIENT|CS_HREDRAW|CS_VREDRAW;
     window_class.hCursor        = LoadCursorA(0, IDC_ARROW);
 
     RegisterClassA(&window_class);
@@ -212,8 +209,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
             CW_USEDEFAULT,
             CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
+            300,
+            200,
 
             0,
             0,
@@ -223,7 +220,6 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     if (!window)
         return -1;
 
-
     raw_inputs = (RAWINPUT*)allocate_memory(RAW_INPUT_MAX_SIZE);
 
     rid.usUsagePage = 0x01;
@@ -231,54 +227,70 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     if (!RegisterRawInputDevices(&rid, 1, sizeof(rid)))
         return -1;
 
-    win_dc = GetDC(window);  //GetDCEx(window, NULL, DCX_WINDOW);
     GetClientRect(window, &win_rect);
-    SetBkMode(win_dc, TRANSPARENT);
 
-    ovr_dc = CreateCompatibleDC(win_dc);
-    ovr_bp = CreateCompatibleBitmap(win_dc, OVR_WIDTH, OVR_HEIGHT);
-    HFONT ovr_font = GetStockObject(SYSTEM_FONT);
-    SelectObject(ovr_dc, ovr_bp);
-    SelectObject(ovr_dc, ovr_font);
-    SetTextColor(ovr_dc, 0x0000FF00);
-    SetBkMode(ovr_dc, TRANSPARENT);
+    info.bmiHeader.biWidth = win_rect.right - win_rect.left;
+    info.bmiHeader.biHeight = win_rect.bottom - win_rect.top;
 
+    HDC hdc = GetDC(window);
+    dib_bm = CreateDIBSection(
+            hdc,
+            &info,
+            DIB_RGB_COLORS,
+            (void**)&frame_buffer.pixels,
+            0,
+            0);
+    ReleaseDC(window, hdc);
+
+    frame_buffer.width = (u16)info.bmiHeader.biWidth;
+    frame_buffer.height = (u16)info.bmiHeader.biHeight;
+    frame_buffer.size = frame_buffer.width * frame_buffer.height;
+
+    printNumberIntoString(frame_buffer.width, RESOLUTION.string + RESOLUTION.n1);
+    printNumberIntoString(frame_buffer.height, RESOLUTION.string + RESOLUTION.n2);
+
+    onFrameBufferResized();
+
+    font = GetStockObject(SYSTEM_FONT);
     ShowWindow(window, nCmdShow);
 
-//    GetCursorPos(&current_mouse_position);
     MSG message;
     u8 frames = 0;
-
-    LARGE_INTEGER start_frame_counter, end_frame_counter;
     f64 ticks = 0;
 
-    while (app.is_running) {
-        QueryPerformanceCounter(&start_frame_counter);
+    LARGE_INTEGER performance_counter;
+    f64 prior_frame_counter = 0;
+    f64 current_frame_counter = 0;
 
+    while (app.is_running) {
         while (PeekMessageA(&message, 0, 0, 0, PM_REMOVE)) {
             TranslateMessage(&message);
             DispatchMessageA(&message);
         }
 
-//        prior_mouse_position = current_mouse_position;
-//        GetCursorPos(&current_mouse_position);
-//        f32 dx = (f32)(current_mouse_position.x - prior_mouse_position.x);
-//        f32 dy = (f32)(current_mouse_position.y - prior_mouse_position.y);
-//        if (dx || dy)
-//            onMousePositionChanged(dx, dy);
-
         updateAndRender();
 
-        QueryPerformanceCounter(&end_frame_counter);
-        ticks += (f64)(end_frame_counter.QuadPart - start_frame_counter.QuadPart);
-        frames++;
+        if (app.is_HUD_visible) {
+            if (prior_frame_counter == 0) {
+                QueryPerformanceCounter(&performance_counter);
+                prior_frame_counter = (f64)performance_counter.QuadPart;
+                continue;
+            }
 
-        if (ticks >= ticks_per_interval) {
-            printNumberIntoString((u16)(frames / ticks * ticks_per_second), FRAME_RATE.string + FRAME_RATE.n1);
-            printNumberIntoString((u16)(ticks / frames * milliseconds_per_tick), FRAME_TIME.string + FRAME_TIME.n1);
+            prior_frame_counter = current_frame_counter;
+            QueryPerformanceCounter(&performance_counter);
+            current_frame_counter = (f64)performance_counter.QuadPart;
+            ticks += current_frame_counter - prior_frame_counter;
+            frames++;
 
-            ticks = frames = 0;
-        }
+            if (ticks >= ticks_per_interval) {
+                printNumberIntoString((u16)(frames / ticks * ticks_per_second), FRAME_RATE.string + FRAME_RATE.n1);
+                printNumberIntoString((u16)(ticks / frames * milliseconds_per_tick), FRAME_TIME.string + FRAME_TIME.n1);
+
+                ticks = frames = 0;
+            }
+        } else
+            prior_frame_counter = 0;
     }
 
     return (int)message.wParam;
