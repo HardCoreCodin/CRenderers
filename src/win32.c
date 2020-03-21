@@ -1,6 +1,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <rpc.h>
+#include "text.h"
 #include "ray_trace.h"
 
 #define RAW_INPUT_MAX_SIZE Kilobytes(1)
@@ -10,66 +10,29 @@ static f32 dx, dy;
 
 static WNDCLASSA window_class;
 static HWND window;
-static HDC win_dc, ovr_dc;
-static HBITMAP ovr_bm, dib_bm;
+static HDC win_dc;
 static BITMAPINFO info;
-static RECT win_rect, ovr_rect;
+static RECT win_rect;
 static LARGE_INTEGER current_frame_ticks, last_frame_ticks;
-static PAINTSTRUCT ps;
 static RAWINPUTDEVICE rid;
 static RAWINPUT* raw_inputs;
 static RAWMOUSE raw_mouse;
 static UINT size_ri, size_rih = sizeof(RAWINPUTHEADER);
-static HFONT font;
-//
-//inline void resizeFrameBuffer() {
-//    GetClientRect(window, &win_rect);
-//
-//    info.bmiHeader.biWidth = win_rect.right - win_rect.left;
-//    info.bmiHeader.biHeight = win_rect.bottom - win_rect.top;
-//
-//    HDC hdc = GetDC(window);
-//    if (dib_bm) DeleteObject(dib_bm);
-//    dib_bm = CreateDIBSection(
-//            hdc,
-//            &info,
-//            DIB_RGB_COLORS,
-//            (void**)&frame_buffer.pixels,
-//            0,
-//            0);
-//    ReleaseDC(window, hdc);
-//
-//    frame_buffer.width = (u16)info.bmiHeader.biWidth;
-//    frame_buffer.height = (u16)info.bmiHeader.biHeight;
-//    frame_buffer.size = frame_buffer.width * frame_buffer.height;
-//
-//    printNumberIntoString(frame_buffer.width, RESOLUTION.string + RESOLUTION.n1);
-//    printNumberIntoString(frame_buffer.height, RESOLUTION.string + RESOLUTION.n2);
-//
-//    onFrameBufferResized();
-//}
 
-void refreshDisplay() {
-    HDC hdc = GetDC(window);
-    HDC mdc = CreateCompatibleDC(hdc);
+inline void resizeFrameBuffer() {
+    GetClientRect(window, &win_rect);
 
-    SetBkMode(mdc, TRANSPARENT);
-    SelectObject(mdc, dib_bm);
-    BitBlt(hdc, 0, 0, frame_buffer.width, frame_buffer.height,
-           mdc, 0, 0, SRCCOPY);
+    info.bmiHeader.biWidth = win_rect.right - win_rect.left;
+    info.bmiHeader.biHeight = win_rect.bottom - win_rect.top;
 
-    SelectObject(mdc, font);
-    SetTextColor(mdc, 0x0000FF00);
-        TextOutA(mdc, OVR_LEFT, RESOLUTION.y, RESOLUTION.string, RESOLUTION.length);
-        TextOutA(mdc, OVR_LEFT, FRAME_RATE.y, FRAME_RATE.string, FRAME_RATE.length);
-        TextOutA(mdc, OVR_LEFT, FRAME_TIME.y, FRAME_TIME.string, FRAME_TIME.length);
-        TextOutA(mdc, OVR_LEFT, NAVIGATION.y, NAVIGATION.string, NAVIGATION.length);
+    frame_buffer.width = (u16)info.bmiHeader.biWidth;
+    frame_buffer.height = (u16)info.bmiHeader.biHeight;
+    frame_buffer.size = frame_buffer.width * frame_buffer.height;
 
-    BitBlt(hdc, 0, 0, frame_buffer.width, frame_buffer.height,
-           mdc, 0, 0, SRCPAINT);
+    printNumberIntoString(frame_buffer.width, RESOLUTION.string + RESOLUTION.n1);
+    printNumberIntoString(frame_buffer.height, RESOLUTION.string + RESOLUTION.n2);
 
-    DeleteDC(mdc);
-    ReleaseDC(window, hdc);
+    onFrameBufferResized();
 }
 
 void updateAndRender() {
@@ -77,7 +40,8 @@ void updateAndRender() {
     QueryPerformanceCounter(&current_frame_ticks);
     update((f32)(seconds_per_tick * (f64)(current_frame_ticks.QuadPart - last_frame_ticks.QuadPart)));
     render();
-    refreshDisplay();
+    InvalidateRgn(window, NULL, FALSE);
+    UpdateWindow(window);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -85,6 +49,30 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         case WM_DESTROY:
             app.is_running = false;
             PostQuitMessage(0);
+            break;
+
+        case WM_SIZE:
+            resizeFrameBuffer();
+            updateAndRender();
+            break;
+
+        case WM_PAINT:
+            if (app.is_HUD_visible) {
+                drawString(RESOLUTION.string, OVR_COLOR, OVR_LEFT, frame_buffer.height - RESOLUTION.y);
+                drawString(FRAME_RATE.string, OVR_COLOR, OVR_LEFT, frame_buffer.height - FRAME_RATE.y);
+                drawString(FRAME_TIME.string, OVR_COLOR, OVR_LEFT, frame_buffer.height - FRAME_TIME.y);
+                drawString(NAVIGATION.string, OVR_COLOR, OVR_LEFT, frame_buffer.height - NAVIGATION.y);
+            }
+            SetDIBitsToDevice(
+                    win_dc, 0, 0,
+                    frame_buffer.width,
+                    frame_buffer.height, 0, 0, 0,
+                    frame_buffer.height,
+                    frame_buffer.pixels,
+                    &info,
+                    DIB_RGB_COLORS);
+
+            ValidateRgn(window, NULL);
             break;
 
         case WM_SYSKEYDOWN:
@@ -184,11 +172,6 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     init_core();
     init_renderer();
 
-    ovr_rect.left = OVR_LEFT;
-    ovr_rect.right = OVR_LEFT + OVR_WIDTH;
-    ovr_rect.top = OVR_TOP;
-    ovr_rect.bottom = OVR_TOP + OVR_HEIGHT;
-
     info.bmiHeader.biSize        = sizeof(info.bmiHeader);
     info.bmiHeader.biCompression = BI_RGB;
     info.bmiHeader.biBitCount    = 32;
@@ -197,7 +180,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     window_class.lpszClassName  = "RnDer";
     window_class.hInstance      = hInstance;
     window_class.lpfnWndProc    = WndProc;
-    window_class.style          = CS_BYTEALIGNCLIENT|CS_HREDRAW|CS_VREDRAW;
+    window_class.style          = CS_OWNDC|CS_HREDRAW|CS_VREDRAW;
     window_class.hCursor        = LoadCursorA(0, IDC_ARROW);
 
     RegisterClassA(&window_class);
@@ -209,8 +192,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
             CW_USEDEFAULT,
             CW_USEDEFAULT,
-            300,
-            200,
+            400,
+            400,
 
             0,
             0,
@@ -227,31 +210,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     if (!RegisterRawInputDevices(&rid, 1, sizeof(rid)))
         return -1;
 
-    GetClientRect(window, &win_rect);
-
-    info.bmiHeader.biWidth = win_rect.right - win_rect.left;
-    info.bmiHeader.biHeight = win_rect.bottom - win_rect.top;
-
-    HDC hdc = GetDC(window);
-    dib_bm = CreateDIBSection(
-            hdc,
-            &info,
-            DIB_RGB_COLORS,
-            (void**)&frame_buffer.pixels,
-            0,
-            0);
-    ReleaseDC(window, hdc);
-
-    frame_buffer.width = (u16)info.bmiHeader.biWidth;
-    frame_buffer.height = (u16)info.bmiHeader.biHeight;
-    frame_buffer.size = frame_buffer.width * frame_buffer.height;
-
-    printNumberIntoString(frame_buffer.width, RESOLUTION.string + RESOLUTION.n1);
-    printNumberIntoString(frame_buffer.height, RESOLUTION.string + RESOLUTION.n2);
-
-    onFrameBufferResized();
-
-    font = GetStockObject(SYSTEM_FONT);
+    win_dc = GetDC(window);
     ShowWindow(window, nCmdShow);
 
     MSG message;

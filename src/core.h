@@ -18,9 +18,8 @@
 #define MEMORY_BASE Terabytes(2)
 
 #define OVR_LEFT 10
-#define OVR_TOP 10
 #define OVR_WIDTH 120
-#define OVR_HEIGHT 120
+#define OVR_COLOR 0x0000FF00
 
 typedef struct Memory {
     u64 base, size, occupied;
@@ -204,7 +203,7 @@ static TextLine NAVIGATION;
 //static TextLine RAW_INPUTS;
 
 void init_core() {
-//    frame_buffer.pixels = (u32*)allocate_memory(RENDER_SIZE);
+    frame_buffer.pixels = (u32*)allocate_memory(RENDER_SIZE);
 
     RESOLUTION.string = (char*)allocate_memory(OVR_WIDTH);
     FRAME_RATE.string = (char*)allocate_memory(OVR_WIDTH);
@@ -282,10 +281,10 @@ void init_core() {
     NAVIGATION.length = (u8)strlen(NAVIGATION.string);
 //    RAW_INPUTS.length = (u8)strlen(RAW_INPUTS.string);
 
-    RESOLUTION.y = 10;
-    FRAME_RATE.y = 30;
-    FRAME_TIME.y = 50;
-    NAVIGATION.y = 70;
+    RESOLUTION.y = 20;
+    FRAME_RATE.y = 40;
+    FRAME_TIME.y = 60;
+    NAVIGATION.y = 80;
 //    RAW_INPUTS.y = 90;
 
     RESOLUTION.n1 = 8;
