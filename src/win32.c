@@ -1,6 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include "text.h"
+#include "hud.h"
 #include "ray_trace.h"
 
 #define RAW_INPUT_MAX_SIZE Kilobytes(1)
@@ -29,8 +30,8 @@ inline void resizeFrameBuffer() {
     frame_buffer.height = (u16)info.bmiHeader.biHeight;
     frame_buffer.size = frame_buffer.width * frame_buffer.height;
 
-    printNumberIntoString(frame_buffer.width, RESOLUTION.string + RESOLUTION.n1);
-    printNumberIntoString(frame_buffer.height, RESOLUTION.string + RESOLUTION.n2);
+    printNumberIntoString(frame_buffer.width, HUD_width);
+    printNumberIntoString(frame_buffer.height, HUD_height);
 
     onFrameBufferResized();
 }
@@ -57,22 +58,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             break;
 
         case WM_PAINT:
-            if (app.is_HUD_visible) {
-                drawString(RESOLUTION.string, OVR_COLOR, OVR_LEFT, frame_buffer.height - RESOLUTION.y);
-                drawString(FRAME_RATE.string, OVR_COLOR, OVR_LEFT, frame_buffer.height - FRAME_RATE.y);
-                drawString(FRAME_TIME.string, OVR_COLOR, OVR_LEFT, frame_buffer.height - FRAME_TIME.y);
-                drawString(NAVIGATION.string, OVR_COLOR, OVR_LEFT, frame_buffer.height - NAVIGATION.y);
-            }
-            SetDIBitsToDevice(
-                    win_dc, 0, 0,
-                    frame_buffer.width,
-                    frame_buffer.height, 0, 0, 0,
-                    frame_buffer.height,
-                    frame_buffer.pixels,
-                    &info,
-                    DIB_RGB_COLORS);
+            if (app.is_HUD_visible)
+                drawString(HUD_text, HUD_COLOR, HUD_LEFT, frame_buffer.height - HUD_TOP - FONT_HEIGHT);
+
+            SetDIBitsToDevice(win_dc,
+                    0, 0, frame_buffer.width, frame_buffer.height,
+                    0, 0, 0, frame_buffer.height,
+                    frame_buffer.pixels, &info, DIB_RGB_COLORS);
 
             ValidateRgn(window, NULL);
+
             break;
 
         case WM_SYSKEYDOWN:
@@ -169,6 +164,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     if (!memory.address)
         return -1;
 
+    init_hud();
     init_core();
     init_renderer();
 
@@ -192,8 +188,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
             CW_USEDEFAULT,
             CW_USEDEFAULT,
-            400,
-            400,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
 
             0,
             0,
@@ -243,8 +239,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
             frames++;
 
             if (ticks >= ticks_per_interval) {
-                printNumberIntoString((u16)(frames / ticks * ticks_per_second), FRAME_RATE.string + FRAME_RATE.n1);
-                printNumberIntoString((u16)(ticks / frames * milliseconds_per_tick), FRAME_TIME.string + FRAME_TIME.n1);
+                printNumberIntoString((u16)(frames / ticks * ticks_per_second), HUD_fps);
+                printNumberIntoString((u16)(ticks / frames * milliseconds_per_tick), HUD_msf);
 
                 ticks = frames = 0;
             }
