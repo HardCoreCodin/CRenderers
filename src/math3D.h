@@ -264,12 +264,13 @@ void absolute_rotate(f32 yaw_amount, f32 pitch_amount, f32 roll_amount) {
 }
 
 void rotate(f32 yaw_amount, f32 pitch_amount, f32 roll_amount) {
-    if (roll_amount) roll(roll_amount);
-    if (pitch_amount) pitch(pitch_amount);
     if (yaw_amount) yaw(yaw_amount);
-    
-    matmul(&roll_matrix, &pitch_matrix, &rotation_matrix);
-    imatmul(&rotation_matrix, &yaw_matrix);
+    if (pitch_amount) pitch(pitch_amount);
+    if (roll_amount) {
+        roll(roll_amount);
+        matmul(&roll_matrix, &pitch_matrix, &rotation_matrix);
+        imatmul(&rotation_matrix, &yaw_matrix);
+    } else matmul(&pitch_matrix, &yaw_matrix, &rotation_matrix);
 }
 
 void init_math3D() {

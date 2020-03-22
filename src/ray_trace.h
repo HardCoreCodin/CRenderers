@@ -160,12 +160,26 @@ void update(f32 delta_time) {
         delta_time = 1;
 
     if (mouse.is_captured) {
-        if (zoom(delta_time)) resetRayDirections();
-        if (look(delta_time)) rotateRayDirections();
+        if (fps_controller.zoom.changed) {
+            zoom();
+            resetRayDirections();
+        }
+
+        if (fps_controller.orientation.changed) {
+            look();
+            rotateRayDirections();
+        }
     } else {
-        if (orbit(delta_time)) rotateRayDirections();
-        pan(delta_time);
-        dolly(delta_time);
+        if (orbit_controller.orbit.changed) {
+            orbit();
+            rotateRayDirections();
+        }
+
+        if (orbit_controller.pan.changed)
+            pan();
+
+        if (orbit_controller.dolly.changed)
+            dolly();
     }
 
     move(delta_time);

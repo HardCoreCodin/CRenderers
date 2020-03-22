@@ -47,13 +47,13 @@ void init_core3D() {
     orbit_controller.target_direction = (Vector3*)allocate_memory(sizeof(Vector3));
 
     fps_controller.velocity.maximum = 8;
-    fps_controller.acceleration.maximum = 10;
-    fps_controller.orientation.sensitivity = 0.025f;
+    fps_controller.acceleration.maximum = 35;
+    fps_controller.orientation.sensitivity = 7 / 10000.0f;
     fps_controller.zoom.sensitivity = 1;
     fps_controller.zoom.changed = fps_controller.orientation.changed = false;
 
-    orbit_controller.pan.sensitivity = 0.2f;
-    orbit_controller.orbit.sensitivity = 0.025f;
+    orbit_controller.pan.sensitivity = 1 / 100.0f;
+    orbit_controller.orbit.sensitivity = 1 / 1000.0f;
     orbit_controller.dolly.sensitivity = 1;
     orbit_controller.dolly.changed = orbit_controller.pan.changed = false;
     orbit_controller.dolly.current = -5;
@@ -87,14 +87,11 @@ void onMouseWheelChanged(f32 amount) {
     }
 }
 
-bool dolly(f32 delta_time) {
-    if (!orbit_controller.dolly.changed)
-        return false;
-
+void dolly() {
     scale3D(forward, orbit_controller.dolly.factor, orbit_controller.target_direction);
     add3D(camera.position, orbit_controller.target_direction, orbit_controller.target_position);
 
-    orbit_controller.dolly.current += orbit_controller.dolly.in * delta_time;
+    orbit_controller.dolly.current += orbit_controller.dolly.in;
     if (orbit_controller.dolly.current > 0)
         orbit_controller.dolly.factor = 1 / orbit_controller.dolly.current;
     else
@@ -105,35 +102,25 @@ bool dolly(f32 delta_time) {
 
     orbit_controller.dolly.in = 0;
     orbit_controller.dolly.changed = false;
-
-    return true;
 }
 
-bool pan(f32 delta_time) {
-    if (!orbit_controller.pan.changed)
-        return false;
-
-    scale3D(right, orbit_controller.pan.right * delta_time, &delta);
+void pan() {
+    scale3D(right, orbit_controller.pan.right, &delta);
     iadd3D(camera.position, &delta);
 
-    scale3D(up, orbit_controller.pan.up * delta_time, &delta);
+    scale3D(up, orbit_controller.pan.up, &delta);
     iadd3D(camera.position, &delta);
 
     orbit_controller.pan.right = orbit_controller.pan.up = 0;
     orbit_controller.pan.changed = false;
-
-    return true;
 }
 
-bool orbit(f32 delta_time) {
-    if (!orbit_controller.orbit.changed)
-        return false;
-
+void orbit() {
     scale3D(forward, orbit_controller.dolly.factor, orbit_controller.target_direction);
     add3D(camera.position, orbit_controller.target_direction, orbit_controller.target_position);
 
-    rotate(orbit_controller.orbit.yaw * delta_time,
-           orbit_controller.orbit.pitch * delta_time,
+    rotate(orbit_controller.orbit.yaw,
+           orbit_controller.orbit.pitch,
            0);
 
     scale3D(forward, orbit_controller.dolly.factor, orbit_controller.target_direction);
@@ -141,35 +128,23 @@ bool orbit(f32 delta_time) {
 
     orbit_controller.orbit.yaw = orbit_controller.orbit.pitch = 0;
     orbit_controller.orbit.changed = false;
-
-    return true;
 }
 
-bool zoom(f32 delta_time) {
-    if (!fps_controller.zoom.changed)
-        return false;
-
-    camera.focal_length += fps_controller.zoom.in * delta_time;
+void zoom() {
+    camera.focal_length += fps_controller.zoom.in;
 
     fps_controller.zoom.in = 0;
     fps_controller.zoom.changed = false;
-
-    return true;
 }
 
-bool look(f32 delta_time) {
-    if (!fps_controller.orientation.changed)
-        return false;
-
-    rotate(fps_controller.orientation.yaw * delta_time,
-           fps_controller.orientation.pitch * delta_time,
+void look() {
+    rotate(fps_controller.orientation.yaw,
+           fps_controller.orientation.pitch,
            0);
 
     fps_controller.orientation.yaw = 0;
     fps_controller.orientation.pitch = 0;
     fps_controller.orientation.changed = false;
-
-    return true;
 }
 
 void move(f32 delta_time) {
