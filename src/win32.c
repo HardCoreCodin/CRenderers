@@ -1,24 +1,35 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include "text.h"
-#include "hud.h"
+
+#include "lib/render/draw.h"
+#include "lib/render/hud.h"
+#include "lib/core/string.h"
+
 #include "ray_trace.h"
 
 #define RAW_INPUT_MAX_SIZE Kilobytes(1)
+#define MEMORY_SIZE Gigabytes(1)
+#define MEMORY_BASE Terabytes(2)
 
-static f64 ticks_per_second, seconds_per_tick, milliseconds_per_tick;
+static bool is_running;
 static f32 dx, dy;
+static f64 ticks_per_second, seconds_per_tick, milliseconds_per_tick, delta_time;
 
 static WNDCLASSA window_class;
 static HWND window;
 static HDC win_dc;
 static BITMAPINFO info;
 static RECT win_rect;
-static LARGE_INTEGER current_frame_ticks, last_frame_ticks;
+static LARGE_INTEGER current_frame_ticks, last_frame_ticks, delta_ticks;
 static RAWINPUTDEVICE rid;
 static RAWINPUT* raw_inputs;
 static RAWMOUSE raw_mouse;
 static UINT size_ri, size_rih = sizeof(RAWINPUTHEADER);
+
+static Memory memory;
+static Controls controls;
+static FrameBuffer frame_buffer;
+static HUD hud;
 
 inline void resizeFrameBuffer() {
     GetClientRect(window, &win_rect);
@@ -30,17 +41,18 @@ inline void resizeFrameBuffer() {
     frame_buffer.height = (u16)info.bmiHeader.biHeight;
     frame_buffer.size = frame_buffer.width * frame_buffer.height;
 
-    printNumberIntoString(frame_buffer.width, HUD_width);
-    printNumberIntoString(frame_buffer.height, HUD_height);
-
-    onFrameBufferResized();
+    printNumberIntoString(frame_buffer.width, hud.width);
+    printNumberIntoString(frame_buffer.height, hud.height);
+    onFrameBufferResized(frame_buffer.width, frame_buffer.height);
 }
 
 void updateAndRender() {
     last_frame_ticks = current_frame_ticks;
     QueryPerformanceCounter(&current_frame_ticks);
-    update((f32)(seconds_per_tick * (f64)(current_frame_ticks.QuadPart - last_frame_ticks.QuadPart)));
-    render();
+    delta_ticks.QuadPart = current_frame_ticks.QuadPart - last_frame_ticks.QuadPart;
+    delta_time = delta_ticks.QuadPart * seconds_per_tick;
+    update((f32)delta_time, frame_buffer.width, frame_buffer.height, &controls);
+    render(&frame_buffer);
     InvalidateRgn(window, NULL, FALSE);
     UpdateWindow(window);
 }
@@ -48,7 +60,7 @@ void updateAndRender() {
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_DESTROY:
-            app.is_running = false;
+            is_running = false;
             PostQuitMessage(0);
             break;
 
@@ -58,8 +70,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             break;
 
         case WM_PAINT:
-            if (app.is_HUD_visible)
-                drawString(HUD_text, HUD_COLOR, HUD_LEFT, frame_buffer.height - HUD_TOP - FONT_HEIGHT);
+            if (hud.is_visible)
+                drawString(hud.text, HUD_COLOR, HUD_LEFT, frame_buffer.height - HUD_TOP - FONT_HEIGHT, &frame_buffer);
 
             SetDIBitsToDevice(win_dc,
                     0, 0, frame_buffer.width, frame_buffer.height,
@@ -73,31 +85,33 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         case WM_SYSKEYDOWN:
         case WM_KEYDOWN:
             switch ((u32)wParam) {
-                case 'W': keyboard.pressed |= FORWARD; break;
-                case 'A': keyboard.pressed |= LEFT; break;
-                case 'S': keyboard.pressed |= BACKWARD; break;
-                case 'D': keyboard.pressed |= RIGHT; break;
-                case 'R': keyboard.pressed |= UP; break;
-                case 'F': keyboard.pressed |= DOWN; break;
+                case 'W': controls.keyboard.pressed |= controls.buttons.FORWARD; break;
+                case 'A': controls.keyboard.pressed |= controls.buttons.LEFT; break;
+                case 'S': controls.keyboard.pressed |= controls.buttons.BACKWARD; break;
+                case 'D': controls.keyboard.pressed |= controls.buttons.RIGHT; break;
+                case 'R': controls.keyboard.pressed |= controls.buttons.UP; break;
+                case 'F': controls.keyboard.pressed |= controls.buttons.DOWN; break;
 
                 case VK_SPACE:
-                    if (mouse.is_captured) {
-                        onMouseUnCaptured();
+                    if (controls.mouse.is_captured) {
+                        controls.mouse.is_captured = false;
+                        setControllerModeInHUD(false, hud.mode);
                         ReleaseCapture();
                         ShowCursor(true);
                     } else {
-                        onMouseCaptured();
+                        controls.mouse.is_captured = true;
+                        setControllerModeInHUD(true, hud.mode);
                         SetCapture(window);
                         ShowCursor(false);
                     }
                     break;
 
                 case VK_TAB:
-                    app.is_HUD_visible =! app.is_HUD_visible;
+                    hud.is_visible =! hud.is_visible;
                     break;
 
                 case VK_ESCAPE:
-                    app.is_running = false;
+                    is_running = false;
                     break;
             }
             break;
@@ -105,17 +119,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         case WM_SYSKEYUP:
         case WM_KEYUP:
             switch ((u32)wParam) {
-                case 'W': keyboard.pressed &= (u8)~FORWARD; break;
-                case 'A': keyboard.pressed &= (u8)~LEFT; break;
-                case 'S': keyboard.pressed &= (u8)~BACKWARD; break;
-                case 'D': keyboard.pressed &= (u8)~RIGHT; break;
-                case 'R': keyboard.pressed &= (u8)~UP; break;
-                case 'F': keyboard.pressed &= (u8)~DOWN; break;
+                case 'W': controls.keyboard.pressed &= (u8)~controls.buttons.FORWARD; break;
+                case 'A': controls.keyboard.pressed &= (u8)~controls.buttons.LEFT; break;
+                case 'S': controls.keyboard.pressed &= (u8)~controls.buttons.BACKWARD; break;
+                case 'D': controls.keyboard.pressed &= (u8)~controls.buttons.RIGHT; break;
+                case 'R': controls.keyboard.pressed &= (u8)~controls.buttons.UP; break;
+                case 'F': controls.keyboard.pressed &= (u8)~controls.buttons.DOWN; break;
             }
             break;
 
         case WM_MOUSEWHEEL:
-            onMouseWheelChanged(GET_WHEEL_DELTA_WPARAM(wParam) / 120.0f);
+            onMouseWheelChanged(GET_WHEEL_DELTA_WPARAM(wParam) / 120.0f, &controls.mouse);
             break;
 
         case WM_INPUT:
@@ -125,20 +139,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                  raw_inputs->header.dwType == RIM_TYPEMOUSE) {
                 raw_mouse = raw_inputs->data.mouse;
 
-                if (     raw_mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) mouse.pressed |= LEFT;
-                else if (raw_mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)   mouse.pressed &= (u8)~LEFT;;
+                if (     raw_mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) controls.mouse.pressed |= controls.buttons.LEFT;
+                else if (raw_mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)   controls.mouse.pressed &= (u8)~controls.buttons.LEFT;;
 
-                if (     raw_mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) mouse.pressed |= RIGHT;
-                else if (raw_mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)   mouse.pressed &= (u8)~RIGHT;;
+                if (     raw_mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) controls.mouse.pressed |= controls.buttons.RIGHT;
+                else if (raw_mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)   controls.mouse.pressed &= (u8)~controls.buttons.RIGHT;;
 
-                if (     raw_mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) mouse.pressed |= MIDDLE;
-                else if (raw_mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)   mouse.pressed &= (u8)~MIDDLE;;
+                if (     raw_mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) controls.mouse.pressed |= controls.buttons.MIDDLE;
+                else if (raw_mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)   controls.mouse.pressed &= (u8)~controls.buttons.MIDDLE;;
 
                 dx = (f32)raw_mouse.lLastX;
                 dy = (f32)raw_mouse.lLastY;
 
-                if ((dx || dy) && (mouse.is_captured || (mouse.pressed & RIGHT || mouse.pressed & MIDDLE)))
-                    onMousePositionChanged(dx, dy);
+                if (dx || dy)
+                    onMousePositionChanged(dx, dy, &controls.mouse, &controls.buttons);
             }
 
         default:
@@ -160,13 +174,17 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
     f64 ticks_per_interval = ticks_per_second / 4;;
     // Initialize the memory:
-    memory.address = (u8*)VirtualAlloc((LPVOID)memory.base, memory.size, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    memory.address = (u8*)VirtualAlloc(
+            (LPVOID)MEMORY_BASE,
+            MEMORY_SIZE,
+            MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
     if (!memory.address)
         return -1;
 
-    init_hud();
-    init_core();
-    init_renderer();
+    initHUD(&hud);
+    initControls(&controls);
+    initFrameBuffer(&frame_buffer, &memory);
+    initRenderEngine(&memory, frame_buffer.width, frame_buffer.height);
 
     info.bmiHeader.biSize        = sizeof(info.bmiHeader);
     info.bmiHeader.biCompression = BI_RGB;
@@ -199,7 +217,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     if (!window)
         return -1;
 
-    raw_inputs = (RAWINPUT*)allocate_memory(RAW_INPUT_MAX_SIZE);
+    raw_inputs = (RAWINPUT*)allocate(&memory, RAW_INPUT_MAX_SIZE);
 
     rid.usUsagePage = 0x01;
     rid.usUsage = 0x02;
@@ -207,6 +225,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
         return -1;
 
     win_dc = GetDC(window);
+    QueryPerformanceCounter(&current_frame_ticks);
     ShowWindow(window, nCmdShow);
 
     MSG message;
@@ -217,7 +236,9 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     f64 prior_frame_counter = 0;
     f64 current_frame_counter = 0;
 
-    while (app.is_running) {
+    is_running = true;
+
+    while (is_running) {
         while (PeekMessageA(&message, 0, 0, 0, PM_REMOVE)) {
             TranslateMessage(&message);
             DispatchMessageA(&message);
@@ -225,7 +246,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
         updateAndRender();
 
-        if (app.is_HUD_visible) {
+        if (hud.is_visible) {
             if (prior_frame_counter == 0) {
                 QueryPerformanceCounter(&performance_counter);
                 prior_frame_counter = (f64)performance_counter.QuadPart;
@@ -239,8 +260,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
             frames++;
 
             if (ticks >= ticks_per_interval) {
-                printNumberIntoString((u16)(frames / ticks * ticks_per_second), HUD_fps);
-                printNumberIntoString((u16)(ticks / frames * milliseconds_per_tick), HUD_msf);
+                printNumberIntoString((u16)(frames / ticks * ticks_per_second), hud.fps);
+                printNumberIntoString((u16)(ticks / frames * milliseconds_per_tick), hud.msf);
 
                 ticks = frames = 0;
             }

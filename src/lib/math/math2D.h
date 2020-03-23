@@ -1,10 +1,12 @@
 #pragma once
 #pragma warning(disable : 4201)
-#include "types.h"
+
+#include "lib/core/types.h"
 
 typedef struct Vector2 {
     f32 x, y;
 } Vector2;
+static Vector2 vec2;
 
 typedef union {
     struct {
@@ -15,6 +17,14 @@ typedef union {
         Vector2 i, j;
     };
 } Matrix2x2;
+static Matrix2x2 mat2;
+
+void setPointOnUnitCircle(f32 t) {
+    f32 t_squared = t * t;
+    f32 factor = 1 / (1 + t_squared);
+    vec2.x = factor - factor * t_squared;
+    vec2.y = factor * 2 * t;
+}
 
 inline void sub2D(Vector2* p1, Vector2* p2, Vector2* out) {
     out->x = p1->x - p2->x;
@@ -82,26 +92,23 @@ inline void imatmul2D(Matrix2x2* a, Matrix2x2* b) {
 }
 
 inline void rotateMatrix2D(Matrix2x2* matrix, f32 amount) {
-    set_point_on_unit_circle(amount);
+    setPointOnUnitCircle(amount);
 
-    f32 m11 = matrix->m11; f32 m21 = matrix->m21;
-    f32 m12 = matrix->m12; f32 m22 = matrix->m22;
+    mat2.m11 = matrix->m11; mat2.m21 = matrix->m21;
+    mat2.m12 = matrix->m12; mat2.m22 = matrix->m22;
 
-    matrix->m11 = c*m11 + s*m12; 
-    matrix->m21 = c*m21 + s*m22; 
+    matrix->m11 = vec2.x*mat2.m11 + vec2.y*mat2.m12;
+    matrix->m21 = vec2.x*mat2.m21 + vec2.y*mat2.m22;
 
-    matrix->m12 = c*m12 - s*m11;
-    matrix->m22 = c*m22 - s*m21;
+    matrix->m12 = vec2.x*mat2.m12 - vec2.y*mat2.m11;
+    matrix->m22 = vec2.x*mat2.m22 - vec2.y*mat2.m21;
 };
 
 inline void setRotation2D(Matrix2x2* matrix, f32 amount) {
-    set_point_on_unit_circle(amount);
+    setPointOnUnitCircle(amount);
 
-    matrix->m11 = matrix->m22 = c;
-    matrix->m12 = -s;
-    matrix->m21 = +s;
+    matrix->m11 = matrix->m22 = vec2.x;
+    matrix->m12 = -vec2.y;
+    matrix->m21 = +vec2.y;
 };
 
-void init_math2D() {
-
-}

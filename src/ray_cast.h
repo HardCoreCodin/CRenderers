@@ -1,8 +1,8 @@
 #include <math.h>
 #include "core.h"
-#include "math2D.h"
+#include "engine/math/math2D.h"
 #include "core2D.h"
-#include "draw2D.h"
+#include "engine/render/draw.h"
 
 #define MAX_WIDTH 3840
 #define TILE_SIZE 64

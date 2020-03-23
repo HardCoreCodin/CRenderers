@@ -1,14 +1,8 @@
 #pragma once
-#include "types.h"
+#include "engine/core/types.h"
 #include "core.h"
-#include "math2D.h"
+#include "engine/math/math2D.h"
 
-typedef struct Camera {
-    f32 focal_length;
-    Matrix2x2 matrix;
-    Vector2* position;
-} Camera;
-Camera camera = {1.0f};
 
 typedef struct Controller {
     u8 rotated, moved;
