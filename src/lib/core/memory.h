@@ -10,11 +10,12 @@ typedef struct Memory {
     u8* address;
     u64 occupied;
 } Memory;
+static Memory memory;
 
-void* allocate(Memory* memory, u64 size) {
-    memory->occupied += size;
+void* allocate(u64 size) {
+    memory.occupied += size;
 
-    void* address = memory->address;
-    memory->address += size;
+    void* address = memory.address;
+    memory.address += size;
     return address;
 }

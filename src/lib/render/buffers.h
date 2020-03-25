@@ -12,9 +12,9 @@ typedef struct FrameBuffer {
     u32* pixels;
 } FrameBuffer;
 
-void initFrameBuffer(FrameBuffer* frame_buffer, Memory* memory) {
-    frame_buffer->width = 3840;
-    frame_buffer->height = 2160;
-    frame_buffer->size = frame_buffer->width * frame_buffer->height;
-    frame_buffer->pixels = (u32*)allocate(memory, RENDER_SIZE);
+static FrameBuffer frame_buffer = {3840, 2160};
+
+void initFrameBuffer() {
+    frame_buffer.size = frame_buffer.width * frame_buffer.height;
+    frame_buffer.pixels = (u32*)allocate(RENDER_SIZE);
 }

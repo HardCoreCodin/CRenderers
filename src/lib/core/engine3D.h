@@ -12,10 +12,10 @@ typedef struct EngineCore3D {
     OrbitController3D orbit_controller;
 } EngineCore3D;
 
-void initEngineCore3D(EngineCore3D* engine, Memory* memory) {
-    initCamera3D(&engine->camera, memory);
+void initEngineCore3D(EngineCore3D* engine) {
+    initCamera3D(&engine->camera);
     initFpsController(&engine->fps_controller);
-    initOrbitController(&engine->orbit_controller, memory);
+    initOrbitController(&engine->orbit_controller);
 }
 
 void onMousePositionChanged3D(f32 dx, f32 dy, Mouse* mouse, Buttons* buttons, EngineCore3D* engine) {

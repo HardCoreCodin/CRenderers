@@ -25,6 +25,15 @@ inline void fill3D(Vector3* vector, f32 value) {
     vector->x = vector->y = value, vector->z = value;
 }
 
+void setPointOnUnitSphere(f32 s, f32 t, Vector3* out) {
+    f32 t_squared = t * t;
+    f32 s_squared = s * s;
+    f32 factor = 1 / ( t_squared + s_squared + 1);
+    out->x = 2*s * factor;
+    out->y = 2*t * factor;
+    out->z = (t_squared + s_squared - 1) * t_squared;
+}
+
 inline void sub3D(Vector3* p1, Vector3* p2, Vector3* out) {
     out->x = p1->x - p2->x;
     out->y = p1->y - p2->y;

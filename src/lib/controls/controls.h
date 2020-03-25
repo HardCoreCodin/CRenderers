@@ -19,18 +19,19 @@ typedef struct Controls {
     Mouse mouse;
     Buttons buttons;
 } Controls;
+static Controls controls;
 
-void initControls(Controls* controls) {
-    controls->mouse.is_captured = false;
-    controls->mouse.pressed = 0;
+void initControls() {
+    controls.mouse.is_captured = false;
+    controls.mouse.pressed = 0;
 
-    controls->keyboard.pressed = 0;
+    controls.keyboard.pressed = 0;
 
-    controls->buttons.FORWARD  = (u8)1 << (u8)0;
-    controls->buttons.BACKWARD = (u8)1 << (u8)1;
-    controls->buttons.LEFT     = (u8)1 << (u8)2;
-    controls->buttons.RIGHT    = (u8)1 << (u8)3;
-    controls->buttons.UP       = (u8)1 << (u8)4;
-    controls->buttons.DOWN     = (u8)1 << (u8)5;
-    controls->buttons.MIDDLE   = (u8)1 << (u8)6;
+    controls.buttons.FORWARD  = (u8)1 << (u8)0;
+    controls.buttons.BACKWARD = (u8)1 << (u8)1;
+    controls.buttons.LEFT     = (u8)1 << (u8)2;
+    controls.buttons.RIGHT    = (u8)1 << (u8)3;
+    controls.buttons.UP       = (u8)1 << (u8)4;
+    controls.buttons.DOWN     = (u8)1 << (u8)5;
+    controls.buttons.MIDDLE   = (u8)1 << (u8)6;
 }

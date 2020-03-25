@@ -43,9 +43,9 @@ typedef struct OrbitController3D {
     Vector3* target_direction;
 } OrbitController3D;
 
-void initOrbitController(OrbitController3D* orbit_controller, Memory* memory) {
-    orbit_controller->target_position = (Vector3*)allocate(memory, sizeof(Vector3));
-    orbit_controller->target_direction = (Vector3*)allocate(memory, sizeof(Vector3));
+void initOrbitController(OrbitController3D* orbit_controller) {
+    orbit_controller->target_position = (Vector3*)allocate(sizeof(Vector3));
+    orbit_controller->target_direction = (Vector3*)allocate(sizeof(Vector3));
 
     orbit_controller->pan.sensitivity = 1 / 100.0f;
     orbit_controller->pan.changed = false;

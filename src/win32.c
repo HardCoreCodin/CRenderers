@@ -26,19 +26,14 @@ static RAWINPUT* raw_inputs;
 static RAWMOUSE raw_mouse;
 static UINT size_ri, size_rih = sizeof(RAWINPUTHEADER);
 
-static Memory memory;
-static Controls controls;
-static FrameBuffer frame_buffer;
-static HUD hud;
-
 inline void resizeFrameBuffer() {
     GetClientRect(window, &win_rect);
 
     info.bmiHeader.biWidth = win_rect.right - win_rect.left;
-    info.bmiHeader.biHeight = win_rect.bottom - win_rect.top;
+    info.bmiHeader.biHeight = win_rect.top - win_rect.bottom;
 
     frame_buffer.width = (u16)info.bmiHeader.biWidth;
-    frame_buffer.height = (u16)info.bmiHeader.biHeight;
+    frame_buffer.height = (u16)-info.bmiHeader.biHeight;
     frame_buffer.size = frame_buffer.width * frame_buffer.height;
 
     printNumberIntoString(frame_buffer.width, hud.width);
@@ -71,7 +66,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
         case WM_PAINT:
             if (hud.is_visible)
-                drawString(hud.text, HUD_COLOR, HUD_LEFT, frame_buffer.height - HUD_TOP - FONT_HEIGHT, &frame_buffer);
+                drawText(
+                        hud.text,
+                        HUD_COLOR,
+                        HUD_LEFT,
+                        HUD_TOP,
+                        frame_buffer.pixels,
+                        frame_buffer.width,
+                        frame_buffer.height);
 
             SetDIBitsToDevice(win_dc,
                     0, 0, frame_buffer.width, frame_buffer.height,
@@ -181,10 +183,10 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     if (!memory.address)
         return -1;
 
-    initHUD(&hud);
+    initHUD();
     initControls(&controls);
-    initFrameBuffer(&frame_buffer, &memory);
-    initRenderEngine(&memory, frame_buffer.width, frame_buffer.height);
+    initFrameBuffer();
+    initRenderEngine(frame_buffer.width, frame_buffer.height);
 
     info.bmiHeader.biSize        = sizeof(info.bmiHeader);
     info.bmiHeader.biCompression = BI_RGB;
@@ -206,8 +208,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
             CW_USEDEFAULT,
             CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
+            10,
+            130,
 
             0,
             0,
@@ -217,7 +219,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     if (!window)
         return -1;
 
-    raw_inputs = (RAWINPUT*)allocate(&memory, RAW_INPUT_MAX_SIZE);
+    raw_inputs = (RAWINPUT*)allocate(RAW_INPUT_MAX_SIZE);
 
     rid.usUsagePage = 0x01;
     rid.usUsage = 0x02;

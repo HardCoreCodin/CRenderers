@@ -17,7 +17,7 @@ typedef double f64;
 
 typedef union Color {
     struct {
-        u8 B, G, R, A;
+        u8 B, G, R, Z;
     };
     u32 value;
 } Color;
