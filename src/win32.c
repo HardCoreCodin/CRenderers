@@ -1,11 +1,10 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#include "lib/render/draw.h"
-#include "lib/render/hud.h"
 #include "lib/core/string.h"
-
-#include "ray_trace.h"
+#include "lib/render/hud.h"
+#include "lib/render/draw.h"
+#include "lib/render/engines/ray_tracer/engine.h"
 
 #define RAW_INPUT_MAX_SIZE Kilobytes(1)
 #define MEMORY_SIZE Gigabytes(1)
@@ -46,7 +45,7 @@ void updateAndRender() {
     QueryPerformanceCounter(&current_frame_ticks);
     delta_ticks.QuadPart = current_frame_ticks.QuadPart - last_frame_ticks.QuadPart;
     delta_time = delta_ticks.QuadPart * seconds_per_tick;
-    update((f32)delta_time, frame_buffer.width, frame_buffer.height, &controls);
+    update((f32)delta_time);
     render(&frame_buffer);
     InvalidateRgn(window, NULL, FALSE);
     UpdateWindow(window);
@@ -66,14 +65,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
         case WM_PAINT:
             if (hud.is_visible)
-                drawText(
-                        hud.text,
-                        HUD_COLOR,
-                        HUD_LEFT,
-                        HUD_TOP,
-                        frame_buffer.pixels,
-                        frame_buffer.width,
-                        frame_buffer.height);
+                drawText(hud.text, HUD_COLOR, HUD_LEFT, HUD_TOP);
 
             SetDIBitsToDevice(win_dc,
                     0, 0, frame_buffer.width, frame_buffer.height,
@@ -131,7 +123,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             break;
 
         case WM_MOUSEWHEEL:
-            onMouseWheelChanged(GET_WHEEL_DELTA_WPARAM(wParam) / 120.0f, &controls.mouse);
+            onMouseWheelChanged(GET_WHEEL_DELTA_WPARAM(wParam) / 120.0f);
             break;
 
         case WM_INPUT:
@@ -154,7 +146,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                 dy = (f32)raw_mouse.lLastY;
 
                 if (dx || dy)
-                    onMousePositionChanged(dx, dy, &controls.mouse, &controls.buttons);
+                    onMousePositionChanged(dx, dy);
             }
 
         default:
@@ -186,7 +178,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     initHUD();
     initControls(&controls);
     initFrameBuffer();
-    initRenderEngine(frame_buffer.width, frame_buffer.height);
+    initRenderEngine();
 
     info.bmiHeader.biSize        = sizeof(info.bmiHeader);
     info.bmiHeader.biCompression = BI_RGB;

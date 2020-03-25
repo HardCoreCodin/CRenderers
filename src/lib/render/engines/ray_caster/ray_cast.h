@@ -4,6 +4,11 @@
 #include "core2D.h"
 #include "engine/render/draw.h"
 
+#define INT_MAX	2147483647
+#define flr(x) (x < (u32)x ? (u32)x - 1 : (u32)x)
+
+#define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
+
 #define MAX_WIDTH 3840
 #define TILE_SIZE 64
 #define MAP_NUM_ROWS 13
@@ -63,29 +68,6 @@ void rotateRayDirections() {
         source_ray_direction++;
         ray_direction++;
     }
-}
-
-void generateRayDirections() {
-    ray_direction = source_ray_directions;
-
-    f32 ray_direction_length = 0;
-    f32 squared_focal_length = camera.focal_length * camera.focal_length;
-    f32 one_over_width = 1.0f / frame_buffer.width;
-    f32 x, x2;
-
-    for (u16 i = 0; i < frame_buffer.width; i++) {
-        x = ((i + 0.5f) * one_over_width) - 0.5f;
-        x2 = x * x;
-
-        ray_direction_length = sqrtf(x2 + squared_focal_length);
-
-        ray_direction->x = x / ray_direction_length;
-        ray_direction->y = camera.focal_length / ray_direction_length;
-        ray_direction++;
-    }
-
-    ray_directions = ray_direction;
-    rotateRayDirections();
 }
 
 inline void fillTile(Pixel color, u16 position_x, u16 position_y) {

@@ -10,6 +10,7 @@ typedef struct Transform3D {
     Matrix3x3* roll;
 
     Matrix3x3* rotation;
+    Vector3* position;
 
     Vector3* forward;
     Vector3* right;
@@ -22,6 +23,7 @@ void initTransform3D(Transform3D* transform) {
     transform->roll = (Matrix3x3*)allocate(sizeof(Matrix3x3));
 
     transform->rotation = (Matrix3x3*)allocate(sizeof(Matrix3x3));
+    transform->position = (Vector3*)allocate(sizeof(Vector3));
 
     setMatrix3x3ToIdentity(transform->yaw);
     setMatrix3x3ToIdentity(transform->pitch);
@@ -48,12 +50,13 @@ void rotate3D(f32 yaw, f32 pitch, f32 roll, Transform3D* transform) {
 typedef struct Transform2D {
     Matrix2x2* rotation;
     Vector2* forward;
+    Vector2* position;
     Vector2* right;
 } Transform2D;
 
 void initTransform2D(Transform2D* transform) {
     transform->rotation = (Matrix2x2*)allocate(sizeof(Matrix2x2));
-
+    transform->position = (Vector2*)allocate(sizeof(Vector2));
     setMatrix2x2ToIdentity(transform->rotation);
 
     transform->right = &transform->rotation->i;
