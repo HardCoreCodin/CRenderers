@@ -52,16 +52,30 @@ void initRenderEngine() {
 }
 
 void render() {
-    engine.ray.direction = engine.ray_directions;
     u32* pixel = frame_buffer.pixels;
 
+//    engine.ray.direction = engine.ray_directions;
+    f32 ROx = engine.ray.origin->x;
+    f32 ROy = engine.ray.origin->y;
+    f32 ROz = engine.ray.origin->z;
+
+    f32* RDx = &engine.ray_directions->x;
+    f32* RDy = &engine.ray_directions->y;
+    f32* RDz = &engine.ray_directions->z;
+
+    Vector3* P = &engine.ray.closest_hit->position;
+    Vector3* N = &engine.ray.closest_hit->normal;
+
     for (u32 i = 0; i < frame_buffer.size; i++) {
-        if (rayIntersectSpheres(&engine.ray))
+        if (intersectRayWithSpheres(ROx, ROy, ROz, *RDx, *RDy, *RDz, P, N))
+//        if (rayIntersectSpheres(&engine.ray))
             shadeByNormal(pixel++, engine.ray.closest_hit);
         else
             *pixel++ = 0;
-
-        engine.ray.direction++;
+//        engine.ray.direction++;
+        RDx += 3;
+        RDy += 3;
+        RDz += 3;
     }
 }
 

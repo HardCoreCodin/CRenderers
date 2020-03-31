@@ -200,8 +200,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
             CW_USEDEFAULT,
             CW_USEDEFAULT,
-            10,
-            130,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
 
             0,
             0,
