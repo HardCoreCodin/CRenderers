@@ -12,7 +12,7 @@ typedef struct Camera3D {
 } Camera3D;
 
 void initCamera3D(Camera3D* camera) {
-    camera->focal_length = 1;
+    camera->focal_length = 2;
     camera->transform = (Transform3D*)allocate(sizeof(Transform3D));
     initTransform3D(camera->transform);
 }

@@ -89,7 +89,8 @@ bool intersectRayWithSpheres(
     R2_minus_D2, // The square of the distance from that position to the closest intersection position
     sx, sy, sz, // The center position of the sphere of the current intersection
     Sx, Sy, Sz, // The center position of the sphere of the closest intersection yet
-    px, py, pz, // The position of the closest intersection of the ray with the spheres yet
+    px, py, pz, // The position of the current intersection of the ray with the spheres
+    Px, Py, Pz, // The position of the closest intersection of the ray with the spheres yet
     R; // The radius of the closest intersecting sphere
 
     R = 0;
@@ -117,10 +118,13 @@ bool intersectRayWithSpheres(
                 r2_minus_d2 = r2 - d2;
                 d = o2c - r2_minus_d2;
                 if (d > 0 && d <= D) {
-                    D = d; R = r; O2C = o2c; R2_minus_D2 = r2_minus_d2;
-                    Sx = sx; hit_position->x = px;
-                    Sy = sy; hit_position->y = py;
-                    Sz = sz; hit_position->z = pz;
+                    D = d;
+                    R = r;
+                    O2C = o2c;
+                    R2_minus_D2 = r2_minus_d2;
+                    Sx = sx; Px = px;
+                    Sy = sy; Py = py;
+                    Sz = sz; Pz = pz;
                 }
             }
         }
@@ -129,21 +133,25 @@ bool intersectRayWithSpheres(
     if (R) {
         if (R2_minus_D2 > 0.001) {
             D = O2C - sqrtf(R2_minus_D2);
-            hit_position->x = ROx + D*RDx;
-            hit_position->y = ROy + D*RDy;
-            hit_position->z = ROz + D*RDz;
+            Px = ROx + D*RDx;
+            Py = ROy + D*RDy;
+            Pz = ROz + D*RDz;
         }
 
         if (R == 1) {
-            hit_normal->x = hit_position->x - Sx;
-            hit_normal->y = hit_position->y - Sy;
-            hit_normal->z = hit_position->z - Sz;
+            hit_normal->x = Px - Sx;
+            hit_normal->y = Py - Sy;
+            hit_normal->z = Pz - Sz;
         } else {
             f32 one_over_radius = 1 / R;
-            hit_normal->x = (hit_position->x - Sx) * one_over_radius;
-            hit_normal->y = (hit_position->y - Sy) * one_over_radius;
-            hit_normal->z = (hit_position->z - Sz) * one_over_radius;
+            hit_normal->x = (Px - Sx) * one_over_radius;
+            hit_normal->y = (Py - Sy) * one_over_radius;
+            hit_normal->z = (Pz - Sz) * one_over_radius;
         }
+
+        hit_position->x = Px;
+        hit_position->y = Py;
+        hit_position->z = Pz;
 
         return true;
     } else

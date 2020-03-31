@@ -9,7 +9,7 @@ typedef struct Zoom {
     f32 sensitivity, in;
     bool changed;
 } Zoom;
-Zoom zoom = {1, 0, false};
+Zoom zoom = {1 / 10.f, 0, false};
 
 typedef struct Orientation {
     f32 sensitivity, yaw, pitch;
