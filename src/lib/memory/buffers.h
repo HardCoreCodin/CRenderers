@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lib/core/types.h"
-#include "lib/core/memory.h"
+#include "lib/memory/allocators.h"
 
 #define PIXEL_SIZE 4
 #define RENDER_SIZE Megabytes(8 * PIXEL_SIZE)

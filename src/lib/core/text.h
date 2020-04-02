@@ -2,10 +2,8 @@
 
 #include "lib/core/types.h"
 #include "lib/core/font.h"
-#include "lib/render/buffers.h"
+#include "lib/memory/buffers.h"
 
-#define FONT_WIDTH 8
-#define FONT_HEIGHT 8
 #define LINE_HEIGHT 12
 #define FIRST_CHARACTER_CODE 32
 #define LAST_CHARACTER_CODE 127
@@ -59,18 +57,3 @@ void drawText(char *str, u32 color, int x, int y) {
         character = *++str;
     }
 }
-
-//inline void drawRect(Pixel color, u16 width, u16 height, u32 starting_offset) {
-//    pixel = frame_buffer.pixels + starting_offset;
-//    u16 x, y;
-//    for (y = 0; y < width; y++) {
-//        for (x = 0; x < height; x++)
-//            *(pixel + x) = color;
-//
-//        pixel += frame_buffer.width;
-//    }
-//}
-//
-//inline void drawLine(Pixel color, u32 x1, u32 y1, u32 x2, u32 y2) {
-//
-//}

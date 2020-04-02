@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lib/core/types.h"
-#include "lib/core/memory.h"
+#include "lib/memory/allocators.h"
 #include "lib/math/math3D.h"
 
 typedef struct Transform3D {

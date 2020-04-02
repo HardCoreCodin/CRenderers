@@ -54,6 +54,17 @@ inline void idiv2D(Vector2* v, f32 factor) {
     v->x /= factor;
     v->y /= factor;
 }
+inline void mul2D(Vector2* in, Matrix2x2* matrix, Vector2* out) {
+    out->x = in->x*matrix->m11 + in->y*matrix->m21;
+    out->y = in->x*matrix->m12 + in->y*matrix->m22;
+}
+inline void imul2D(Vector2* v, Matrix2x2* matrix) {
+    f32 x = v->x;
+    f32 y = v->y;
+
+    v->x = x*matrix->m11 + y*matrix->m21;
+    v->y = x*matrix->m12 + y*matrix->m22;
+}
 inline f32 dot2D(Vector2* p1, Vector2* p2) {
     return (
         (p1->x * p2->x) +
@@ -104,7 +115,7 @@ inline void rotateMatrix2D(Matrix2x2* matrix, f32 amount) {
     matrix->m22 = vec2.x*mat2.m22 - vec2.y*mat2.m21;
 };
 
-inline void setRotation2D(Matrix2x2* matrix, f32 amount) {
+inline void setRotation2D(f32 amount, Matrix2x2* matrix) {
     setPointOnUnitCircle(amount);
 
     matrix->m11 = matrix->m22 = vec2.x;
@@ -112,3 +123,7 @@ inline void setRotation2D(Matrix2x2* matrix, f32 amount) {
     matrix->m21 = +vec2.y;
 };
 
+inline void rotate2D(f32 amount, Matrix2x2* matrix) {
+    setRotation2D(amount, &mat2);
+    imatmul2D(matrix, &mat2);
+};

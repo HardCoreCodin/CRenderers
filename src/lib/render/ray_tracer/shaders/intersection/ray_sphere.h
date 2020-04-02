@@ -3,10 +3,9 @@
 #include <math.h>
 
 #include "lib/core/types.h"
-#include "lib/core/memory.h"
+#include "lib/memory/allocators.h"
 #include "lib/math/math2D.h"
-#include "lib/render/engines/ray_tracer/ray.h"
-#include "lib/render/engines/ray_tracer/scene.h"
+#include "lib/nodes/scene.h"
 
 bool rayIntersectsWithSpheres(
         Vector3* RO, // The position that the ray originates from
