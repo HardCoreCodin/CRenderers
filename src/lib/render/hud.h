@@ -27,7 +27,7 @@ void setControllerModeInHUD(bool fps, char* mode) {
 }
 
 void initHUD() {
-    hud.is_visible = false;
+    hud.is_visible = true;
 
     char* template = "___1 x ___2\n___3 f/s\n___4 ms/f\n5__";
     char* HUD_char = template;
