@@ -11,7 +11,7 @@
 #include "lib/memory/allocators.h"
 #include "lib/input/controllers.h"
 #include "lib/render/raytracing/raytracer.h"
-#include "lib/render/ray_caster/pipeline.h"
+#include "lib/render/raycasting/raycaster.h"
 
 typedef enum Renderer {
     RAY_TRACE = 1,
@@ -40,13 +40,16 @@ void render() {
 
 void OnFrameBufferResized() {
     updateHUDDimensions();
-
-    resetRayDirections();
+    if (renderer == RAY_TRACE)
+        onResizeRT();
+    else
+        onResizeRC();
 }
 
-void OnMouseCaptureChanged(bool is_captured) {
-    input.mouse.is_captured = is_captured;
-    setControllerModeInHUD(is_captured);
+bool OnMouseDoubleClicked() {
+    input.mouse.is_captured = !input.mouse.is_captured;
+    setControllerModeInHUD(input.mouse.is_captured);
+    return input.mouse.is_captured;
 }
 
 void OnMousePositionChanged(f32 dx, f32 dy) {
@@ -65,10 +68,6 @@ void OnMouseWheelChanged(f32 amount) {
         onZoom(amount);
     else
         onDolly(amount);
-}
-
-void OnTabPressed() {
-    hud.is_visible =! hud.is_visible;
 }
 
 void update2D(f32 delta_time, Transform2D* transform, f32* focal_length) {
@@ -126,6 +125,11 @@ void update() {
     f32 delta_time = (f32)hud.main_perf.delta.seconds;
     if (delta_time > 1)
         delta_time = 1;
+
+    if (input.keyboard.pressed & input.buttons.HUD) {
+        input.keyboard.pressed &= (u8)~input.buttons.HUD;
+        hud.is_visible = !hud.is_visible;
+    }
 
     if (renderer == RAY_TRACE)
         update3D(delta_time, ray_tracer.camera.transform, &ray_tracer.camera.focal_length);

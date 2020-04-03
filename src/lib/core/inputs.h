@@ -3,7 +3,7 @@
 #include "lib/core/types.h"
 
 typedef struct Buttons {
-    u8 FORWARD, BACKWARD, LEFT, RIGHT, UP, DOWN, MIDDLE;
+    u8 FORWARD, BACKWARD, LEFT, RIGHT, UP, DOWN, MIDDLE, HUD;
 } Buttons;
 
 typedef struct Keyboard {
@@ -34,4 +34,5 @@ void initInput() {
     input.buttons.UP       = (u8)1 << (u8)4;
     input.buttons.DOWN     = (u8)1 << (u8)5;
     input.buttons.MIDDLE   = (u8)1 << (u8)6;
+    input.buttons.HUD      = (u8)1 << (u8)7;
 }

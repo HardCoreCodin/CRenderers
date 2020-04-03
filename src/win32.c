@@ -73,23 +73,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                 case 'D': input.keyboard.pressed |= input.buttons.RIGHT; break;
                 case 'R': input.keyboard.pressed |= input.buttons.UP; break;
                 case 'F': input.keyboard.pressed |= input.buttons.DOWN; break;
-
-                case VK_SPACE:
-                    if (input.mouse.is_captured) {
-                        ReleaseCapture();
-                        ShowCursor(true);
-                        OnMouseCaptureChanged(false);
-                    } else {
-                        SetCapture(window);
-                        ShowCursor(false);
-                        OnMouseCaptureChanged(true);
-                    }
-                    break;
-
-                case VK_TAB:
-                    OnTabPressed();
-                    break;
-
+                case VK_TAB: input.keyboard.pressed |= input.buttons.HUD; break;
                 case VK_ESCAPE:
                     is_running = false;
                     break;
@@ -108,8 +92,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             }
             break;
 
-        case WM_MOUSEWHEEL:
-            OnMouseWheelChanged(GET_WHEEL_DELTA_WPARAM(wParam) / 120.0f);
+        case WM_LBUTTONDBLCLK:
+            if (OnMouseDoubleClicked()) {
+                SetCapture(window);
+                ShowCursor(false);
+            } else {
+                ReleaseCapture();
+                ShowCursor(true);
+            }
             break;
 
         case WM_INPUT:
@@ -127,6 +117,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
                 if (     raw_mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) input.mouse.pressed |= input.buttons.MIDDLE;
                 else if (raw_mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) input.mouse.pressed &= (u8)~input.buttons.MIDDLE;;
+
+                if (raw_mouse.usButtonFlags & RI_MOUSE_WHEEL)
+                    OnMouseWheelChanged(((short)raw_mouse.usButtonData)/(float)WHEEL_DELTA);
 
                 dx = (f32)raw_mouse.lLastX;
                 dy = (f32)raw_mouse.lLastY;
@@ -164,7 +157,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     window_class.lpszClassName  = "RnDer";
     window_class.hInstance      = hInstance;
     window_class.lpfnWndProc    = WndProc;
-    window_class.style          = CS_OWNDC|CS_HREDRAW|CS_VREDRAW;
+    window_class.style          = CS_OWNDC|CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS;
     window_class.hCursor        = LoadCursorA(0, IDC_ARROW);
 
     RegisterClassA(&window_class);
