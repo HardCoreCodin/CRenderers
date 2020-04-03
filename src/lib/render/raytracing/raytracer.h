@@ -6,10 +6,10 @@
 #include "lib/input/controllers.h"
 #include "lib/memory/buffers.h"
 #include "lib/memory/allocators.h"
-#include "lib/render/ray_tracer/core/ray.h"
-#include "lib/render/ray_tracer/shaders/closest_hit/normal.h"
-#include "lib/render/ray_tracer/shaders/ray_generation/ray_generator.h"
-#include "lib/render/ray_tracer/shaders/intersection/ray_sphere.h"
+#include "lib/render/raytracing/core/ray.h"
+#include "lib/render/raytracing/shaders/closest_hit/normal.h"
+#include "lib/render/raytracing/shaders/generation/generator.h"
+#include "lib/render/raytracing/shaders/intersection/ray_sphere.h"
 
 static char* RAY_TRACER_TITLE = "RayTrace";
 

@@ -40,8 +40,8 @@ void rayCast() {
 inline void resetRayDirections2D() {
 //    generateRays(
 //            ray_caster.ray_directions,
-//            ray_tracer.camera.transform->rotation,
-//            ray_tracer.camera.focal_length,
+//            raytracing.camera.transform->rotation,
+//            raytracing.camera.focal_length,
 //            frame_buffer.width,
 //            frame_buffer.height);
 }

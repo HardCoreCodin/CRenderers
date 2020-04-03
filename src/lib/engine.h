@@ -10,7 +10,7 @@
 #include "lib/memory/buffers.h"
 #include "lib/memory/allocators.h"
 #include "lib/input/controllers.h"
-#include "lib/render/ray_tracer/pipeline.h"
+#include "lib/render/raytracing/raytracer.h"
 #include "lib/render/ray_caster/pipeline.h"
 
 typedef enum Renderer {
