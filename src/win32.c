@@ -2,16 +2,17 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#define GET_X_LPARAM(lp)                        ((int)(short)LOWORD(lp))
+#define GET_Y_LPARAM(lp)                        ((int)(short)HIWORD(lp))
+
 #include "lib/core/perf.h"
-#include "lib/core/hud.h"
+#include "lib/input/mouse.h"
+#include "lib/input/keyboard.h"
 #include "lib/engine.h"
 
 #define RAW_INPUT_MAX_SIZE Kilobytes(1)
 #define MEMORY_SIZE Gigabytes(1)
 #define MEMORY_BASE Terabytes(2)
-
-static bool is_running = true;
-static f32 dx, dy;
 
 static WNDCLASSA window_class;
 static HWND window;
@@ -22,6 +23,17 @@ static RAWINPUTDEVICE rid;
 static RAWINPUT* raw_inputs;
 static RAWMOUSE raw_mouse;
 static UINT size_ri, size_rih = sizeof(RAWINPUTHEADER);
+
+#define RELEASE_MOUSE { \
+    mouse.is_captured = false; \
+    ReleaseCapture(); \
+    ShowCursor(true); \
+}
+#define CAPTURE_MOUSE { \
+    mouse.is_captured = true; \
+    SetCapture(window); \
+    ShowCursor(false); \
+}
 
 inline void resizeFrameBuffer() {
     GetClientRect(window, &win_rect);
@@ -45,7 +57,7 @@ void updateFrame() {
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_DESTROY:
-            is_running = false;
+            engine.is_running = false;
             PostQuitMessage(0);
             break;
 
@@ -67,15 +79,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         case WM_SYSKEYDOWN:
         case WM_KEYDOWN:
             switch ((u32)wParam) {
-                case 'W': input.keyboard.pressed |= input.buttons.FORWARD; break;
-                case 'A': input.keyboard.pressed |= input.buttons.LEFT; break;
-                case 'S': input.keyboard.pressed |= input.buttons.BACKWARD; break;
-                case 'D': input.keyboard.pressed |= input.buttons.RIGHT; break;
-                case 'R': input.keyboard.pressed |= input.buttons.UP; break;
-                case 'F': input.keyboard.pressed |= input.buttons.DOWN; break;
-                case VK_TAB: input.keyboard.pressed |= input.buttons.HUD; break;
+                case 'W': OnKeyDown(keyboard.keys.FORWARD); break;
+                case 'A': OnKeyDown(keyboard.keys.LEFT); break;
+                case 'S': OnKeyDown(keyboard.keys.BACKWARD); break;
+                case 'D': OnKeyDown(keyboard.keys.RIGHT); break;
+                case 'R': OnKeyDown(keyboard.keys.UP); break;
+                case 'F': OnKeyDown(keyboard.keys.DOWN); break;
+                case VK_TAB: OnKeyDown(keyboard.keys.HUD); break;
                 case VK_ESCAPE:
-                    is_running = false;
+                    engine.is_running = false;
                     break;
             }
             break;
@@ -83,23 +95,60 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         case WM_SYSKEYUP:
         case WM_KEYUP:
             switch ((u32)wParam) {
-                case 'W': input.keyboard.pressed &= (u8)~input.buttons.FORWARD; break;
-                case 'A': input.keyboard.pressed &= (u8)~input.buttons.LEFT; break;
-                case 'S': input.keyboard.pressed &= (u8)~input.buttons.BACKWARD; break;
-                case 'D': input.keyboard.pressed &= (u8)~input.buttons.RIGHT; break;
-                case 'R': input.keyboard.pressed &= (u8)~input.buttons.UP; break;
-                case 'F': input.keyboard.pressed &= (u8)~input.buttons.DOWN; break;
+                case 'W': OnKeyUp(keyboard.keys.FORWARD); break;
+                case 'A': OnKeyUp(keyboard.keys.LEFT); break;
+                case 'S': OnKeyUp(keyboard.keys.BACKWARD); break;
+                case 'D': OnKeyUp(keyboard.keys.RIGHT); break;
+                case 'R': OnKeyUp(keyboard.keys.UP); break;
+                case 'F': OnKeyUp(keyboard.keys.DOWN); break;
             }
             break;
 
+        case WM_LBUTTONDOWN:
+            QueryPerformanceCounter(&perf_counter);
+            OnMouseLeftButtonDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
+            break;
+
+        case WM_RBUTTONDOWN:
+            QueryPerformanceCounter(&perf_counter);
+            OnMouseRightButtonDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
+            CAPTURE_MOUSE
+            break;
+
+        case WM_MBUTTONDOWN:
+            QueryPerformanceCounter(&perf_counter);
+            OnMouseMiddleButtonDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
+            CAPTURE_MOUSE
+            break;
+
+        case WM_LBUTTONUP:
+            QueryPerformanceCounter(&perf_counter);
+            OnMouseLeftButtonUp(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
+            break;
+
+        case WM_RBUTTONUP:
+            QueryPerformanceCounter(&perf_counter);
+            OnMouseRightButtonUp(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
+            RELEASE_MOUSE
+            break;
+
+        case WM_MBUTTONUP:
+            QueryPerformanceCounter(&perf_counter);
+            OnMouseMiddleButtonUp(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
+            RELEASE_MOUSE
+            break;
+
         case WM_LBUTTONDBLCLK:
-            if (OnMouseDoubleClicked()) {
-                SetCapture(window);
-                ShowCursor(false);
-            } else {
-                ReleaseCapture();
-                ShowCursor(true);
-            }
+            OnMouseDoubleClicked(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+            if (mouse.is_captured) RELEASE_MOUSE else CAPTURE_MOUSE
+            break;
+
+        case WM_MOUSEWHEEL:
+            OnMouseWheelScrolled(GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA);
+            break;
+
+        case WM_MOUSEMOVE:
+            OnMouseMovedAbsolute(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             break;
 
         case WM_INPUT:
@@ -108,24 +157,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                  GetRawInputData((HRAWINPUT)lParam, RID_INPUT, raw_inputs, &size_ri, size_rih) == size_ri &&
                  raw_inputs->header.dwType == RIM_TYPEMOUSE) {
                 raw_mouse = raw_inputs->data.mouse;
-
-                if (     raw_mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) input.mouse.pressed |= input.buttons.LEFT;
-                else if (raw_mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) input.mouse.pressed &= (u8)~input.buttons.LEFT;;
-
-                if (     raw_mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) input.mouse.pressed |= input.buttons.RIGHT;
-                else if (raw_mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) input.mouse.pressed &= (u8)~input.buttons.RIGHT;;
-
-                if (     raw_mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) input.mouse.pressed |= input.buttons.MIDDLE;
-                else if (raw_mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) input.mouse.pressed &= (u8)~input.buttons.MIDDLE;;
-
-                if (raw_mouse.usButtonFlags & RI_MOUSE_WHEEL)
-                    OnMouseWheelChanged(((short)raw_mouse.usButtonData)/(float)WHEEL_DELTA);
-
-                dx = (f32)raw_mouse.lLastX;
-                dy = (f32)raw_mouse.lLastY;
-
-                if (dx || dy)
-                    OnMousePositionChanged(dx, dy);
+                if (raw_mouse.lLastX || raw_mouse.lLastY)
+                    OnMouseMovedRelative((s16)raw_mouse.lLastX, (s16)raw_mouse.lLastY);
             }
 
         default:
@@ -192,7 +225,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
     MSG message;
 
-    while (is_running) {
+    while (engine.is_running) {
         while (PeekMessageA(&message, 0, 0, 0, PM_REMOVE)) {
             TranslateMessage(&message);
             DispatchMessageA(&message);

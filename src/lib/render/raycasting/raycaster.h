@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lib/core/types.h"
-#include "lib/core/inputs.h"
+#include "lib/input/keyboard.h"
 #include "lib/nodes/camera.h"
 #include "lib/input/controllers.h"
 #include "lib/memory/buffers.h"

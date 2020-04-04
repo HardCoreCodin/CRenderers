@@ -8,10 +8,9 @@
 #include "lib/nodes/scene.h"
 
 bool rayIntersectsWithSpheres(
+        RayHit* closest_hit, // The hit structure of the closest intersection of the ray with the spheres
         Vector3* RO, // The position that the ray originates from
-        Vector3* RD, // The direction that the ray is aiming at
-        Vector3* hit_position, // The position of the closest intersection of the ray with the spheres
-        Vector3* hit_normal    // The direction of the surface of the sphere at the intersection position
+        Vector3* RD  // The direction that the ray is aiming at
 ) {
     f32 r, r2, // The radius of the current sphere (and it's square)
     d, d2, // The distance from the origin to the position of the current intersection (and it's square)
@@ -48,9 +47,9 @@ bool rayIntersectsWithSpheres(
                 d = o2c - r2_minus_d2;
                 if (d > 0 && d <= D) {
                     S = s; D = d; R = r; O2C = o2c; R2_minus_D2 = r2_minus_d2;
-                    hit_position->x = p->x;
-                    hit_position->y = p->y;
-                    hit_position->z = p->z;
+                    closest_hit->position.x = p->x;
+                    closest_hit->position.y = p->y;
+                    closest_hit->position.z = p->z;
                 }
             }
         }
@@ -58,13 +57,14 @@ bool rayIntersectsWithSpheres(
 
     if (R) {
         if (R2_minus_D2 > 0.001) {
-            scale3D(RD, O2C - sqrtf(R2_minus_D2), t);
-            add3D(RO, t, hit_position);
+            closest_hit->distance = O2C - sqrtf(R2_minus_D2);
+            scale3D(RD, closest_hit->distance, t);
+            add3D(RO, t, &closest_hit->position);
         }
 
-        sub3D(hit_position, S, hit_normal);
+        sub3D(&closest_hit->position, S, &closest_hit->normal);
         if (R != 1)
-            iscale3D(hit_normal, 1 / R);
+            iscale3D(&closest_hit->normal, 1 / R);
 
         return true;
     } else

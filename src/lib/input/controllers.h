@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lib/core/types.h"
-#include "lib/core/inputs.h"
+#include "lib/input/keyboard.h"
 #include "lib/math/math1D.h"
 #include "lib/math/math2D.h"
 #include "lib/math/math3D.h"
@@ -54,9 +54,9 @@ void onZoom(f32 in) {
     zoom.changed = true;
 }
 
-void onOrient(f32 yaw, f32 pitch) {
-    orientation.yaw += yaw * orientation.sensitivity;
-    orientation.pitch += pitch * orientation.sensitivity;
+void onOrient(s16 yaw, s16 pitch) {
+    orientation.yaw += (f32)yaw * orientation.sensitivity;
+    orientation.pitch += (f32)pitch * orientation.sensitivity;
     orientation.changed = true;
 }
 
@@ -85,12 +85,12 @@ void onMove3D(Transform3D* transform, f32 delta_time) {
     vec3.x = vec3.y = vec3.z = 0;
 
     // Compute velocity delta:
-    if (input.keyboard.pressed & input.buttons.FORWARD) vec3.z += velocity.maximum;
-    if (input.keyboard.pressed & input.buttons.BACKWARD) vec3.z -= velocity.maximum;
-    if (input.keyboard.pressed & input.buttons.RIGHT) vec3.x += velocity.maximum;
-    if (input.keyboard.pressed & input.buttons.LEFT) vec3.x -= velocity.maximum;
-    if (input.keyboard.pressed & input.buttons.UP) vec3.y += velocity.maximum;
-    if (input.keyboard.pressed & input.buttons.DOWN) vec3.y -= velocity.maximum;
+    if (keyboard.keys_pressed & keyboard.keys.FORWARD) vec3.z += velocity.maximum;
+    if (keyboard.keys_pressed & keyboard.keys.BACKWARD) vec3.z -= velocity.maximum;
+    if (keyboard.keys_pressed & keyboard.keys.RIGHT) vec3.x += velocity.maximum;
+    if (keyboard.keys_pressed & keyboard.keys.LEFT) vec3.x -= velocity.maximum;
+    if (keyboard.keys_pressed & keyboard.keys.UP) vec3.y += velocity.maximum;
+    if (keyboard.keys_pressed & keyboard.keys.DOWN) vec3.y -= velocity.maximum;
 
     // Update current velocity based on deltas of velocity and time:
     acceleration.current = acceleration.maximum * delta_time;
@@ -114,10 +114,10 @@ void onMove2D(Transform2D* transform, f32 delta_time) {
     vec2.x = vec2.y = 0;
 
     // Compute velocity delta:
-    if (input.keyboard.pressed & input.buttons.FORWARD) vec3.y += velocity.maximum;
-    if (input.keyboard.pressed & input.buttons.BACKWARD) vec3.y -= velocity.maximum;
-    if (input.keyboard.pressed & input.buttons.RIGHT) vec3.x += velocity.maximum;
-    if (input.keyboard.pressed & input.buttons.LEFT) vec3.x -= velocity.maximum;
+    if (keyboard.keys_pressed & keyboard.keys.FORWARD) vec3.y += velocity.maximum;
+    if (keyboard.keys_pressed & keyboard.keys.BACKWARD) vec3.y -= velocity.maximum;
+    if (keyboard.keys_pressed & keyboard.keys.RIGHT) vec3.x += velocity.maximum;
+    if (keyboard.keys_pressed & keyboard.keys.LEFT) vec3.x -= velocity.maximum;
 
     // Update current velocity based on deltas of velocity and time:
     acceleration.current = acceleration.maximum * delta_time;
@@ -135,9 +135,9 @@ void onMove2D(Transform2D* transform, f32 delta_time) {
     iadd2D(transform->position, &vec2);
 }
 
-void onPan(f32 right, f32 up) {
-    pan.right += right * pan.sensitivity;
-    pan.up += up * pan.sensitivity;
+void onPan(s16 right, s16 up) {
+    pan.right += (f32)right * pan.sensitivity;
+    pan.up += (f32)up * pan.sensitivity;
     pan.changed = true;
 }
 
@@ -146,9 +146,9 @@ void onDolly(f32 in) {
     dolly.changed = true;
 }
 
-void onOrbit(f32 azimuth, f32 elevation) {
-    orbit.azimuth += azimuth * orbit.sensitivity;
-    orbit.elevation += elevation * orbit.sensitivity;
+void onOrbit(s16 azimuth, s16 elevation) {
+    orbit.azimuth += (f32)azimuth * orbit.sensitivity;
+    orbit.elevation += (f32)elevation * orbit.sensitivity;
     orbit.changed = true;
 }
 

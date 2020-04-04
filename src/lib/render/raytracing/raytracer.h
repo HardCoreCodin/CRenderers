@@ -1,24 +1,19 @@
 #pragma once
 
 #include "lib/core/types.h"
-#include "lib/core/inputs.h"
+#include "lib/input/keyboard.h"
 #include "lib/nodes/camera.h"
 #include "lib/input/controllers.h"
 #include "lib/memory/buffers.h"
 #include "lib/memory/allocators.h"
+#include "lib/render/raytracing/raytrace_types.h"
 #include "lib/render/raytracing/shaders/closest_hit/normal.h"
 #include "lib/render/raytracing/shaders/intersection/ray_sphere.h"
 
 static char* RAY_TRACER_TITLE = "RayTrace";
 
-typedef struct RayTracer {
-    Camera3D camera;
-    u32 ray_count;
-    u8 rays_per_pixel;
-    Vector3* ray_directions;
-} RayTracer;
-
-static RayTracer ray_tracer;
+RayTracer ray_tracer;
+RayHit* closest_hit;
 
 void initRayTracer() {
     ray_tracer.rays_per_pixel = 1;
@@ -29,20 +24,20 @@ void initRayTracer() {
     ray_tracer.camera.transform->position->x = 5;
     ray_tracer.camera.transform->position->y = 5;
     ray_tracer.camera.transform->position->z = -10;
+
+    closest_hit = (RayHit*)allocate(sizeof(RayHit));
 }
 
 void rayTrace() {
-    u32* pixel = frame_buffer.pixels;
+    Pixel* pixel = (Pixel*)frame_buffer.pixels;
     Vector3* RO = ray_tracer.camera.transform->position;
     Vector3* RD = ray_tracer.ray_directions;
-    Vector3 P, N;
 
-    for (u32 i = 0; i < frame_buffer.size; i++) {
-        if (rayIntersectsWithSpheres(RO, RD++, &P, &N))
-            shadeByNormal(pixel++, &N);
+    for (u32 i = 0; i < frame_buffer.size; i++)
+        if (rayIntersectsWithSpheres(closest_hit, RO, RD++))
+            shadeClosestHitByNormal(closest_hit, pixel++);
         else
-            *pixel++ = 0;
-    }
+            (pixel++)->value = 0;
 }
 
 inline void generateRays3D() {

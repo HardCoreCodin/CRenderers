@@ -2,7 +2,7 @@
 
 #include "lib/core/perf.h"
 #include "lib/core/string.h"
-#include "lib/core/inputs.h"
+#include "lib/input/keyboard.h"
 #include "lib/memory/buffers.h"
 #include "lib/memory/allocators.h"
 
