@@ -30,9 +30,11 @@ char* getEngineTitle() {
 }
 
 void initRenderEngine() {
+    initPerf(&perf);
+
     initHUD();
     initMouse();
-    initKeyboard();
+    initButtons();
 
     initFrameBuffer();
     initRayTracer();
@@ -90,12 +92,12 @@ void update() {
         mouse.coords.relative.y = 0;
     }
 
-    if (keyboard.keys_pressed & keyboard.keys.HUD) {
-        keyboard.keys_pressed &= (u8)~keyboard.keys.HUD;
+    if (buttons.hud.is_pressed) {
+        buttons.hud.is_pressed = false;
         hud.is_visible = !hud.is_visible;
     }
 
-    f32 delta_time = (f32)hud.main_perf.delta.seconds;
+    f32 delta_time = (f32)perf.delta.seconds;
     if (delta_time > 1)
         delta_time = 1;
 
@@ -134,20 +136,20 @@ void update() {
     }
 
     switch (engine.renderer) {
-        case RAY_TRACE: onMove3D(ray_tracer.camera.transform, delta_time); break;
-        case RAY_CAST: onMove2D(ray_caster.camera.transform, delta_time); break;
+        case RAY_TRACE: onMove3D(ray_tracer.camera.transform->yaw, ray_tracer.camera.transform->position, delta_time); break;
+        case RAY_CAST: onMove2D(ray_caster.camera.transform->rotation, ray_caster.camera.transform->position, delta_time); break;
     }
 }
 
 void OnFrameUpdate() {
-    PERF_START_FRAME(hud.main_perf)
+    PERF_START_FRAME
 
     update();
     render();
 
-    PERF_FRAME_END(hud.main_perf)
+    PERF_END_FRAME
     if (hud.is_visible) {
-        if (!hud.main_perf.accum.frames)
+        if (!perf.accum.frames)
             updateHUDCounters();
         drawText(hud.text, HUD_COLOR, frame_buffer.width - HUD_RIGHT - HUD_WIDTH, HUD_TOP);
     }

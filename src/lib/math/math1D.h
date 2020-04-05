@@ -1,9 +1,15 @@
 #pragma once
-#include "lib/core/types.h"
 
-inline f32 approach(f32 from, f32 to, f32 step) {
-    f32 delta = to - from;
-    if (delta > step) return from + step;
-    if (delta < -step) return from - step;
-    return to;
+#include "lib/core/types.h"
+#include "lib/math/math3D.h"
+
+inline void approach(f32* current_velocity, f32 target_velocity, f32 change_in_velocity) {
+    if (target_velocity > *current_velocity + change_in_velocity)
+        *current_velocity += change_in_velocity;
+
+    else if (target_velocity < *current_velocity - change_in_velocity)
+        *current_velocity -= change_in_velocity;
+
+    else
+        *current_velocity = target_velocity;
 }

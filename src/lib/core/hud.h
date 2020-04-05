@@ -22,7 +22,7 @@ typedef struct HUD {
     char* mode;
     char* perf;
 
-    Perf main_perf, debug_perf;
+    Perf debug_perf;
 } HUD;
 
 static HUD hud;
@@ -63,13 +63,12 @@ void initHUD() {
 
     setControllerModeInHUD(false);
 
-    initPerf(&hud.main_perf);
     initPerf(&hud.debug_perf);
 }
 
 inline void updateHUDCounters() {
-    printNumberIntoString(hud.main_perf.avg.frames_per_second, hud.fps);
-    printNumberIntoString(hud.main_perf.avg.milliseconds_per_frame, hud.msf);
+    printNumberIntoString(perf.avg.frames_per_second, hud.fps);
+    printNumberIntoString(perf.avg.milliseconds_per_frame, hud.msf);
 }
 
 inline void updateHUDDimensions() {

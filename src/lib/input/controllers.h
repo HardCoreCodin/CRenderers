@@ -21,16 +21,6 @@ typedef struct Orientation {
 } Orientation;
 Orientation orientation = {7 / 10000.0f, 0, 0, false};
 
-typedef struct Velocity {
-    f32 x, y, z, maximum;
-} Velocity;
-Velocity velocity = {0, 0, 0, 8};
-
-typedef struct Acceleration {
-    f32 current, maximum;
-} Acceleration;
-Acceleration acceleration = {0, 35};
-
 typedef struct Pan   {
     f32 sensitivity, right, up;
     bool changed;
@@ -81,58 +71,52 @@ void updateOrientation2D(Transform2D* transform) {
     orientation.changed = false;
 }
 
-void onMove3D(Transform3D* transform, f32 delta_time) {
-    vec3.x = vec3.y = vec3.z = 0;
+#define VELOCITY 8
+#define ACCELERATION 20
+Vector3 current_velocity, target_velocity, change_in_position;
 
-    // Compute velocity delta:
-    if (keyboard.keys_pressed & keyboard.keys.FORWARD) vec3.z += velocity.maximum;
-    if (keyboard.keys_pressed & keyboard.keys.BACKWARD) vec3.z -= velocity.maximum;
-    if (keyboard.keys_pressed & keyboard.keys.RIGHT) vec3.x += velocity.maximum;
-    if (keyboard.keys_pressed & keyboard.keys.LEFT) vec3.x -= velocity.maximum;
-    if (keyboard.keys_pressed & keyboard.keys.UP) vec3.y += velocity.maximum;
-    if (keyboard.keys_pressed & keyboard.keys.DOWN) vec3.y -= velocity.maximum;
+void onMove3D(Matrix3x3* rotation_matrix, Vector3* position, f32 delta_time) {
+    // Compute the target velocity:
+    target_velocity.x = target_velocity.y = target_velocity.z = 0;
+    if (buttons.right.is_pressed) target_velocity.x += VELOCITY;
+    if (buttons.left.is_pressed) target_velocity.x -= VELOCITY;
+    if (buttons.up.is_pressed) target_velocity.y += VELOCITY;
+    if (buttons.down.is_pressed) target_velocity.y -= VELOCITY;
+    if (buttons.forward.is_pressed) target_velocity.z += VELOCITY;
+    if (buttons.back.is_pressed) target_velocity.z -= VELOCITY;
 
-    // Update current velocity based on deltas of velocity and time:
-    acceleration.current = acceleration.maximum * delta_time;
-    velocity.x = approach(velocity.x, vec3.x, acceleration.current);
-    velocity.y = approach(velocity.y, vec3.y, acceleration.current);
-    velocity.z = approach(velocity.z, vec3.z, acceleration.current);
+    // Update the current velocity:
+    f32 change_in_velocity = ACCELERATION * delta_time;
+    approach(&current_velocity.x, target_velocity.x, change_in_velocity);
+    approach(&current_velocity.y, target_velocity.y, change_in_velocity);
+    approach(&current_velocity.z, target_velocity.z, change_in_velocity);
 
-    // Compute movement delta (axis-aligned):
-    vec3.x = velocity.x * delta_time;
-    vec3.y = velocity.y * delta_time;
-    vec3.z = velocity.z * delta_time;
-
-    // Rotate movement delta:
-    imul3D(&vec3, transform->yaw);
-
-    // Apply movement delta to the current camera position:
-    iadd3D(transform->position, &vec3);
+    // Update the current position:
+    scale3D(&current_velocity, delta_time, &change_in_position);
+    imul3D(&change_in_position, rotation_matrix);
+    iadd3D(position, &change_in_position);
 }
 
-void onMove2D(Transform2D* transform, f32 delta_time) {
-    vec2.x = vec2.y = 0;
+Vector2 change_in_position_2D;
 
-    // Compute velocity delta:
-    if (keyboard.keys_pressed & keyboard.keys.FORWARD) vec3.y += velocity.maximum;
-    if (keyboard.keys_pressed & keyboard.keys.BACKWARD) vec3.y -= velocity.maximum;
-    if (keyboard.keys_pressed & keyboard.keys.RIGHT) vec3.x += velocity.maximum;
-    if (keyboard.keys_pressed & keyboard.keys.LEFT) vec3.x -= velocity.maximum;
+void onMove2D(Matrix2x2* rotation_matrix, Vector2* position, f32 delta_time) {
+    // Compute the target velocity:
+    target_velocity.x = target_velocity.y = 0;
+    if (buttons.right.is_pressed) target_velocity.x += VELOCITY;
+    if (buttons.left.is_pressed) target_velocity.x -= VELOCITY;
+    if (buttons.forward.is_pressed) target_velocity.y += VELOCITY;
+    if (buttons.back.is_pressed) target_velocity.y -= VELOCITY;
 
-    // Update current velocity based on deltas of velocity and time:
-    acceleration.current = acceleration.maximum * delta_time;
-    velocity.x = approach(velocity.x, vec3.x, acceleration.current);
-    velocity.y = approach(velocity.y, vec3.y, acceleration.current);
+    // Update the current velocity:
+    f32 change_in_velocity = ACCELERATION * delta_time;
+    approach(&current_velocity.x, target_velocity.x, change_in_velocity);
+    approach(&current_velocity.y, target_velocity.y, change_in_velocity);
 
-    // Compute movement delta (axis-aligned):
-    vec3.x = velocity.x * delta_time;
-    vec3.y = velocity.y * delta_time;
-
-    // Rotate movement delta:
-    imul2D(&vec2, transform->rotation);
-
-    // Apply movement delta to the current camera position:
-    iadd2D(transform->position, &vec2);
+    // Update the current position:
+    change_in_position_2D.x = current_velocity.x * delta_time;
+    change_in_position_2D.y = current_velocity.y * delta_time;
+    imul2D(&change_in_position_2D, rotation_matrix);
+    iadd2D(position, &change_in_position_2D);
 }
 
 void onPan(s16 right, s16 up) {

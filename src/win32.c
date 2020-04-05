@@ -24,6 +24,8 @@ static RAWINPUT* raw_inputs;
 static RAWMOUSE raw_mouse;
 static UINT size_ri, size_rih = sizeof(RAWINPUTHEADER);
 
+static u64 ticks_of_last_frame, ticks_of_current_frame, target_ticks_per_frame;
+
 #define RELEASE_MOUSE { \
     mouse.is_captured = false; \
     ReleaseCapture(); \
@@ -48,12 +50,6 @@ inline void resizeFrameBuffer() {
     OnFrameBufferResized();
 }
 
-void updateFrame() {
-    OnFrameUpdate();
-    InvalidateRgn(window, NULL, FALSE);
-    UpdateWindow(window);
-}
-
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_DESTROY:
@@ -63,7 +59,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
         case WM_SIZE:
             resizeFrameBuffer();
-            updateFrame();
+            OnFrameUpdate();
             break;
 
         case WM_PAINT:
@@ -78,30 +74,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
         case WM_SYSKEYDOWN:
         case WM_KEYDOWN:
-            switch ((u32)wParam) {
-                case 'W': OnKeyDown(keyboard.keys.FORWARD); break;
-                case 'A': OnKeyDown(keyboard.keys.LEFT); break;
-                case 'S': OnKeyDown(keyboard.keys.BACKWARD); break;
-                case 'D': OnKeyDown(keyboard.keys.RIGHT); break;
-                case 'R': OnKeyDown(keyboard.keys.UP); break;
-                case 'F': OnKeyDown(keyboard.keys.DOWN); break;
-                case VK_TAB: OnKeyDown(keyboard.keys.HUD); break;
-                case VK_ESCAPE:
-                    engine.is_running = false;
-                    break;
-            }
+            if ((u32)wParam == VK_ESCAPE)
+                engine.is_running = false;
+            else
+                OnKeyDown((u32)wParam);
             break;
 
         case WM_SYSKEYUP:
         case WM_KEYUP:
-            switch ((u32)wParam) {
-                case 'W': OnKeyUp(keyboard.keys.FORWARD); break;
-                case 'A': OnKeyUp(keyboard.keys.LEFT); break;
-                case 'S': OnKeyUp(keyboard.keys.BACKWARD); break;
-                case 'D': OnKeyUp(keyboard.keys.RIGHT); break;
-                case 'R': OnKeyUp(keyboard.keys.UP); break;
-                case 'F': OnKeyUp(keyboard.keys.DOWN); break;
-            }
+            OnKeyUp((u32)wParam);
             break;
 
         case WM_LBUTTONDOWN:
@@ -182,6 +163,16 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
     initRenderEngine();
 
+    target_ticks_per_frame = perf.ticks_per_second / 60;
+
+    buttons.up.key = 'R';
+    buttons.down.key = 'F';
+    buttons.left.key = 'A';
+    buttons.right.key = 'D';
+    buttons.forward.key = 'W';
+    buttons.back.key = 'S';
+    buttons.hud.key = VK_TAB;
+
     info.bmiHeader.biSize        = sizeof(info.bmiHeader);
     info.bmiHeader.biCompression = BI_RGB;
     info.bmiHeader.biBitCount    = 32;
@@ -224,14 +215,23 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     ShowWindow(window, nCmdShow);
 
     MSG message;
+    GET_TICKS(ticks_of_last_frame);
 
     while (engine.is_running) {
+        GET_TICKS(ticks_of_current_frame);
+        while (ticks_of_current_frame - ticks_of_last_frame < target_ticks_per_frame) {
+            GET_TICKS(ticks_of_current_frame);
+        }
+
         while (PeekMessageA(&message, 0, 0, 0, PM_REMOVE)) {
             TranslateMessage(&message);
             DispatchMessageA(&message);
         }
 
-        updateFrame();
+        GET_TICKS(ticks_of_last_frame);
+
+        OnFrameUpdate();
+        InvalidateRgn(window, NULL, FALSE);
     }
 
     return (int)message.wParam;

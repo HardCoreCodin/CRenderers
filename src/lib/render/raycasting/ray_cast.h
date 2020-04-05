@@ -1,7 +1,6 @@
 #include <math.h>
 #include "core.h"
 #include "engine/math/math2D.h"
-#include "core2D.h"
 #include "engine/render/draw.h"
 
 #define INT_MAX	2147483647
