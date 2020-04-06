@@ -5,8 +5,8 @@
 #include "lib/math/math3D.h"
 
 #define SPHERE_RADIUS 1
-#define SPHERE_HCOUNT 4
-#define SPHERE_VCOUNT 4
+#define SPHERE_HCOUNT 3
+#define SPHERE_VCOUNT 3
 
 typedef struct Sphere {
     f32 radius;

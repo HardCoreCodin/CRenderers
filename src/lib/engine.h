@@ -66,6 +66,15 @@ void update() {
         engine.in_fps_mode = !engine.in_fps_mode;
         setControllerModeInHUD(engine.in_fps_mode);
     }
+    generateRays3D();
+
+    if (buttons.rat.is_pressed && !ray_tracer.rational_trig_mode) {
+        ray_tracer.rational_trig_mode = true;
+        setRationalModeInHUD(true);
+    } else if (!buttons.rat.is_pressed && ray_tracer.rational_trig_mode) {
+        ray_tracer.rational_trig_mode = false;
+        setRationalModeInHUD(false);
+    }
 
     if (mouse.wheel.was_scrolled) {
         mouse.wheel.was_scrolled = false;

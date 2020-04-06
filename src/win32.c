@@ -63,6 +63,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             break;
 
         case WM_PAINT:
+            OnFrameUpdate();
+
+            GET_TICKS(ticks_of_current_frame);
+            while (ticks_of_current_frame - ticks_of_last_frame < target_ticks_per_frame) {
+                GET_TICKS(ticks_of_current_frame);
+            }
+
             SetDIBitsToDevice(win_dc,
                     0, 0, frame_buffer.width, frame_buffer.height,
                     0, 0, 0, frame_buffer.height,
@@ -70,6 +77,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
             ValidateRgn(window, NULL);
 
+            GET_TICKS(ticks_of_last_frame);
             break;
 
         case WM_SYSKEYDOWN:
@@ -172,6 +180,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     buttons.forward.key = 'W';
     buttons.back.key = 'S';
     buttons.hud.key = VK_TAB;
+    buttons.rat.key = VK_CONTROL;
 
     info.bmiHeader.biSize        = sizeof(info.bmiHeader);
     info.bmiHeader.biCompression = BI_RGB;
@@ -218,20 +227,11 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     GET_TICKS(ticks_of_last_frame);
 
     while (engine.is_running) {
-        GET_TICKS(ticks_of_current_frame);
-        while (ticks_of_current_frame - ticks_of_last_frame < target_ticks_per_frame) {
-            GET_TICKS(ticks_of_current_frame);
-        }
-
         while (PeekMessageA(&message, 0, 0, 0, PM_REMOVE)) {
             TranslateMessage(&message);
             DispatchMessageA(&message);
         }
-
-        GET_TICKS(ticks_of_last_frame);
-
-        OnFrameUpdate();
-        InvalidateRgn(window, NULL, FALSE);
+                    InvalidateRgn(window, NULL, FALSE);
     }
 
     return (int)message.wParam;

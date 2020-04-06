@@ -20,6 +20,7 @@ typedef struct HUD {
     char* fps;
     char* msf;
     char* mode;
+    char* rat;
     char* perf;
 
     Perf debug_perf;
@@ -34,6 +35,12 @@ void setControllerModeInHUD(bool fps) {
     *mode   = fps ? 's' : 'b';
 }
 
+void setRationalModeInHUD(bool rat) {
+    char* mode = hud.rat;
+    *mode++ = rat ? 'N' : 'f';
+    *mode   = rat ? ' ' : 'f';
+}
+
 void initHUD() {
     hud.is_visible = true;
 
@@ -42,6 +49,7 @@ void initHUD() {
                      "FPS    : ___3\n"
                      "Ms/F   : ___4\n"
                      "Mode   :  5__\n"
+                     "Rat    :  O6 \n"
                      "Perf   :     ";
 
     char* HUD_char = template;
@@ -54,6 +62,7 @@ void initHUD() {
             case '3':  hud.fps = HUD_text_char; break;
             case '4':  hud.msf = HUD_text_char; break;
             case '5':  hud.mode = HUD_text_char; break;
+            case '6':  hud.rat = HUD_text_char; break;
         }
 
         *HUD_text_char++ = *HUD_char++;
@@ -62,6 +71,7 @@ void initHUD() {
     *HUD_text_char = '\0';
 
     setControllerModeInHUD(false);
+    setRationalModeInHUD(false);
 
     initPerf(&hud.debug_perf);
 }

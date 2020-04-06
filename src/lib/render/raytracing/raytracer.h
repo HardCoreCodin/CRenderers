@@ -16,6 +16,7 @@ RayTracer ray_tracer;
 RayHit* closest_hit;
 
 void initRayTracer() {
+    ray_tracer.rational_trig_mode = false;
     ray_tracer.rays_per_pixel = 1;
     ray_tracer.ray_count = frame_buffer.width * frame_buffer.height * ray_tracer.rays_per_pixel;
     ray_tracer.ray_directions = (Vector3*)allocate(sizeof(Vector3) * ray_tracer.ray_count);
@@ -40,7 +41,7 @@ void rayTrace() {
             (pixel++)->value = 0;
 }
 
-inline void generateRays3D() {
+inline void generateRays3DReal() {
     f32 ray_y2;
     Vector3 up, right, start, ray;
     Vector3* rotX = &ray_tracer.camera.transform->rotation->i;
@@ -66,38 +67,49 @@ inline void generateRays3D() {
     }
 }
 
+inline void generateRays3DRat() {
+    f32 norm_width = 1 / ray_tracer.camera.focal_length;
+    f32 pixel_size = norm_width / (f32)frame_buffer.width;
+    f32 norm_height = pixel_size * (f32)frame_buffer.height;
+    f32 x_start = (pixel_size  - norm_width) / 2;
+    f32 y_start = (norm_height - pixel_size) / 2;
+
+    f32 r, s = y_start;
+    f32 r2, s2, f;
+
+    Vector3* rays = ray_tracer.ray_directions;
+    for (u16 y = 0; y < frame_buffer.height; y++) {
+        r = x_start;
+
+        for (u16 x = 0; x < frame_buffer.width; x++) {
+            r2 = r * r;
+            s2 = s * s;
+            f = 1 / (1 + r2 + s2);
+
+            rays->x = 2 * r * f;
+            rays->y = 2 * s * f;
+            rays->z = (1 - r2 - s2) * f;
+            imul3D(rays, ray_tracer.camera.transform->rotation);
+            rays++;
+
+            r += pixel_size;
+        }
+
+        s -= pixel_size;
+    }
+}
+
+inline void generateRays3D() {
+    PERF_START(hud.debug_perf)
+    if (ray_tracer.rational_trig_mode)
+        generateRays3DRat();
+    else
+        generateRays3DReal();
+    PERF_END(hud.debug_perf)
+    PERF_OUT(hud.debug_perf)
+}
+
 inline void onZoomRT() {generateRays3D();}
 inline void onOrbitRT() {generateRays3D();}
 inline void onOrientRT() {generateRays3D();}
 inline void onResizeRT() {generateRays3D();}
-
-//
-//void generateRays3D(Vector3* ray_directions, f32 focal_length, u16 width, u16 height) {
-//    f32 norm_width = 1 / focal_length;
-//    f32 pixel_size = norm_width / (f32)width;
-//    f32 norm_height = pixel_size * (f32)height;
-//    f32 x_start = (pixel_size  - norm_width) / 2;
-//    f32 y_start = (norm_height - pixel_size) / 2;
-//
-//    f32 r, s = y_start;
-//    f32 r2, s2, f;
-//
-//    for (u16 y = 0; y < height; y++) {
-//        r = x_start;
-//
-//        for (u16 x = 0; x < width; x++) {
-//            r2 = r * r;
-//            s2 = s * s;
-//            f = 1 / (1 + r2 + s2);
-//
-//            ray_directions->x = 2 * r * f;
-//            ray_directions->y = 2 * s * f;
-//            ray_directions->z = (1 - r2 - s2) * f;
-//            ray_directions++;
-//
-//            r += pixel_size;
-//        }
-//
-//        s -= pixel_size;
-//    }
-//}

@@ -8,7 +8,7 @@ typedef struct Button {
 } Button;
 
 typedef struct Buttons {
-    Button forward, back, left, right, up, down, hud;
+    Button forward, back, left, right, up, down, hud, rat;
 } Buttons;
 Buttons buttons;
 
@@ -20,8 +20,9 @@ void initButtons() {
     buttons.forward.is_pressed = false;
     buttons.back.is_pressed = false;
     buttons.hud.is_pressed = false;
+    buttons.rat.is_pressed = false;
 };
-
+//https://youtu.be/XnNR9iuM0Kk
 //typedef struct Keys {
 //    u8 FORWARD, BACKWARD, LEFT, RIGHT, UP, DOWN, HUD;
 //} Keys;
@@ -52,6 +53,7 @@ void OnKeyDown(u32 key) {
     else if (key == buttons.right.key) buttons.right.is_pressed = true;
     else if (key == buttons.forward.key) buttons.forward.is_pressed = true;
     else if (key == buttons.back.key) buttons.back.is_pressed = true;
+    else if (key == buttons.rat.key) buttons.rat.is_pressed = true;
 }
 
 void OnKeyUp(u8 key) {
@@ -62,4 +64,5 @@ void OnKeyUp(u8 key) {
     else if (key == buttons.right.key) buttons.right.is_pressed = false;
     else if (key == buttons.forward.key) buttons.forward.is_pressed = false;
     else if (key == buttons.back.key) buttons.back.is_pressed = false;
+    else if (key == buttons.rat.key) buttons.rat.is_pressed = false;
 }
