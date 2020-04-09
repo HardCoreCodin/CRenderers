@@ -9,8 +9,7 @@
 
 bool rayIntersectsWithSpheres(
         RayHit* closest_hit, // The hit structure of the closest intersection of the ray with the spheres
-        Vector3* RO, // The position that the ray originates from
-        Vector3* RD  // The direction that the ray is aiming at
+        Vector3* ray_direction  // The direction that the ray is aiming at
 ) {
     f32 r, r2, // The radius of the current sphere (and it's square)
     d, d2, // The distance from the origin to the position of the current intersection (and it's square)
@@ -30,16 +29,14 @@ bool rayIntersectsWithSpheres(
     // Loop over all the spheres and intersect the ray against them:
     Sphere* sphere = scene.spheres;
     for (u8 i = 0; i < scene.sphere_count; i++) {
-        s = &sphere->position;
+        s = sphere->view_position;
         r = sphere->radius;
         r2 = r*r;
         sphere++;
 
-        sub3D(s, RO, t);
-        o2c = dot3D(t, RD);
+        o2c = dot3D(ray_direction, s);
         if (o2c > 0) {
-            scale3D(RD, o2c, t);
-            add3D(RO, t, p);
+            scale3D(ray_direction, o2c, p);
             sub3D(s, p, t);
             d2 = dot3D(t, t);
             if (d2 <= r2) {
@@ -58,8 +55,7 @@ bool rayIntersectsWithSpheres(
     if (R) {
         if (R2_minus_D2 > 0.001) {
             closest_hit->distance = O2C - sqrtf(R2_minus_D2);
-            scale3D(RD, closest_hit->distance, t);
-            add3D(RO, t, &closest_hit->position);
+            scale3D(ray_direction, closest_hit->distance, &closest_hit->position);
         }
 
         sub3D(&closest_hit->position, S, &closest_hit->normal);

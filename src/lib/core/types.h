@@ -19,9 +19,13 @@ typedef signed   long long s64;
 typedef float  f32;
 typedef double f64;
 
-typedef struct Coords {
-    u16 x, y;
-} Coords;
+typedef struct Vector2 {
+    f32 x, y;
+} Vector2;
+
+typedef struct Vector3 {
+    f32 x, y, z;
+} Vector3;
 
 typedef struct Color {
     u8 B, G, R;

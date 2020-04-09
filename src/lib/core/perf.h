@@ -19,7 +19,7 @@ typedef struct PerfDelta {u64 ticks; f64 seconds;} PerfDelta;
 typedef struct PerfAccum {u64 ticks, frames;} PerfAccum;
 typedef struct PerfAvg {
     f64 frames_per_tick, ticks_per_frame;
-    u16 frames_per_second, milliseconds_per_frame;
+    u16 frames_per_second, milliseconds_per_frame, microseconds_per_frame, nanoseconds_per_frame;
 } PerfAvg;
 
 typedef struct Perf {
@@ -28,7 +28,7 @@ typedef struct Perf {
     PerfTicks ticks;
     PerfAvg avg;
     u64 ticks_per_interval, ticks_per_second;
-    f64 seconds_per_tick, milliseconds_per_tick;
+    f64 seconds_per_tick, milliseconds_per_tick, microseconds_per_tick, nanoseconds_per_tick;
 } Perf;
 Perf perf;
 
@@ -47,6 +47,8 @@ void initPerf(Perf* p) {
     GET_TICKS_PER_SECOND(p->ticks_per_second);
     p->seconds_per_tick = 1.0f / p->ticks_per_second;
     p->milliseconds_per_tick = 1000.0f / p->ticks_per_second;
+    p->microseconds_per_tick = 1000 * p->milliseconds_per_tick;
+    p->nanoseconds_per_tick = 1000 * p->microseconds_per_tick;
     p->ticks_per_interval = p->ticks_per_second / 4;
 }
 
@@ -59,6 +61,8 @@ void initPerf(Perf* p) {
     p.avg.ticks_per_frame = (f64)p.accum.ticks / p.accum.frames; \
     p.avg.frames_per_second = (u16)(p.avg.frames_per_tick * p.ticks_per_second); \
     p.avg.milliseconds_per_frame = (u16)(p.avg.ticks_per_frame * p.milliseconds_per_tick); \
+    p.avg.microseconds_per_frame = (u16)(p.avg.ticks_per_frame * p.microseconds_per_tick); \
+    p.avg.nanoseconds_per_frame = (u16)(p.avg.ticks_per_frame * p.nanoseconds_per_tick); \
     p.accum.ticks = p.accum.frames = 0; \
 }
 
@@ -80,4 +84,4 @@ void initPerf(Perf* p) {
     PERF_ACCUM(perf) \
     if (perf.accum.ticks >= perf.ticks_per_interval) PERF_SUM(perf)
 
-#define PERF_OUT(p) if (!p.accum.ticks) printNumberIntoString(p.avg.milliseconds_per_frame, hud.perf);
+#define PERF_OUT(p) if (!p.accum.ticks) printNumberIntoString(p.avg.nanoseconds_per_frame, hud.perf);

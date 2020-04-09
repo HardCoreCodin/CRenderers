@@ -9,107 +9,59 @@
 #include "lib/render/raytracing/raytrace_types.h"
 #include "lib/render/raytracing/shaders/closest_hit/normal.h"
 #include "lib/render/raytracing/shaders/intersection/ray_sphere.h"
+#include "lib/render/raytracing/shaders/generation/ray_generation.h"
 
-static char* RAY_TRACER_TITLE = "RayTrace";
+char* TITLE = "RayTrace";
 
-RayTracer ray_tracer;
+RayTracer renderer;
 RayHit* closest_hit;
 
-void initRayTracer() {
-    ray_tracer.rational_trig_mode = false;
-    ray_tracer.rays_per_pixel = 1;
-    ray_tracer.ray_count = frame_buffer.width * frame_buffer.height * ray_tracer.rays_per_pixel;
-    ray_tracer.ray_directions = (Vector3*)allocate(sizeof(Vector3) * ray_tracer.ray_count);
-
-    initCamera3D(&ray_tracer.camera);
-    ray_tracer.camera.transform->position->x = 5;
-    ray_tracer.camera.transform->position->y = 5;
-    ray_tracer.camera.transform->position->z = -10;
-
-    closest_hit = (RayHit*)allocate(sizeof(RayHit));
-}
-
-void rayTrace() {
+inline void render() {
     Pixel* pixel = (Pixel*)frame_buffer.pixels;
-    Vector3* RO = ray_tracer.camera.transform->position;
-    Vector3* RD = ray_tracer.ray_directions;
+    Vector3* ray_direction = renderer.ray_directions;
 
     for (u32 i = 0; i < frame_buffer.size; i++)
-        if (rayIntersectsWithSpheres(closest_hit, RO, RD++))
+        if (rayIntersectsWithSpheres(closest_hit, ray_direction++))
             shadeClosestHitByNormal(closest_hit, pixel++);
+//            shadeRayByDirection(ray_direction++, pixel++);
         else
             (pixel++)->value = 0;
 }
 
-inline void generateRays3DReal() {
-    f32 ray_y2;
-    Vector3 up, right, start, ray;
-    Vector3* rotX = &ray_tracer.camera.transform->rotation->i;
-    Vector3* rotY = &ray_tracer.camera.transform->rotation->j;
-    Vector3* rotZ = &ray_tracer.camera.transform->rotation->k;
-    Vector3* rays = ray_tracer.ray_directions;
-    scale3D(rotX, (1 - (f32)frame_buffer.width) / 2, &right);
-    scale3D(rotY, ((f32)frame_buffer.height - 1) / 2, &up);
-    scale3D(rotZ, (f32)frame_buffer.width * ray_tracer.camera.focal_length / 2, &start);
-    iadd3D(&start, &right);
-    iadd3D(&start, &up);
-    up = *rotY;
-    right = *rotX;
+inline void generateRays() {
+    generateRayDirections(
+            renderer.ray_directions,
+            renderer.camera.focal_length,
+            frame_buffer.width,
+            frame_buffer.height);
+}
 
-    for (u16 h = 0; h < frame_buffer.height; h++) {
-        ray = start;
-        ray_y2 = ray.y * ray.y;
-        for (u16 w = 0; w < frame_buffer.width; w++) {
-            scale3D(&ray, 1 / sqrtf(ray.x*ray.x + ray_y2 + ray.z*ray.z), rays++);
-            iadd3D(&ray, &right);
-        }
-        isub3D(&start, &up);
+inline void onResized() {generateRays();}
+inline void onZoomed() {generateRays();}
+inline void onMoved() {
+    Vector3* camera_position = renderer.camera.transform->position;
+    Matrix3x3* inverted_camera_rotation = renderer.camera.transform->rotation_inverted;
+    transposeMatrix3D(renderer.camera.transform->rotation, inverted_camera_rotation);
+
+    Sphere *sphere = scene.spheres;
+    for (u8 i = 0; i < scene.sphere_count; i++) {
+        sub3D(sphere->world_position, camera_position, sphere->view_position);
+        imul3D(sphere->view_position, inverted_camera_rotation);
+        sphere++;
     }
 }
 
-inline void generateRays3DRat() {
-    f32 norm_width = 1 / ray_tracer.camera.focal_length;
-    f32 pixel_size = norm_width / (f32)frame_buffer.width;
-    f32 norm_height = pixel_size * (f32)frame_buffer.height;
-    f32 x_start = (pixel_size  - norm_width) / 2;
-    f32 y_start = (norm_height - pixel_size) / 2;
 
-    f32 r, s = y_start;
-    f32 r2, s2, f;
+void initRenderer() {
+    renderer.rays_per_pixel = 1;
+    renderer.ray_count = frame_buffer.width * frame_buffer.height * renderer.rays_per_pixel;
+    renderer.ray_directions = (Vector3*)allocate(sizeof(Vector3) * renderer.ray_count);
 
-    Vector3* rays = ray_tracer.ray_directions;
-    for (u16 y = 0; y < frame_buffer.height; y++) {
-        r = x_start;
+    initCamera3D(&renderer.camera);
+    renderer.camera.transform->position->x = 5;
+    renderer.camera.transform->position->y = 5;
+    renderer.camera.transform->position->z = -10;
+    onMoved();
 
-        for (u16 x = 0; x < frame_buffer.width; x++) {
-            r2 = r * r;
-            s2 = s * s;
-            f = 1 / (1 + r2 + s2);
-
-            rays->x = 2 * r * f;
-            rays->y = 2 * s * f;
-            rays->z = (1 - r2 - s2) * f;
-            imul3D(rays, ray_tracer.camera.transform->rotation);
-            rays++;
-
-            r += pixel_size;
-        }
-
-        s -= pixel_size;
-    }
+    closest_hit = (RayHit*)allocate(sizeof(RayHit));
 }
-
-inline void generateRays3D() {
-    PERF_START(hud.debug_perf)
-    if (ray_tracer.rational_trig_mode)
-        generateRays3DRat();
-    else
-        generateRays3DReal();
-    PERF_END(hud.debug_perf)
-    PERF_OUT(hud.debug_perf)
-}
-
-inline void onZoomRT() {generateRays3D();}
-inline void onOrbitRT() {generateRays3D();}
-inline void onOrientRT() {generateRays3D();}
-inline void onResizeRT() {generateRays3D();}

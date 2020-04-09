@@ -13,7 +13,7 @@ include_directories(${SourceDir})
 add_executable(Renderer WIN32 ${SourceDir}win32.c)
 set_target_properties(Renderer PROPERTIES OUTPUT_NAME win32)
 target_link_libraries(Renderer PRIVATE kernel32.lib user32.lib gdi32.lib winmm.lib)
-target_compile_definitions(Renderer PRIVATE PERF)
+target_compile_definitions(Renderer PRIVATE PERF RAY_TRACER)
 
 if (MSVC)
     add_compile_options(

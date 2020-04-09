@@ -10,7 +10,8 @@
 
 typedef struct Sphere {
     f32 radius;
-    Vector3 position;
+    Vector3* world_position;
+    Vector3* view_position;
 } Sphere;
 
 typedef struct Scene {
@@ -36,9 +37,12 @@ void initScene() {
         for (u8 x = 0; x < SPHERE_HCOUNT; x++) {
             sphere->radius = 1;
 
-            sphere->position.x = sphere_x;
-            sphere->position.y = 0;
-            sphere->position.z = sphere_z;
+            sphere->world_position = (Vector3*)allocate(sizeof(Vector3));
+            sphere->view_position = (Vector3*)allocate(sizeof(Vector3));
+
+            sphere->world_position->x = sphere_x;
+            sphere->world_position->y = 0;
+            sphere->world_position->z = sphere_z;
 
             sphere_x += gap;
             sphere++;

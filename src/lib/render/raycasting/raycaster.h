@@ -41,7 +41,7 @@ inline void generateRays2D() {
     Vector2* rotY = &ray_caster.camera.transform->rotation->j;
     Vector2* rays = ray_caster.ray_directions;
     scale2D(rotX, (1 - (f32)frame_buffer.width) / 2, &right);
-    scale2D(rotY, (f32)frame_buffer.height * ray_tracer.camera.focal_length / 2, &ray);
+    scale2D(rotY, (f32)frame_buffer.height * renderer.camera.focal_length / 2, &ray);
     iadd2D(&ray, &right);
     right = *rotX;
     for (u16 w = 0; w < frame_buffer.width; w++) {

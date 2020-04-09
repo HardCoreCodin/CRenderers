@@ -8,7 +8,12 @@
 #include "lib/core/perf.h"
 #include "lib/input/mouse.h"
 #include "lib/input/keyboard.h"
-#include "lib/engine.h"
+
+#ifdef RAY_CASTER
+#include "lib/engine2D.h"
+#else
+#include "lib/engine3D.h"
+#endif
 
 #define RAW_INPUT_MAX_SIZE Kilobytes(1)
 #define MEMORY_SIZE Gigabytes(1)
@@ -197,7 +202,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
     window = CreateWindowA(
             window_class.lpszClassName,
-            getEngineTitle(),
+            TITLE,
             WS_OVERLAPPEDWINDOW,
 
             CW_USEDEFAULT,

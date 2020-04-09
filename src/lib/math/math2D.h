@@ -3,9 +3,6 @@
 
 #include "lib/core/types.h"
 
-typedef struct Vector2 {
-    f32 x, y;
-} Vector2;
 static Vector2 vec2;
 
 typedef union {

@@ -5,12 +5,12 @@
 #define MOUSE_CLICK_TICKS 10000
 
 typedef struct MouseCoords {
-    Coords absolute, relative;
+    Vector2 absolute, relative;
 } MouseCoords;
 
 typedef struct MouseButtonState {
     u64 ticks;
-    Coords coords;
+    Vector2 coords;
 } MouseButtonState;
 
 typedef struct MouseButton {
@@ -29,7 +29,7 @@ typedef struct MouseWheel {
 
 typedef struct MouseDoubleClick {
     bool was_actioned;
-    Coords at;
+    Vector2 at;
 } MouseDoubleClick;
 
 typedef struct Mouse {

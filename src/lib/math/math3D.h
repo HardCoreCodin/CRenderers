@@ -3,10 +3,6 @@
 #include "lib/core/types.h"
 #include "math2D.h"
 
-typedef struct Vector3 {
-    f32 x, y, z;
-} Vector3;
-
 Vector3 vec3;
 
 typedef union {
@@ -101,6 +97,13 @@ inline f32 squaredLength3D(Vector3* v) {
 void setMatrix3x3ToIdentity(Matrix3x3* M) {
     M->m11 = M->m22 = M->m33 = 1.0f; 
     M->m12 = M->m21 = M->m23 = M->m32 = M->m13 = M->m31 = 0.0f;
+}
+
+void transposeMatrix3D(Matrix3x3* M, Matrix3x3* O) {
+    O->m11 = M->m11; O->m22 = M->m22; O->m33 = M->m33;
+    O->m12 = M->m21; O->m21 = M->m12;
+    O->m13 = M->m31; O->m31 = M->m13;
+    O->m23 = M->m32; O->m32 = M->m23;
 }
 
 inline void matMul3D(Matrix3x3* a, Matrix3x3* b, Matrix3x3* out) {
