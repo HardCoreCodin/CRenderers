@@ -8,12 +8,7 @@
 #include "lib/core/perf.h"
 #include "lib/input/mouse.h"
 #include "lib/input/keyboard.h"
-
-#ifdef RAY_CASTER
-#include "lib/engine2D.h"
-#else
-#include "lib/engine3D.h"
-#endif
+#include "lib/engine.h"
 
 #define RAW_INPUT_MAX_SIZE Kilobytes(1)
 #define MEMORY_SIZE Gigabytes(1)
@@ -52,7 +47,7 @@ inline void resizeFrameBuffer() {
     frame_buffer.height = (u16)-info.bmiHeader.biHeight;
     frame_buffer.size = frame_buffer.width * frame_buffer.height;
 
-    OnFrameBufferResized();
+    engine.renderer->on.resized();
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -64,11 +59,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
         case WM_SIZE:
             resizeFrameBuffer();
-            OnFrameUpdate();
+            engine.updateAndRender();
             break;
 
         case WM_PAINT:
-            OnFrameUpdate();
+            engine.updateAndRender();
 
             GET_TICKS(ticks_of_current_frame);
             while (ticks_of_current_frame - ticks_of_last_frame < target_ticks_per_frame) {
@@ -133,7 +128,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             break;
 
         case WM_LBUTTONDBLCLK:
-            OnMouseDoubleClicked(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+            engine.renderer->on.double_clicked();
             if (mouse.is_captured) RELEASE_MOUSE else CAPTURE_MOUSE
             break;
 
@@ -174,7 +169,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     if (!memory.address)
         return -1;
 
-    initRenderEngine();
+    initEngine();
 
     target_ticks_per_frame = perf.ticks_per_second / 60;
 
@@ -184,8 +179,9 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     buttons.right.key = 'D';
     buttons.forward.key = 'W';
     buttons.back.key = 'S';
+    buttons.first.key = '1';
+    buttons.second.key = '2';
     buttons.hud.key = VK_TAB;
-    buttons.rat.key = VK_CONTROL;
 
     info.bmiHeader.biSize        = sizeof(info.bmiHeader);
     info.bmiHeader.biCompression = BI_RGB;
@@ -202,7 +198,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
     window = CreateWindowA(
             window_class.lpszClassName,
-            TITLE,
+            engine.renderer->title,
             WS_OVERLAPPEDWINDOW,
 
             CW_USEDEFAULT,
@@ -236,7 +232,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
             TranslateMessage(&message);
             DispatchMessageA(&message);
         }
-                    InvalidateRgn(window, NULL, FALSE);
+        InvalidateRgn(window, NULL, FALSE);
     }
 
     return (int)message.wParam;

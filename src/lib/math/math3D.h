@@ -1,20 +1,9 @@
 #pragma once
-#pragma warning(disable : 4201)
+
 #include "lib/core/types.h"
 #include "math2D.h"
 
 Vector3 vec3;
-
-typedef union {
-    struct {
-        f32 m11, m12, m13,
-            m21, m22, m23,
-            m31, m32, m33;
-    };
-    struct {
-        Vector3 i, j, k;
-    };
-} Matrix3x3;
 Matrix3x3 mat3;
 
 inline void fill3D(Vector3* vector, f32 value) {
@@ -288,3 +277,13 @@ void rotateAbsolute3D(
     imatMul3D(rotation_matrix, yaw_matrix);
 }
 
+void rotate3D(f32 yaw, f32 pitch, f32 roll, Transform3D* transform) {
+    if (yaw) yaw3D(yaw, transform->yaw);
+    if (pitch) pitch3D(pitch, transform->pitch);
+    if (roll) {
+        roll3D(roll, transform->roll);
+        matMul3D(transform->roll, transform->pitch, transform->rotation);
+        imatMul3D(transform->rotation, transform->yaw);
+    } else
+        matMul3D(transform->pitch, transform->yaw, transform->rotation);
+}

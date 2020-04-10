@@ -8,18 +8,7 @@
 #define SPHERE_HCOUNT 3
 #define SPHERE_VCOUNT 3
 
-typedef struct Sphere {
-    f32 radius;
-    Vector3* world_position;
-    Vector3* view_position;
-} Sphere;
-
-typedef struct Scene {
-    u8 sphere_count;
-    Sphere* spheres;
-} Scene;
-
-static Scene scene;
+Scene scene;
 
 void initScene() {
     scene.sphere_count = SPHERE_HCOUNT * SPHERE_VCOUNT;

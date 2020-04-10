@@ -30,7 +30,7 @@ typedef struct Perf {
     u64 ticks_per_interval, ticks_per_second;
     f64 seconds_per_tick, milliseconds_per_tick, microseconds_per_tick, nanoseconds_per_tick;
 } Perf;
-Perf perf;
+static Perf perf;
 
 void initPerf(Perf* p) {
     p->delta.ticks = 0;

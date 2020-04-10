@@ -1,7 +1,6 @@
 #pragma once
 
 #include "lib/core/types.h"
-#include "lib/render/raytracing/raytrace_types.h"
 
 #define MAX_COLOR_VALUE 0xFF
 

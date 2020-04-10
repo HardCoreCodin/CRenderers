@@ -1,20 +1,9 @@
 #pragma once
-#pragma warning(disable : 4201)
 
 #include "lib/core/types.h"
 
-static Vector2 vec2;
-
-typedef union {
-    struct {
-        f32 m11, m12,
-            m21, m22;
-    };
-    struct {
-        Vector2 i, j;
-    };
-} Matrix2x2;
-static Matrix2x2 mat2;
+Vector2 vec2;
+Matrix2x2 mat2;
 
 void setPointOnUnitCircle(f32 t) {
     f32 t_squared = t * t;
