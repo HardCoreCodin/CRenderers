@@ -9,8 +9,9 @@
 
 bool rayIntersectsWithSpheres(
         RayHit* closest_hit, // The hit structure of the closest intersection of the ray with the spheres
-        Vector3* ray_direction  // The direction that the ray is aiming at
-) {
+        Vector3* ray_direction,  // The direction that the ray is aiming at
+        Sphere* sphere,
+        u8 sphere_count) {
     f32 r, r2, // The radius of the current sphere (and it's square)
     d, d2, // The distance from the origin to the position of the current intersection (and it's square)
     o2c, // The distance from the ray's origin to a position along the ray closest to the current sphere's center
@@ -27,8 +28,7 @@ bool rayIntersectsWithSpheres(
             *t = &_t;
 
     // Loop over all the spheres and intersect the ray against them:
-    Sphere* sphere = scene.spheres;
-    for (u8 i = 0; i < scene.sphere_count; i++) {
+    for (u8 i = 0; i < sphere_count; i++) {
         s = sphere->view_position;
         r = sphere->radius;
         r2 = r*r;

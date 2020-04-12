@@ -6,31 +6,27 @@
 #include "lib/memory/allocators.h"
 
 void initTransform2D(Transform2D* transform) {
-    transform->rotation = (Matrix2x2*)allocate(sizeof(Matrix2x2));
-    transform->position = (Vector2*)allocate(sizeof(Vector2));
+    initMatrix2x2(&transform->rotation);
     setMatrix2x2ToIdentity(transform->rotation);
-
-    transform->right = &transform->rotation->i;
-    transform->forward = &transform->rotation->j;
+    transform->right = transform->rotation.x_axis;
+    transform->forward = transform->rotation.y_axis;
+    transform->position = Alloc(Vector2);
 }
 
 void initTransform3D(Transform3D* transform) {
-    transform->yaw = (Matrix3x3*)allocate(sizeof(Matrix3x3));
-    transform->pitch = (Matrix3x3*)allocate(sizeof(Matrix3x3));
-    transform->roll = (Matrix3x3*)allocate(sizeof(Matrix3x3));
-
-    transform->rotation = (Matrix3x3*)allocate(sizeof(Matrix3x3));
-    transform->rotation_inverted = (Matrix3x3*)allocate(sizeof(Matrix3x3));
-    transform->position = (Vector3*)allocate(sizeof(Vector3));
+    initMatrix3x3(&transform->rotation);
+    initMatrix3x3(&transform->yaw);
+    initMatrix3x3(&transform->pitch);
+    initMatrix3x3(&transform->roll);
 
     setMatrix3x3ToIdentity(transform->yaw);
     setMatrix3x3ToIdentity(transform->pitch);
     setMatrix3x3ToIdentity(transform->roll);
-
     setMatrix3x3ToIdentity(transform->rotation);
-    setMatrix3x3ToIdentity(transform->rotation_inverted);
 
-    transform->up = &transform->rotation->j;
-    transform->right = &transform->rotation->i;
-    transform->forward = &transform->rotation->k;
+    transform->position = (Vector3*)allocate(sizeof(Vector3));
+
+    transform->up = transform->rotation.y_axis;
+    transform->right = transform->rotation.x_axis;
+    transform->forward = transform->rotation.z_axis;
 }

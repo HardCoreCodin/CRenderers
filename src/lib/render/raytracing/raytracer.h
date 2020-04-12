@@ -2,102 +2,90 @@
 
 #include "lib/core/types.h"
 #include "lib/input/keyboard.h"
+#include "lib/controllers/fps.h"
+#include "lib/controllers/orb.h"
 #include "lib/nodes/camera.h"
 #include "lib/memory/buffers.h"
 #include "lib/memory/allocators.h"
+
 #include "lib/render/raytracing/shaders/closest_hit/normal.h"
 #include "lib/render/raytracing/shaders/intersection/ray_sphere.h"
 #include "lib/render/raytracing/shaders/generation/ray_generation.h"
 
-#include "lib/controllers/fps.h"
-#include "lib/controllers/orb.h"
-
 typedef struct {
-    Renderer base;
-    Camera3D camera;
-    bool in_fps_mode;
+    Renderer renderer;
     u32 ray_count;
     u8 rays_per_pixel;
+    Scene* scene;
     RayHit* closest_hit;
     Vector3 *ray_directions;
+    Matrix3x3 inverted_camera_rotation;
 } RayTracer;
 
-static RayTracer ray_tracer;
+RayTracer ray_tracer;
 
-void rayTrace() {
+void rayTrace(Controller* controller) {
     Pixel* pixel = (Pixel*)frame_buffer.pixels;
     Vector3* ray_direction = ray_tracer.ray_directions;
+    Sphere* sphere = ray_tracer.scene->spheres;
+    u8 sphere_count = ray_tracer.scene->sphere_count;
 
     for (u32 i = 0; i < frame_buffer.size; i++)
-        if (rayIntersectsWithSpheres(ray_tracer.closest_hit, ray_direction++))
+        if (rayIntersectsWithSpheres(ray_tracer.closest_hit, ray_direction++, sphere, sphere_count))
             shadeClosestHitByNormal(ray_tracer.closest_hit, pixel++);
 //            shadeRayByDirection(ray_direction++, pixel++);
         else
             (pixel++)->value = 0;
 }
 
-void generateRaysRT() {
+void generateRaysRT(Camera* camera) {
     generateRayDirections(
             ray_tracer.ray_directions,
-            ray_tracer.camera.focal_length,
+            camera->focal_length,
             frame_buffer.width,
             frame_buffer.height);
 }
 
-void switchControllerRT() {
-    ray_tracer.in_fps_mode = !ray_tracer.in_fps_mode;
-    ray_tracer.base.controller = ray_tracer.in_fps_mode ? &fps.controller : &orb.controller;
-    setControllerModeInHUD(ray_tracer.in_fps_mode);
+void resizeRT(Controller* controller) {
+    generateRaysRT(controller->camera);
 }
 
-void onResizedRT() {
-    generateRaysRT();
-    updateHUDDimensions();
+void zoomRT(Controller* controller) {
+    generateRaysRT(controller->camera);
+    controller->changed.fov = false;
 }
 
-void onZoomedRT(Controller* controller) {
-    generateRaysRT();
-    controller->zoomed = false;
+void rotateRT(Controller* controller) {
+    transposeMatrix3D(controller->camera->transform->rotation, ray_tracer.inverted_camera_rotation);
+    controller->changed.orientation = false;
+    controller->changed.position = true;
 }
 
-void onRotatedRT(Controller* controller) {
-    transposeMatrix3D(ray_tracer.camera.transform->rotation, ray_tracer.camera.transform->rotation_inverted);
-    controller->rotated = false;
-    controller->moved = true;
-}
-void onMovedRT(Controller* controller) {
-    Vector3* camera_position = ray_tracer.camera.transform->position;
-    Matrix3x3* inverted_camera_rotation = ray_tracer.camera.transform->rotation_inverted;
-
-    Sphere *sphere = scene.spheres;
-    for (u8 i = 0; i < scene.sphere_count; i++) {
+void moveRT(Controller* controller) {
+    Vector3* camera_position = controller->camera->transform->position;
+    Sphere *sphere = ray_tracer.scene->spheres;
+    u8 sphere_count = ray_tracer.scene->sphere_count;
+    for (u8 i = 0; i < sphere_count; i++) {
         sub3D(sphere->world_position, camera_position, sphere->view_position);
-        imul3D(sphere->view_position, inverted_camera_rotation);
+        imul3D(sphere->view_position, ray_tracer.inverted_camera_rotation);
         sphere++;
     }
 
-    controller->moved = false;
+    controller->changed.position = false;
 }
 
-void initRayTracer() {
-    ray_tracer.base.title = "RayTrace";
-    ray_tracer.base.on.render = rayTrace;
-    ray_tracer.base.on.resized = onResizedRT;
-    ray_tracer.base.on.double_clicked = switchControllerRT;
-    ray_tracer.base.controller = &orb.controller;
-
+void initRayTracer(Engine* engine) {
+    ray_tracer.renderer.title = "RayTrace";
+    ray_tracer.renderer.render = rayTrace;
+    ray_tracer.renderer.resize = resizeRT;
+    ray_tracer.renderer.move = moveRT;
+    ray_tracer.renderer.zoom = zoomRT;
+    ray_tracer.renderer.rotate = rotateRT;
+    ray_tracer.scene = &engine->scene;
     ray_tracer.rays_per_pixel = 1;
     ray_tracer.ray_count = frame_buffer.width * frame_buffer.height * ray_tracer.rays_per_pixel;
-    ray_tracer.ray_directions = (Vector3*)allocate(sizeof(Vector3) * ray_tracer.ray_count);
-
-    initCamera3D(&ray_tracer.camera);
-    ray_tracer.camera.transform->position->x = 5;
-    ray_tracer.camera.transform->position->y = 5;
-    ray_tracer.camera.transform->position->z = -10;
-    onMovedRT(&orb.controller);
-
-    ray_tracer.closest_hit = (RayHit*)allocate(sizeof(RayHit));
-
-    initFpsController(&ray_tracer.camera, onZoomedRT, onMovedRT, onRotatedRT);
-    initOrbController(&ray_tracer.camera, onMovedRT, onMovedRT, onRotatedRT);
+    ray_tracer.ray_directions = AllocN(Vector3, ray_tracer.ray_count);
+    ray_tracer.closest_hit = Alloc(RayHit);
+    initMatrix3x3(&ray_tracer.inverted_camera_rotation);
+    setMatrix3x3ToIdentity(ray_tracer.inverted_camera_rotation);
 }

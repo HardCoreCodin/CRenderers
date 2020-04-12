@@ -12,43 +12,26 @@
 #include "lib/nodes/camera.h"
 #include "lib/memory/buffers.h"
 #include "lib/memory/allocators.h"
+#include "lib/display/viewport.h"
 #include "lib/engine.h"
 #include "lib/render/raytracing/raytracer.h"
 #include "lib/render/raycasting/raycaster.h"
 
 static Engine engine;
 
+char* getTitle() {
+    return viewport.renderer->title;
+}
+
 void onUpdateAndRender() {
     PERF_START_FRAME
 
-    Controller* controller = engine.renderer->controller;
+    updateController(viewport.controller);
+    viewport.refresh();
 
-    if (mouse.wheel.was_scrolled) {
-        mouse.wheel.was_scrolled = false;
-        controller->on.mouse_scrolled();
-        mouse.wheel.scroll_amount = 0;
-    }
-
-    if (mouse.has_moved) {
-        mouse.has_moved = false;
-        controller->on.mouse_moved();
-        mouse.coords.relative.x = 0;
-        mouse.coords.relative.y = 0;
-    }
-
-    if (buttons.hud.is_pressed) {
-        buttons.hud.is_pressed = false;
-        hud.is_visible = !hud.is_visible;
-    }
-
-    if (mouse.double_clicked) {
-        mouse.double_clicked = false;
-        engine.renderer->on.double_clicked();
-    }
-
-    controller->on.update();
-
-    engine.renderer->on.render();
+    if (fps.controller.changed.fov) viewport.renderer->zoom(&fps.controller);
+    if (fps.controller.changed.orientation) viewport.renderer->rotate(&fps.controller);
+    if (fps.controller.changed.position) viewport.renderer->move(&fps.controller);
 
     PERF_END_FRAME
     if (hud.is_visible) {
@@ -57,25 +40,46 @@ void onUpdateAndRender() {
         drawText(hud.text, HUD_COLOR, frame_buffer.width - HUD_RIGHT - HUD_WIDTH, HUD_TOP);
     }
 
-    if (buttons.first.is_pressed) engine.renderer = &ray_tracer.base;
-    if (buttons.second.is_pressed) engine.renderer = &ray_caster.base;
+//    if (buttons.first.is_pressed) engine.renderer = &ray_tracer.renderer;
+//    if (buttons.second.is_pressed) engine.renderer = &ray_caster.base;
+
+
+    if (buttons.hud.is_pressed) {
+        buttons.hud.is_pressed = false;
+        hud.is_visible = !hud.is_visible;
+    }
+
+    if (mouse.double_clicked) {
+        mouse.double_clicked = false;
+        viewport.toggleControllerMode();
+    }
 }
 
-void initEngine() {
-    engine.is_running = true;
-    engine.in_fps_mode = false;
-
+void initEngine(Callback updateWindowTitle) {
     initPerf(&perf);
 
     initHUD();
     initMouse();
     initButtons();
 
-    initScene();
-    initFrameBuffer();
-    initRayTracer();
-    initRayCaster();
+    initScene(&engine.scene);
+    initFpsController(&engine.scene.camera);
+    initOrbController(&engine.scene.camera);
 
-    engine.renderer = &ray_tracer.base;
+    initFrameBuffer();
+    initRayTracer(&engine);
+    initRayCaster(&engine);
+    initViewport(&ray_tracer.renderer, &orb.controller);
+
+    engine.getTitle = getTitle;
     engine.updateAndRender = onUpdateAndRender;
+    engine.is_running = true;
+
+    viewport.updateWindowTitle = updateWindowTitle;
+
+    engine.scene.camera.transform->position->x = 5;
+    engine.scene.camera.transform->position->y = 5;
+    engine.scene.camera.transform->position->z = -10;
+    orb.controller.changed.position = true;
+    OrbOnReset();
 }

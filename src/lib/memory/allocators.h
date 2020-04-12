@@ -5,6 +5,8 @@
 #define Megabytes(value) (Kilobytes(value)*1024LL)
 #define Gigabytes(value) (Megabytes(value)*1024LL)
 #define Terabytes(value) (Gigabytes(value)*1024LL)
+#define Alloc(T) (T*)allocate(sizeof(T))
+#define AllocN(T, N) (T*)allocate(sizeof(T) * N)
 
 typedef struct Memory {
     u8* address;

@@ -5,58 +5,48 @@
 #include "lib/math/math3D.h"
 #include "lib/controllers/base.h"
 
-#define FPS_CONTROLLER_INITIAL_VELOCITY 8.0f
-#define FPS_CONTROLLER_INITIAL_ACCELERATION 20.0f
-#define FPS_CONTROLLER_INITIAL_MOUSE_MOVEMENT_SPEED 0.0007f
-#define FPS_CONTROLLER_INITIAL_MOUSE_SCROLL_SPEED 0.1f
-#define FPS_CONTROLLER_INITIAL_MOUSE_MOVEMENT_SPEED 0.0007f
-
+typedef struct { f32 velocity, acceleration, orientation, zoom; } FpsControllerSpeed;
 typedef struct {
+    FpsControllerSpeed speed;
     Controller controller;
-    Camera3D *camera;
-
-    Vector3 *up, *right, *forward, *position, *current_velocity, *target_velocity;
-    Matrix3x3 *yaw, *pitch, *rotation;
-
-    f32 velocity, acceleration;
-
-    Callback move, rotate, zoom;
+    Matrix3x3 yaw, pitch, rotation;
+    Vector3 *current_velocity, *target_velocity, *movement, *up, *right, *forward, *pan, *position;
 } FpsController;
 
-static FpsController fps;
+FpsController fps = {8, 20, 7.0f / 10000, 1};
 
 void FpsOnMouseScrolled() {
-    fps.camera->focal_length += fps.controller.mouse_scroll_speed * mouse.wheel.scroll_amount;
-    fps.controller.zoomed = true;
+    fps.controller.camera->focal_length += fps.speed.zoom * mouse.wheel.scroll;
+    fps.controller.changed.fov = true;
 }
 
 void FpsOnMouseMoved() {
-    f32 yaw   = -fps.controller.mouse_movement_speed * (f32)mouse.coords.relative.x;
-    f32 pitch = -fps.controller.mouse_movement_speed * (f32)mouse.coords.relative.y;
+    f32 yaw   = fps.speed.orientation * (f32)-mouse.coords.relative.x;
+    f32 pitch = fps.speed.orientation * (f32)-mouse.coords.relative.y;
 
     if (yaw) yaw3D(yaw, fps.yaw);
     if (pitch) pitch3D(pitch, fps.pitch);
     matMul3D(fps.pitch, fps.yaw, fps.rotation);
 
-    fps.controller.rotated = true;
+    fps.controller.changed.orientation = true;
 }
 
 void FpsOnUpdate() {
     // Compute the target velocity:
     fps.target_velocity->x = fps.target_velocity->y = fps.target_velocity->z = 0;
-    if (buttons.right.is_pressed) fps.target_velocity->x += fps.velocity;
-    if (buttons.left.is_pressed) fps.target_velocity->x -= fps.velocity;
-    if (buttons.up.is_pressed) fps.target_velocity->y += fps.velocity;
-    if (buttons.down.is_pressed) fps.target_velocity->y -= fps.velocity;
-    if (buttons.forward.is_pressed) fps.target_velocity->z += fps.velocity;
-    if (buttons.back.is_pressed) fps.target_velocity->z -= fps.velocity;
+    if (buttons.right.is_pressed) fps.target_velocity->x += fps.speed.velocity;
+    if (buttons.left.is_pressed) fps.target_velocity->x -= fps.speed.velocity;
+    if (buttons.up.is_pressed) fps.target_velocity->y += fps.speed.velocity;
+    if (buttons.down.is_pressed) fps.target_velocity->y -= fps.speed.velocity;
+    if (buttons.forward.is_pressed) fps.target_velocity->z += fps.speed.velocity;
+    if (buttons.back.is_pressed) fps.target_velocity->z -= fps.speed.velocity;
 
     // Update the current velocity:
     f32 delta_time = (f32) perf.delta.seconds;
     if (delta_time > 1)
         delta_time = 1;
 
-    f32 change_in_velocity = fps.acceleration * delta_time;
+    f32 change_in_velocity = fps.speed.acceleration * delta_time;
     approach(&fps.current_velocity->x, fps.target_velocity->x, change_in_velocity);
     approach(&fps.current_velocity->y, fps.target_velocity->y, change_in_velocity);
     approach(&fps.current_velocity->z, fps.target_velocity->z, change_in_velocity);
@@ -64,45 +54,35 @@ void FpsOnUpdate() {
     if (fps.current_velocity->x ||
         fps.current_velocity->y ||
         fps.current_velocity->z) {
-        fps.controller.moved = true;
 
         // Update the current position:
-        scale3D(fps.current_velocity, delta_time, fps.controller.movement);
-        imul3D(fps.controller.movement, fps.yaw);
-        iadd3D(fps.position, fps.controller.movement);
-    }
+        scale3D(fps.current_velocity, delta_time, fps.movement);
+        imul3D(fps.movement, fps.yaw);
+        iadd3D(fps.position, fps.movement);
 
-    if (fps.controller.zoomed) fps.zoom(&fps.controller);
-    if (fps.controller.rotated) fps.rotate(&fps.controller);
-    if (fps.controller.moved) fps.move(&fps.controller);
+        fps.controller.changed.position = true;
+    }
 }
 
-void initFpsController(Camera3D* camera, Callback zoom, Callback move, Callback rotate) {
-    fps.camera = camera;
+void FpsOnReset() {
+    fps.current_velocity->x = 0;
+    fps.current_velocity->y = 0;
+    fps.current_velocity->z = 0;
 
-    fps.zoom = zoom;
-    fps.move = move;
-    fps.rotate = rotate;
+    fps.yaw = fps.controller.camera->transform->yaw;
+    fps.pitch = fps.controller.camera->transform->pitch;
+    fps.rotation = fps.controller.camera->transform->rotation;
 
-    fps.yaw = camera->transform->yaw;
-    fps.pitch = camera->transform->pitch;
-    fps.position = camera->transform->position;
-    fps.rotation = camera->transform->rotation;
-    fps.up = camera->transform->up;
-    fps.right = camera->transform->right;
-    fps.forward = camera->transform->forward;
+    fps.up = fps.controller.camera->transform->up;
+    fps.right = fps.controller.camera->transform->right;
+    fps.forward = fps.controller.camera->transform->forward;
+    fps.position = fps.controller.camera->transform->position;
+}
 
-    fps.velocity = FPS_CONTROLLER_INITIAL_VELOCITY;
-    fps.acceleration = FPS_CONTROLLER_INITIAL_ACCELERATION;
-    fps.target_velocity = (Vector3*)allocate(sizeof(Vector3));
-    fps.current_velocity = (Vector3*)allocate(sizeof(Vector3));
-    fps.current_velocity->x = fps.current_velocity->y = fps.current_velocity->z = 0;
+void initFpsController(Camera* camera) {
+    fps.movement = Alloc(Vector3);
+    fps.target_velocity = Alloc(Vector3);
+    fps.current_velocity = Alloc(Vector3);
 
-    initController(
-            &fps.controller,
-            FpsOnUpdate,
-            FpsOnMouseMoved,
-            FpsOnMouseScrolled,
-            FPS_CONTROLLER_INITIAL_MOUSE_MOVEMENT_SPEED,
-            FPS_CONTROLLER_INITIAL_MOUSE_SCROLL_SPEED);
+    initController(&fps.controller, camera, FpsOnReset, FpsOnUpdate, FpsOnMouseMoved, FpsOnMouseScrolled);
 }

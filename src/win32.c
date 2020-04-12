@@ -37,6 +37,10 @@ static u64 ticks_of_last_frame, ticks_of_current_frame, target_ticks_per_frame;
     ShowCursor(false); \
 }
 
+void updateWindowTitle() {
+    SetWindowTextA(window, engine.getTitle());
+}
+
 inline void resizeFrameBuffer() {
     GetClientRect(window, &win_rect);
 
@@ -47,7 +51,7 @@ inline void resizeFrameBuffer() {
     frame_buffer.height = (u16)-info.bmiHeader.biHeight;
     frame_buffer.size = frame_buffer.width * frame_buffer.height;
 
-    engine.renderer->on.resized();
+    viewport.resize();
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -128,7 +132,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             break;
 
         case WM_LBUTTONDBLCLK:
-            engine.renderer->on.double_clicked();
+            mouse.double_clicked = true;
             if (mouse.is_captured) RELEASE_MOUSE else CAPTURE_MOUSE
             break;
 
@@ -169,7 +173,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     if (!memory.address)
         return -1;
 
-    initEngine();
+    initEngine(updateWindowTitle);
 
     target_ticks_per_frame = perf.ticks_per_second / 60;
 
@@ -198,7 +202,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
     window = CreateWindowA(
             window_class.lpszClassName,
-            engine.renderer->title,
+            engine.getTitle(),
             WS_OVERLAPPEDWINDOW,
 
             CW_USEDEFAULT,

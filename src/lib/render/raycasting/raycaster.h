@@ -7,8 +7,7 @@
 #include "lib/memory/allocators.h"
 
 typedef struct RayCaster {
-    Renderer base;
-    Camera2D camera;
+    Renderer renderer;
     u32 ray_count;
     u8 rays_per_pixel;
     Vector2* ray_directions;
@@ -16,20 +15,19 @@ typedef struct RayCaster {
 
 RayCaster ray_caster;
 
-
-void rayCast() {
+void rayCast(Controller* controller) {
     u32* pixel = frame_buffer.pixels;
-    Vector2* RO = ray_caster.camera.transform->position;
+    Vector2* RO = controller->camera->transform2D->position;
     Vector2* RD = ray_caster.ray_directions;
 }
 
-inline void generateRays2D() {
+inline void generateRays2D(Camera* camera) {
     Vector2 right, ray;
-    Vector2* rotX = &ray_caster.camera.transform->rotation->i;
-    Vector2* rotY = &ray_caster.camera.transform->rotation->j;
+    Vector2* rotX = camera->transform2D->rotation.x_axis;
+    Vector2* rotY = camera->transform2D->rotation.y_axis;
     Vector2* rays = ray_caster.ray_directions;
     scale2D(rotX, (1 - (f32)frame_buffer.width) / 2, &right);
-    scale2D(rotY, (f32)frame_buffer.height * ray_caster.camera.focal_length / 2, &ray);
+    scale2D(rotY, (f32)frame_buffer.height * camera->focal_length / 2, &ray);
     iadd2D(&ray, &right);
     right = *rotX;
     for (u16 w = 0; w < frame_buffer.width; w++) {
@@ -38,26 +36,23 @@ inline void generateRays2D() {
     }
 }
 
-void onZoomRC() {generateRays2D();}
-void onOrbitRC() {generateRays2D();}
-void onDoubleClickedRC() {}
-void onResizeRC() {generateRays2D();}
+void zoomRC(Controller* controller) {generateRays2D(controller->camera);}
+void rotateRC(Controller* controller) {generateRays2D(controller->camera);}
+void moveRC(Controller* controller) {}
+void resizeC(Controller* controller) {generateRays2D(controller->camera);}
 
-
-void initRayCaster() {
-    ray_caster.base.title = "RayCaster";
-    ray_caster.base.on.render = rayCast;
-    ray_caster.base.on.resized = onResizeRC;
-    ray_caster.base.on.double_clicked = onDoubleClickedRC;
-    ray_caster.base.controller = &orb.controller;
-
+void initRayCaster(Engine* engine) {
+    ray_caster.renderer.title = "RayCaster";
+    ray_caster.renderer.render = rayCast;
+    ray_caster.renderer.resize = resizeC;
+    ray_caster.renderer.move = moveRC;
+    ray_caster.renderer.zoom = zoomRC;
+    ray_caster.renderer.rotate = rotateRC;
     ray_caster.rays_per_pixel = 1;
-    ray_caster.ray_count = frame_buffer.width * frame_buffer.height * ray_caster.rays_per_pixel;
-    ray_caster.ray_directions = (Vector2*)allocate(sizeof(Vector2) * ray_caster.ray_count);
+    ray_caster.ray_count = ray_caster.rays_per_pixel * frame_buffer.width * frame_buffer.height;
+    ray_caster.ray_directions = AllocN(Vector2, ray_caster.ray_count);
 
-    initCamera2D(&ray_caster.camera);
-    ray_caster.camera.transform->position->x = 5;
-    ray_caster.camera.transform->position->y = 5;
-
-
+    engine->scene.camera.transform2D->position->x = 5;
+    engine->scene.camera.transform2D->position->y = 5;
+    moveRC(&orb.controller);
 }

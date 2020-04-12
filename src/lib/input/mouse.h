@@ -8,11 +8,12 @@ static Mouse mouse;
 
 void initMouse() {
     mouse.is_captured = false;
-    mouse.has_moved = false;
     mouse.double_clicked = false;
+    mouse.coords.absolute.changed = false;
+    mouse.coords.relative.changed = false;
 
-    mouse.wheel.was_scrolled = false;
-    mouse.wheel.scroll_amount = 0;
+    mouse.wheel.changed = false;
+    mouse.wheel.scroll = 0;
 
     mouse.coords.absolute.x = 0;
     mouse.coords.absolute.y = 0;
@@ -36,20 +37,20 @@ void initMouse() {
 }
 
 void OnMouseMovedAbsolute(s16 x, s16 y) {
-    mouse.has_moved = true;
+    mouse.coords.absolute.changed = true;
     mouse.coords.absolute.x = x;
     mouse.coords.absolute.y = y;
 }
 
 void OnMouseMovedRelative(s16 dx, s16 dy) {
-    mouse.has_moved = true;
+    mouse.coords.relative.changed = true;
     mouse.coords.relative.x += dx;
     mouse.coords.relative.y += dy;
 }
 
 void OnMouseWheelScrolled(f32 amount) {
-    mouse.wheel.scroll_amount = amount;
-    mouse.wheel.was_scrolled = true;
+    mouse.wheel.scroll = amount;
+    mouse.wheel.changed = true;
 }
 
 void OnMouseLeftButtonDown(s16 x, s16 y, u64 ticks) {

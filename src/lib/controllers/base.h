@@ -3,20 +3,54 @@
 #include "lib/core/types.h"
 #include "lib/memory/allocators.h"
 
+void updateController(Controller* controller) {
+    if (mouse.wheel.changed) {
+        mouse.wheel.changed = false;
+        controller->on.mouse_scrolled();
+        mouse.wheel.scroll = 0;
+    }
+
+    if (mouse.coords.relative.changed) {
+        mouse.coords.relative.changed = false;
+        controller->on.mouse_moved();
+        mouse.coords.relative.x = 0;
+        mouse.coords.relative.y = 0;
+    }
+
+    if (controller->changed.fov) {
+        controller->changed.fov = false;
+        controller->zoom(controller);
+    }
+
+    if (controller->changed.orientation) {
+        controller->changed.orientation = false;
+        controller->rotate(controller);
+    }
+
+    if (controller->changed.position) {
+        controller->changed.position = false;
+        controller->move(controller);
+    }
+
+    controller->on.update();
+}
+
 void initController(
         Controller* controller,
-        Callback onUpdate,
-        Callback onMouseMoved,
-        Callback onMouseScrolled,
-        f32 rotation_speed,
-        f32 scroll_speed) {
+        Camera* camera,
+        Callback reset,
+        Callback update,
+        Callback mouse_moved,
+        Callback mouse_scrolled) {
+    controller->camera = camera;
+    controller->changed.orientation = false;
+    controller->changed.position = false;
+    controller->changed.fov = false;
 
-    controller->on.update = onUpdate;
-    controller->on.mouse_moved = onMouseMoved;
-    controller->on.mouse_scrolled = onMouseScrolled;
-    controller->mouse_scroll_speed = scroll_speed;
-    controller->mouse_movement_speed = rotation_speed;
-    controller->zoomed = controller->rotated = controller->moved = false;
-    controller->movement = (Vector3*)allocate(sizeof(Vector3));
-    controller->movement->x = controller->movement->y = controller->movement->z = 0;
+    controller->on.reset = reset;
+    controller->on.update = update;
+    controller->on.mouse_moved = mouse_moved;
+    controller->on.mouse_scrolled = mouse_scrolled;
+
+    reset(camera);
 }

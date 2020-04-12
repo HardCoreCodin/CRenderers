@@ -3,18 +3,19 @@
 #include "lib/core/types.h"
 #include "lib/memory/allocators.h"
 #include "lib/math/math3D.h"
+#include "lib/nodes/camera.h"
 
 #define SPHERE_RADIUS 1
 #define SPHERE_HCOUNT 3
 #define SPHERE_VCOUNT 3
 
-Scene scene;
+void initScene(Scene* scene) {
+    initCamera(&scene->camera);
 
-void initScene() {
-    scene.sphere_count = SPHERE_HCOUNT * SPHERE_VCOUNT;
-    scene.spheres = (Sphere*)allocate(sizeof(Sphere) * scene.sphere_count);
+    scene->sphere_count = SPHERE_HCOUNT * SPHERE_VCOUNT;
+    scene->spheres = AllocN(Sphere, scene->sphere_count);
 
-    Sphere* sphere = scene.spheres;
+    Sphere* sphere = scene->spheres;
 
     u8 gap = SPHERE_RADIUS * 3;
     u8 sphere_x = 0;
@@ -26,8 +27,8 @@ void initScene() {
         for (u8 x = 0; x < SPHERE_HCOUNT; x++) {
             sphere->radius = 1;
 
-            sphere->world_position = (Vector3*)allocate(sizeof(Vector3));
-            sphere->view_position = (Vector3*)allocate(sizeof(Vector3));
+            sphere->world_position = Alloc(Vector3);
+            sphere->view_position = Alloc(Vector3);
 
             sphere->world_position->x = sphere_x;
             sphere->world_position->y = 0;
@@ -39,5 +40,4 @@ void initScene() {
 
         sphere_z += gap;
     }
-
 }

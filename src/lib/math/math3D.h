@@ -2,9 +2,13 @@
 
 #include "lib/core/types.h"
 #include "math2D.h"
+#include "lib/memory/allocators.h"
 
-Vector3 vec3;
-Matrix3x3 mat3;
+void initMatrix3x3(Matrix3x3* matrix) {
+    matrix->x_axis = Alloc(Vector3);
+    matrix->y_axis = Alloc(Vector3);
+    matrix->z_axis = Alloc(Vector3);
+}
 
 inline void fill3D(Vector3* vector, f32 value) {
     vector->x = vector->y = value, vector->z = value;
@@ -49,19 +53,19 @@ inline void iscale3D(Vector3* v, f32 factor) {
     v->y *= factor;
     v->z *= factor;
 }
-inline void mul3D(Vector3* in, Matrix3x3* matrix, Vector3* out) {
-    out->x = in->x*matrix->m11 + in->y*matrix->m21 + in->z*matrix->m31;
-    out->y = in->x*matrix->m12 + in->y*matrix->m22 + in->z*matrix->m32;
-    out->z = in->x*matrix->m13 + in->y*matrix->m23 + in->z*matrix->m33;    
+inline void mul3D(Vector3* in, Matrix3x3 matrix, Vector3* out) {
+    out->x = in->x*matrix.x_axis->x + in->y*matrix.y_axis->x + in->z*matrix.z_axis->x;
+    out->y = in->x*matrix.x_axis->y + in->y*matrix.y_axis->y + in->z*matrix.z_axis->y;
+    out->z = in->x*matrix.x_axis->z + in->y*matrix.y_axis->z + in->z*matrix.z_axis->z;    
 }
-inline void imul3D(Vector3* v, Matrix3x3* matrix) {
+inline void imul3D(Vector3* v, Matrix3x3 matrix) {
     f32 x = v->x;
     f32 y = v->y;
     f32 z = v->z;
 
-    v->x = x*matrix->m11 + y*matrix->m21 + z*matrix->m31;
-    v->y = x*matrix->m12 + y*matrix->m22 + z*matrix->m32;
-    v->z = x*matrix->m13 + y*matrix->m23 + z*matrix->m33;    
+    v->x = x*matrix.x_axis->x + y*matrix.y_axis->x + z*matrix.z_axis->x;
+    v->y = x*matrix.x_axis->y + y*matrix.y_axis->y + z*matrix.z_axis->y;
+    v->z = x*matrix.x_axis->z + y*matrix.y_axis->z + z*matrix.z_axis->z;    
 }
 inline void cross3D(Vector3* p1, Vector3* p2, Vector3* out) {
     out->x = (p1->y * p2->z) - (p1->z * p2->y);
@@ -83,165 +87,180 @@ inline f32 squaredLength3D(Vector3* v) {
     );
 }
 
-void setMatrix3x3ToIdentity(Matrix3x3* M) {
-    M->m11 = M->m22 = M->m33 = 1.0f; 
-    M->m12 = M->m21 = M->m23 = M->m32 = M->m13 = M->m31 = 0.0f;
+void setMatrix3x3ToIdentity(Matrix3x3 M) {
+    M.x_axis->x = M.y_axis->y = M.z_axis->z = 1.0f; 
+    M.x_axis->y = M.y_axis->x = M.y_axis->z = M.z_axis->y = M.x_axis->z = M.z_axis->x = 0.0f;
 }
 
-void transposeMatrix3D(Matrix3x3* M, Matrix3x3* O) {
-    O->m11 = M->m11; O->m22 = M->m22; O->m33 = M->m33;
-    O->m12 = M->m21; O->m21 = M->m12;
-    O->m13 = M->m31; O->m31 = M->m13;
-    O->m23 = M->m32; O->m32 = M->m23;
+void transposeMatrix3D(Matrix3x3 M, Matrix3x3 O) {
+    O.x_axis->x = M.x_axis->x; O.y_axis->y = M.y_axis->y; O.z_axis->z = M.z_axis->z;
+    O.x_axis->y = M.y_axis->x; O.y_axis->x = M.x_axis->y;
+    O.x_axis->z = M.z_axis->x; O.z_axis->x = M.x_axis->z;
+    O.y_axis->z = M.z_axis->y; O.z_axis->y = M.y_axis->z;
 }
 
-inline void matMul3D(Matrix3x3* a, Matrix3x3* b, Matrix3x3* out) {
-    out->m11 = a->m11*b->m11 + a->m12*b->m21 + a->m13*b->m31; // Row 1 | Column 1
-    out->m12 = a->m11*b->m12 + a->m12*b->m22 + a->m13*b->m32; // Row 1 | Column 2
-    out->m13 = a->m11*b->m13 + a->m12*b->m23 + a->m13*b->m33; // Row 1 | Column 3
+inline void matMul3D(Matrix3x3 a, Matrix3x3 b, Matrix3x3 out) {
+    out.x_axis->x = a.x_axis->x*b.x_axis->x + a.x_axis->y*b.y_axis->x + a.x_axis->z*b.z_axis->x; // Row 1 | Column 1
+    out.x_axis->y = a.x_axis->x*b.x_axis->y + a.x_axis->y*b.y_axis->y + a.x_axis->z*b.z_axis->y; // Row 1 | Column 2
+    out.x_axis->z = a.x_axis->x*b.x_axis->z + a.x_axis->y*b.y_axis->z + a.x_axis->z*b.z_axis->z; // Row 1 | Column 3
 
-    out->m21 = a->m21*b->m11 + a->m22*b->m21 + a->m23*b->m31; // Row 2 | Column 1
-    out->m22 = a->m21*b->m12 + a->m22*b->m22 + a->m23*b->m32; // Row 2 | Column 2
-    out->m23 = a->m21*b->m13 + a->m22*b->m23 + a->m23*b->m33; // Row 2 | Column 3
+    out.y_axis->x = a.y_axis->x*b.x_axis->x + a.y_axis->y*b.y_axis->x + a.y_axis->z*b.z_axis->x; // Row 2 | Column 1
+    out.y_axis->y = a.y_axis->x*b.x_axis->y + a.y_axis->y*b.y_axis->y + a.y_axis->z*b.z_axis->y; // Row 2 | Column 2
+    out.y_axis->z = a.y_axis->x*b.x_axis->z + a.y_axis->y*b.y_axis->z + a.y_axis->z*b.z_axis->z; // Row 2 | Column 3
 
-    out->m31 = a->m31*b->m11 + a->m32*b->m21 + a->m33*b->m31; // Row 3 | Column 1
-    out->m32 = a->m31*b->m12 + a->m32*b->m22 + a->m33*b->m32; // Row 3 | Column 2
-    out->m33 = a->m31*b->m13 + a->m32*b->m23 + a->m33*b->m33; // Row 3 | Column 3
+    out.z_axis->x = a.z_axis->x*b.x_axis->x + a.z_axis->y*b.y_axis->x + a.z_axis->z*b.z_axis->x; // Row 3 | Column 1
+    out.z_axis->y = a.z_axis->x*b.x_axis->y + a.z_axis->y*b.y_axis->y + a.z_axis->z*b.z_axis->y; // Row 3 | Column 2
+    out.z_axis->z = a.z_axis->x*b.x_axis->z + a.z_axis->y*b.y_axis->z + a.z_axis->z*b.z_axis->z; // Row 3 | Column 3
 }
 
-inline void imatMul3D(Matrix3x3* a, Matrix3x3* b) {
-    mat3.m11 = a->m11; mat3.m21 = a->m21; mat3.m31 = a->m31;
-    mat3.m12 = a->m12; mat3.m22 = a->m22; mat3.m32 = a->m32;
-    mat3.m13 = a->m13; mat3.m23 = a->m23; mat3.m33 = a->m33;
+inline void imatMul3D(Matrix3x3 a, Matrix3x3 b) {
+    Vector3 x_axis = *a.x_axis;
+    Vector3 y_axis = *a.y_axis;
+    Vector3 z_axis = *a.z_axis;
 
-    a->m11 = mat3.m11*b->m11 + mat3.m12*b->m21 + mat3.m13*b->m31; // Row 1 | Column 1
-    a->m12 = mat3.m11*b->m12 + mat3.m12*b->m22 + mat3.m13*b->m32; // Row 1 | Column 2
-    a->m13 = mat3.m11*b->m13 + mat3.m12*b->m23 + mat3.m13*b->m33; // Row 1 | Column 3
+    a.x_axis->x = x_axis.x*b.x_axis->x + x_axis.y*b.y_axis->x + x_axis.z*b.z_axis->x; // Row 1 | Column 1
+    a.x_axis->y = x_axis.x*b.x_axis->y + x_axis.y*b.y_axis->y + x_axis.z*b.z_axis->y; // Row 1 | Column 2
+    a.x_axis->z = x_axis.x*b.x_axis->z + x_axis.y*b.y_axis->z + x_axis.z*b.z_axis->z; // Row 1 | Column 3
 
-    a->m21 = mat3.m21*b->m11 + mat3.m22*b->m21 + mat3.m23*b->m31; // Row 2 | Column 1
-    a->m22 = mat3.m21*b->m12 + mat3.m22*b->m22 + mat3.m23*b->m32; // Row 2 | Column 2
-    a->m23 = mat3.m21*b->m13 + mat3.m22*b->m23 + mat3.m23*b->m33; // Row 2 | Column 3
+    a.y_axis->x = y_axis.x*b.x_axis->x + y_axis.y*b.y_axis->x + y_axis.z*b.z_axis->x; // Row 2 | Column 1
+    a.y_axis->y = y_axis.x*b.x_axis->y + y_axis.y*b.y_axis->y + y_axis.z*b.z_axis->y; // Row 2 | Column 2
+    a.y_axis->z = y_axis.x*b.x_axis->z + y_axis.y*b.y_axis->z + y_axis.z*b.z_axis->z; // Row 2 | Column 3
 
-    a->m31 = mat3.m31*b->m11 + mat3.m32*b->m21 + mat3.m33*b->m31; // Row 3 | Column 1
-    a->m32 = mat3.m31*b->m12 + mat3.m32*b->m22 + mat3.m33*b->m32; // Row 3 | Column 2
-    a->m33 = mat3.m31*b->m13 + mat3.m32*b->m23 + mat3.m33*b->m33; // Row 3 | Column 3
+    a.z_axis->x = z_axis.x*b.x_axis->x + z_axis.y*b.y_axis->x + z_axis.z*b.z_axis->x; // Row 3 | Column 1
+    a.z_axis->y = z_axis.x*b.x_axis->y + z_axis.y*b.y_axis->y + z_axis.z*b.z_axis->y; // Row 3 | Column 2
+    a.z_axis->z = z_axis.x*b.x_axis->z + z_axis.y*b.y_axis->z + z_axis.z*b.z_axis->z; // Row 3 | Column 3
 }
 
-inline void relativeYaw3D(f32 yaw, Matrix3x3* yaw_matrix) {
-    setPointOnUnitCircle(yaw);
+inline void relativeYaw3D(f32 yaw, Matrix3x3 yaw_matrix) {
+    f32 s, c;
+    getPointOnUnitCircle(yaw, &s, &c);
 
-    mat3.m11 = yaw_matrix->m11; mat3.m21 = yaw_matrix->m21; mat3.m31 = yaw_matrix->m31;
-    mat3.m13 = yaw_matrix->m13; mat3.m23 = yaw_matrix->m23; mat3.m33 = yaw_matrix->m33;
+    Vector3 x_axis = *yaw_matrix.x_axis;
+    Vector3 y_axis = *yaw_matrix.y_axis;
+    Vector3 z_axis = *yaw_matrix.z_axis;
 
-    yaw_matrix->m11 = vec2.x * mat3.m11 - vec2.y * mat3.m13;
-    yaw_matrix->m21 = vec2.x * mat3.m21 - vec2.y * mat3.m23;
-    yaw_matrix->m31 = vec2.x * mat3.m31 - vec2.y * mat3.m33;
+    yaw_matrix.x_axis->x = c * x_axis.x - s * x_axis.z;
+    yaw_matrix.y_axis->x = c * y_axis.x - s * y_axis.z;
+    yaw_matrix.z_axis->x = c * z_axis.x - s * z_axis.z;
 
-    yaw_matrix->m13 = vec2.x * mat3.m13 + vec2.y * mat3.m11;
-    yaw_matrix->m23 = vec2.x * mat3.m23 + vec2.y * mat3.m21;
-    yaw_matrix->m33 = vec2.x * mat3.m33 + vec2.y * mat3.m31;
+    yaw_matrix.x_axis->z = c * x_axis.z + s * x_axis.x;
+    yaw_matrix.y_axis->z = c * y_axis.z + s * y_axis.x;
+    yaw_matrix.z_axis->z = c * z_axis.z + s * z_axis.x;
 };
 
-inline void relativePitch3D(f32 pitch, Matrix3x3* pitch_matrix) {
-    setPointOnUnitCircle(pitch);
+inline void relativePitch3D(f32 pitch, Matrix3x3 pitch_matrix) {
+    f32 s, c;
+    getPointOnUnitCircle(pitch, &s, &c);
 
-    mat3.m12 = pitch_matrix->m12; mat3.m22 = pitch_matrix->m22; mat3.m32 = pitch_matrix->m32;
-    mat3.m13 = pitch_matrix->m13; mat3.m23 = pitch_matrix->m23; mat3.m33 = pitch_matrix->m33;
+    Vector3 x_axis = *pitch_matrix.x_axis;
+    Vector3 y_axis = *pitch_matrix.y_axis;
+    Vector3 z_axis = *pitch_matrix.z_axis;
 
-    pitch_matrix->m12 = vec2.x * mat3.m12 + vec2.y * mat3.m13;
-    pitch_matrix->m22 = vec2.x * mat3.m22 + vec2.y * mat3.m23;
-    pitch_matrix->m32 = vec2.x * mat3.m32 + vec2.y * mat3.m33;
+    pitch_matrix.x_axis->y = c * x_axis.y + s * x_axis.z;
+    pitch_matrix.y_axis->y = c * y_axis.y + s * y_axis.z;
+    pitch_matrix.z_axis->y = c * z_axis.y + s * z_axis.z;
 
-    pitch_matrix->m13 = vec2.x * mat3.m13 - vec2.y * mat3.m12;
-    pitch_matrix->m23 = vec2.x * mat3.m23 - vec2.y * mat3.m22;
-    pitch_matrix->m33 = vec2.x * mat3.m33 - vec2.y * mat3.m32;
+    pitch_matrix.x_axis->z = c * x_axis.z - s * x_axis.y;
+    pitch_matrix.y_axis->z = c * y_axis.z - s * y_axis.y;
+    pitch_matrix.z_axis->z = c * z_axis.z - s * z_axis.y;
 };
 
-inline void relativeRoll3D(f32 roll, Matrix3x3* roll_matrix) {
-    setPointOnUnitCircle(roll);
+inline void relativeRoll3D(f32 roll, Matrix3x3 roll_matrix) {
+    f32 s, c;
+    getPointOnUnitCircle(roll, &s, &c);
 
-    mat3.m11 = roll_matrix->m11; mat3.m21 = roll_matrix->m21; mat3.m31 = roll_matrix->m31;
-    mat3.m12 = roll_matrix->m12; mat3.m22 = roll_matrix->m22; mat3.m32 = roll_matrix->m32;
+    Vector3 x_axis = *roll_matrix.x_axis;
+    Vector3 y_axis = *roll_matrix.y_axis;
+    Vector3 z_axis = *roll_matrix.z_axis;
 
-    roll_matrix->m11 = vec2.x * mat3.m11 + vec2.y * mat3.m12;
-    roll_matrix->m21 = vec2.x * mat3.m21 + vec2.y * mat3.m22;
-    roll_matrix->m31 = vec2.x * mat3.m31 + vec2.y * mat3.m32;
+    roll_matrix.x_axis->x = c * x_axis.x + s * x_axis.y;
+    roll_matrix.y_axis->x = c * y_axis.x + s * y_axis.y;
+    roll_matrix.z_axis->x = c * z_axis.x + s * z_axis.y;
 
-    roll_matrix->m12 = vec2.x * mat3.m12 - vec2.y * mat3.m11;
-    roll_matrix->m22 = vec2.x * mat3.m22 - vec2.y * mat3.m21;
-    roll_matrix->m32 = vec2.x * mat3.m32 - vec2.y * mat3.m31;
+    roll_matrix.x_axis->y = c * x_axis.y - s * x_axis.x;
+    roll_matrix.y_axis->y = c * y_axis.y - s * y_axis.x;
+    roll_matrix.z_axis->y = c * z_axis.y - s * z_axis.x;
 };
 
-inline void yaw3D(f32 yaw, Matrix3x3* yaw_matrix) {
-    setPointOnUnitCircle(yaw);
+inline void yaw3D(f32 yaw, Matrix3x3 yaw_matrix) {
+    f32 s, c;
+    getPointOnUnitCircle(yaw, &s, &c);
 
-    mat3.m11 = yaw_matrix->m11; mat3.m21 = yaw_matrix->m21; mat3.m31 = yaw_matrix->m31;
-    mat3.m13 = yaw_matrix->m13; mat3.m23 = yaw_matrix->m23; mat3.m33 = yaw_matrix->m33;
+    Vector3 x_axis = *yaw_matrix.x_axis;
+    Vector3 y_axis = *yaw_matrix.y_axis;
+    Vector3 z_axis = *yaw_matrix.z_axis;
 
-    yaw_matrix->m11 = vec2.x * mat3.m11 - vec2.y * mat3.m13;
-    yaw_matrix->m21 = vec2.x * mat3.m21 - vec2.y * mat3.m23;
-    yaw_matrix->m31 = vec2.x * mat3.m31 - vec2.y * mat3.m33;
+    yaw_matrix.x_axis->x = c * x_axis.x - s * x_axis.z;
+    yaw_matrix.y_axis->x = c * y_axis.x - s * y_axis.z;
+    yaw_matrix.z_axis->x = c * z_axis.x - s * z_axis.z;
 
-    yaw_matrix->m13 = vec2.x * mat3.m13 + vec2.y * mat3.m11;
-    yaw_matrix->m23 = vec2.x * mat3.m23 + vec2.y * mat3.m21;
-    yaw_matrix->m33 = vec2.x * mat3.m33 + vec2.y * mat3.m31;
+    yaw_matrix.x_axis->z = c * x_axis.z + s * x_axis.x;
+    yaw_matrix.y_axis->z = c * y_axis.z + s * y_axis.x;
+    yaw_matrix.z_axis->z = c * z_axis.z + s * z_axis.x;
 };
 
-inline void pitch3D(f32 pitch, Matrix3x3* pitch_matrix) {
-    setPointOnUnitCircle(pitch);
+inline void pitch3D(f32 pitch, Matrix3x3 pitch_matrix) {
+    f32 s, c;
+    getPointOnUnitCircle(pitch, &s, &c);
 
-    mat3.m12 = pitch_matrix->m12; mat3.m22 = pitch_matrix->m22; mat3.m32 = pitch_matrix->m32;
-    mat3.m13 = pitch_matrix->m13; mat3.m23 = pitch_matrix->m23; mat3.m33 = pitch_matrix->m33;
+    Vector3 x_axis = *pitch_matrix.x_axis;
+    Vector3 y_axis = *pitch_matrix.y_axis;
+    Vector3 z_axis = *pitch_matrix.z_axis;
 
-    pitch_matrix->m12 = vec2.x * mat3.m12 + vec2.y * mat3.m13;
-    pitch_matrix->m22 = vec2.x * mat3.m22 + vec2.y * mat3.m23;
-    pitch_matrix->m32 = vec2.x * mat3.m32 + vec2.y * mat3.m33;
+    pitch_matrix.x_axis->y = c * x_axis.y + s * x_axis.z;
+    pitch_matrix.y_axis->y = c * y_axis.y + s * y_axis.z;
+    pitch_matrix.z_axis->y = c * z_axis.y + s * z_axis.z;
 
-    pitch_matrix->m13 = vec2.x * mat3.m13 - vec2.y * mat3.m12;
-    pitch_matrix->m23 = vec2.x * mat3.m23 - vec2.y * mat3.m22;
-    pitch_matrix->m33 = vec2.x * mat3.m33 - vec2.y * mat3.m32;
+    pitch_matrix.x_axis->z = c * x_axis.z - s * x_axis.y;
+    pitch_matrix.y_axis->z = c * y_axis.z - s * y_axis.y;
+    pitch_matrix.z_axis->z = c * z_axis.z - s * z_axis.y;
 };
 
-inline void roll3D(f32 roll, Matrix3x3* roll_matrix) {
-    setPointOnUnitCircle(roll);
+inline void roll3D(f32 roll, Matrix3x3 roll_matrix) {
+    f32 s, c;
+    getPointOnUnitCircle(roll, &s, &c);
 
-    mat3.m11 = roll_matrix->m11; mat3.m21 = roll_matrix->m21; mat3.m31 = roll_matrix->m31;
-    mat3.m12 = roll_matrix->m12; mat3.m22 = roll_matrix->m22; mat3.m32 = roll_matrix->m32;
+    Vector3 x_axis = *roll_matrix.x_axis;
+    Vector3 y_axis = *roll_matrix.y_axis;
+    Vector3 z_axis = *roll_matrix.z_axis;
     
-    roll_matrix->m11 = vec2.x * mat3.m11 + vec2.y * mat3.m12;
-    roll_matrix->m21 = vec2.x * mat3.m21 + vec2.y * mat3.m22;
-    roll_matrix->m31 = vec2.x * mat3.m31 + vec2.y * mat3.m32;
+    roll_matrix.x_axis->x = c * x_axis.x + s * x_axis.y;
+    roll_matrix.y_axis->x = c * y_axis.x + s * y_axis.y;
+    roll_matrix.z_axis->x = c * z_axis.x + s * z_axis.y;
 
-    roll_matrix->m12 = vec2.x * mat3.m12 - vec2.y * mat3.m11;
-    roll_matrix->m22 = vec2.x * mat3.m22 - vec2.y * mat3.m21;
-    roll_matrix->m32 = vec2.x * mat3.m32 - vec2.y * mat3.m31;
+    roll_matrix.x_axis->y = c * x_axis.y - s * x_axis.x;
+    roll_matrix.y_axis->y = c * y_axis.y - s * y_axis.x;
+    roll_matrix.z_axis->y = c * z_axis.y - s * z_axis.x;
 };
 
-inline void setYaw3D(f32 yaw, Matrix3x3* yaw_matrix) {
-    setPointOnUnitCircle(yaw);
+inline void setYaw3D(f32 yaw, Matrix3x3 yaw_matrix) {
+    f32 s, c;
+    getPointOnUnitCircle(yaw, &s, &c);
 
-    yaw_matrix->m11 = yaw_matrix->m33 = vec2.x;
-    yaw_matrix->m13 = +vec2.y;
-    yaw_matrix->m31 = -vec2.y;
+    yaw_matrix.x_axis->x = yaw_matrix.z_axis->z = c;
+    yaw_matrix.x_axis->z = +s;
+    yaw_matrix.z_axis->x = -s;
 };
 
-inline void setPitch3D(f32 pitch, Matrix3x3* pitch_matrix) {
-    setPointOnUnitCircle(pitch);
+inline void setPitch3D(f32 pitch, Matrix3x3 pitch_matrix) {
+    f32 s, c;
+    getPointOnUnitCircle(pitch, &s, &c);
 
-    pitch_matrix->m33 = pitch_matrix->m22 = vec2.x;
-    pitch_matrix->m23 = -vec2.y;
-    pitch_matrix->m32 = +vec2.y;
+    pitch_matrix.z_axis->z = pitch_matrix.y_axis->y = c;
+    pitch_matrix.y_axis->z = -s;
+    pitch_matrix.z_axis->y = +s;
 };
 
-inline void setRoll3D(f32 roll, Matrix3x3* roll_matrix) {
-    setPointOnUnitCircle(roll);
+inline void setRoll3D(f32 roll, Matrix3x3 roll_matrix) {
+    f32 s, c;
+    getPointOnUnitCircle(roll, &s, &c);
 
-    roll_matrix->m11 = roll_matrix->m22 = vec2.x;
-    roll_matrix->m12 = -vec2.y;
-    roll_matrix->m21 = +vec2.y;
+    roll_matrix.x_axis->x = roll_matrix.y_axis->y = c;
+    roll_matrix.x_axis->y = -s;
+    roll_matrix.y_axis->x = +s;
 };
 
-void rotateRelative3D(f32 yaw, f32 pitch, f32 roll, Matrix3x3* rotation_matrix) {
+void rotateRelative3D(f32 yaw, f32 pitch, f32 roll, Matrix3x3 rotation_matrix) {
     if (yaw) relativeYaw3D(yaw, rotation_matrix);
     if (pitch) relativePitch3D(pitch, rotation_matrix);
     if (roll) relativeRoll3D(roll, rotation_matrix);
@@ -252,11 +271,11 @@ void rotateAbsolute3D(
         f32 pitch,
         f32 roll,
 
-        Matrix3x3* yaw_matrix,
-        Matrix3x3* pitch_matrix,
-        Matrix3x3* roll_matrix,
+        Matrix3x3 yaw_matrix,
+        Matrix3x3 pitch_matrix,
+        Matrix3x3 roll_matrix,
 
-        Matrix3x3* rotation_matrix
+        Matrix3x3 rotation_matrix
 ) {
     if (roll)
         setRoll3D(roll, roll_matrix);

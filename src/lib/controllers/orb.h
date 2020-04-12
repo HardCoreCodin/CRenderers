@@ -5,100 +5,104 @@
 #include "lib/memory/allocators.h"
 #include "lib/controllers/base.h"
 
-#define ORB_CONTROLLER_INITIAL_MOUSE_PAN_SPEED 0.01f
-#define ORB_CONTROLLER_INITIAL_MOUSE_SCROLL_SPEED 1.0f
-#define ORB_CONTROLLER_INITIAL_MOUSE_MOVEMENT_SPEED 0.001f
-
-typedef struct { f32 factor, amount; } OrbControllerDolly;
+typedef struct { f32 amount, ratio; } OrbControllerDolly;
+typedef struct { f32 pan, dolly, orbit; } OrbControllerSpeed;
 typedef struct {
-    Controller controller;
-    Camera3D *camera;
-
-    Matrix3x3 *yaw, *pitch, *rotation;
-    Vector3 *up, *right, *forward, *position, *target_position;
+    OrbControllerSpeed speed;
     OrbControllerDolly dolly;
-
-    bool moved, rotated;
-    Callback move, rotate, zoom;
+    Controller controller;
+    Matrix3x3 yaw, pitch, rotation;
+    Vector3 *up, *right, *forward, *pan, *C, *O, *T, *O2T, *C2T;
+    f32 target_distance;
 } OrbController;
 
-static OrbController orb;
+OrbController orb = {1.0f / 100, 1.0f / 10, 1.0f / 1000};
 
-void OrbOnMouseWheelScrolled() {
-    orb.dolly.amount += mouse.wheel.scroll_amount * orb.controller.mouse_scroll_speed;
-    if (orb.dolly.amount > 0)
-        orb.dolly.factor = 1 / orb.dolly.amount;
-    else
-        orb.dolly.factor = -orb.dolly.amount;
+inline void OrbUpdateO2T() { scale3D(orb.forward, orb.target_distance, orb.O2T); }
+inline void OrbUpdateC2T() { scale3D(orb.O2T, orb.dolly.ratio, orb.C2T); }
+inline void OrbUpdateT() { add3D(orb.O, orb.O2T, orb.T); }
+inline void OrbUpdateC() { sub3D(orb.T, orb.C2T, orb.C); }
+inline void OrbUpdateO() { sub3D(orb.T, orb.O2T, orb.O); }
+inline void OrbDolly() {
+    orb.dolly.amount += orb.speed.dolly * mouse.wheel.scroll;
+    orb.dolly.ratio = orb.dolly.amount > 0 ? 1 / orb.dolly.amount : -orb.dolly.amount;
 
-    scale3D(orb.forward, orb.dolly.factor, orb.controller.movement);
-    sub3D(orb.target_position, orb.controller.movement, orb.position);
+    OrbUpdateC2T();
+    OrbUpdateC();
+}
+inline void OrbPan() {
+    f32 right = orb.speed.pan * (f32)-mouse.coords.relative.x;
+    f32 up    = orb.speed.pan * (f32)+mouse.coords.relative.y;
 
-    orb.controller.moved = true;
+    scale3D(orb.right, right, orb.pan);
+    iadd3D(orb.C, orb.pan);
+    iadd3D(orb.O, orb.pan);
+    iadd3D(orb.T, orb.pan);
+
+    scale3D(orb.up, up, orb.pan);
+    iadd3D(orb.C, orb.pan);
+    iadd3D(orb.O, orb.pan);
+    iadd3D(orb.T, orb.pan);
+}
+inline void OrbOrbit() {
+    f32 yaw   = orb.speed.orbit * (f32)-mouse.coords.relative.x;
+    f32 pitch = orb.speed.orbit * (f32)-mouse.coords.relative.y;
+    if (yaw) yaw3D(yaw, orb.yaw);
+    if (pitch) pitch3D(pitch, orb.pitch);
+    matMul3D(orb.pitch, orb.yaw, orb.rotation);
+
+    OrbUpdateO2T();
+    OrbUpdateO();
+    OrbUpdateC2T();
+    OrbUpdateC();
+}
+
+void OrbOnMouseScrolled() {
+    OrbDolly();
+    orb.controller.changed.position = true;
 }
 
 void OrbOnMouseMoved() {
-    if (mouse.buttons.right.is_down) { // Orbit:
-        f32 yaw   = -orb.controller.mouse_movement_speed * (f32)mouse.coords.relative.x;
-        f32 pitch = -orb.controller.mouse_movement_speed * (f32)mouse.coords.relative.y;
-        if (yaw) yaw3D(yaw, orb.yaw);
-        if (pitch) pitch3D(pitch, orb.pitch);
-        matMul3D(orb.pitch, orb.yaw, orb.rotation);
-
-        scale3D(orb.forward, orb.dolly.factor, orb.controller.movement);
-        sub3D(orb.target_position, orb.controller.movement, orb.position);
-
-        orb.controller.rotated = true;
-    } else if (mouse.buttons.middle.is_down) { // Pan:
-        f32 right = -ORB_CONTROLLER_INITIAL_MOUSE_PAN_SPEED * (f32)mouse.coords.relative.x;
-        f32 up    =  ORB_CONTROLLER_INITIAL_MOUSE_PAN_SPEED * (f32)mouse.coords.relative.y;
-
-        scale3D(orb.right, right, orb.controller.movement);
-        iadd3D(orb.position, orb.controller.movement);
-        iadd3D(orb.target_position, orb.controller.movement);
-
-        scale3D(orb.up, up, orb.controller.movement);
-        iadd3D(orb.position, orb.controller.movement);
-        iadd3D(orb.target_position, orb.controller.movement);
-
-        orb.controller.moved = true;
+    if (mouse.buttons.right.is_down) {
+        OrbOrbit();
+        orb.controller.changed.orientation = true;
+        orb.controller.changed.position = true;
+    } else if (mouse.buttons.middle.is_down) {
+        OrbPan();
+        orb.controller.changed.position = true;
     }
 }
 
-void OrbOnUpdate() {
-    if (orb.controller.zoomed) orb.zoom(&orb.controller);
-    if (orb.controller.rotated) orb.rotate(&orb.controller);
-    if (orb.controller.moved) orb.move(&orb.controller);
+void OrbOnUpdate() {}
+
+void OrbOnReset() {
+    orb.dolly.amount = 1;
+    orb.dolly.ratio = 1;
+
+    orb.yaw = orb.controller.camera->transform->yaw;
+    orb.pitch = orb.controller.camera->transform->pitch;
+    orb.rotation = orb.controller.camera->transform->rotation;
+
+    orb.up = orb.controller.camera->transform->up;
+    orb.right = orb.controller.camera->transform->right;
+    orb.forward = orb.controller.camera->transform->forward;
+
+    orb.C = orb.controller.camera->transform->position;
+    *orb.O = *orb.C;
+
+    OrbUpdateO2T();
+    OrbUpdateT();
 }
 
-void initOrbController(Camera3D* camera, Callback zoom, Callback move, Callback rotate) {
-    orb.camera = camera;
+void initOrbController(Camera* camera) {
+    orb.target_distance = 10;
 
-    orb.zoom = zoom;
-    orb.move = move;
-    orb.rotate = rotate;
+    orb.pan = Alloc(Vector3);
+    orb.O = Alloc(Vector3);
+    orb.T = Alloc(Vector3);
+    orb.O2T = Alloc(Vector3);
+    orb.C2T = Alloc(Vector3);
 
-    orb.yaw = camera->transform->yaw;
-    orb.pitch = camera->transform->pitch;
-    orb.rotation = camera->transform->rotation;
-    orb.position = camera->transform->position;
-    orb.up = camera->transform->up;
-    orb.right = camera->transform->right;
-    orb.forward = camera->transform->forward;
-
-    orb.dolly.amount = 0;
-    orb.dolly.factor = 1;
-
-    initController(
-            &orb.controller,
-            OrbOnUpdate,
-            OrbOnMouseMoved,
-            OrbOnMouseWheelScrolled,
-            ORB_CONTROLLER_INITIAL_MOUSE_MOVEMENT_SPEED,
-            ORB_CONTROLLER_INITIAL_MOUSE_SCROLL_SPEED);
-
-    orb.target_position = (Vector3*)allocate(sizeof(Vector3));
-    orb.controller.movement->z = 1;
-    add3D(orb.position, orb.controller.movement, orb.target_position);
+    initController(&orb.controller, camera, OrbOnReset, OrbOnUpdate, OrbOnMouseMoved, OrbOnMouseScrolled);
 }
 
