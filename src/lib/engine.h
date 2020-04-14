@@ -63,8 +63,8 @@ void initEngine(Callback updateWindowTitle) {
     initButtons();
 
     initScene(&engine.scene);
-    initFpsController(&engine.scene.camera);
-    initOrbController(&engine.scene.camera);
+    initController(&fps.controller, &engine.scene.camera, FpsOnUpdate, FpsOnMouseMoved, FpsOnMouseScrolled);
+    initController(&orb.controller, &engine.scene.camera, OrbOnUpdate, OrbOnMouseMoved, OrbOnMouseScrolled);
 
     initFrameBuffer();
     initRayTracer(&engine);
@@ -81,5 +81,4 @@ void initEngine(Callback updateWindowTitle) {
     engine.scene.camera.transform->position->y = 5;
     engine.scene.camera.transform->position->z = -10;
     orb.controller.changed.position = true;
-    OrbOnReset();
 }

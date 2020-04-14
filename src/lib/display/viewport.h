@@ -28,7 +28,6 @@ void setViewportRenderer(Renderer* renderer) {
 }
 
 void setViewportController(Controller* controller) {
-    controller->on.reset();
     viewport.controller = controller;
     bindControllerToRenderer();
 }

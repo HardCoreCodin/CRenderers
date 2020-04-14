@@ -38,7 +38,6 @@ void updateController(Controller* controller) {
 void initController(
         Controller* controller,
         Camera* camera,
-        Callback reset,
         Callback update,
         Callback mouse_moved,
         Callback mouse_scrolled) {
@@ -47,10 +46,7 @@ void initController(
     controller->changed.position = false;
     controller->changed.fov = false;
 
-    controller->on.reset = reset;
     controller->on.update = update;
     controller->on.mouse_moved = mouse_moved;
     controller->on.mouse_scrolled = mouse_scrolled;
-
-    reset(camera);
 }

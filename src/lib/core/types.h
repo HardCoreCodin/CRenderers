@@ -68,7 +68,7 @@ typedef struct {
 } Camera;
 
 typedef struct { bool position, orientation, fov; } ControllerChanged;
-typedef struct { Callback reset, update, mouse_moved, mouse_scrolled; } ControllerCallbacks;
+typedef struct { Callback update, mouse_moved, mouse_scrolled; } ControllerCallbacks;
 typedef struct {
     Camera* camera;
     ControllerChanged changed;
