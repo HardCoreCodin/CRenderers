@@ -13,77 +13,72 @@
 #include "lib/render/raytracing/shaders/intersection/ray_sphere.h"
 #include "lib/render/raytracing/shaders/generation/ray_generation.h"
 
-typedef struct {
-    Renderer renderer;
-    u32 ray_count;
-    u8 rays_per_pixel;
-    RayHit* closest_hit;
-    Vector3 *ray_directions;
-    Matrix3x3 inverted_camera_rotation;
-} RayTracer;
+static char* RAY_TRACER_TITLE = "RayTrace";
 
-RayTracer ray_tracer;
+void onRenderRT(Engine* engine) {
+    RayTracer* ray_tracer = engine->renderers.ray_tracer;
+    FrameBuffer* frame_buffer = engine->frame_buffer;
+    Pixel* pixel = frame_buffer->pixels;
+    Vector3* ray_direction = ray_tracer->ray_directions;
+    Sphere* sphere = engine->scene->spheres;
+    u8 sphere_count = engine->scene->sphere_count;
 
-void onRenderRT(Viewport* viewport) {
-    Pixel* pixel = (Pixel*)frame_buffer.pixels;
-    Vector3* ray_direction = ray_tracer.ray_directions;
-    Sphere* sphere = ray_tracer.renderer.scene->spheres;
-    u8 sphere_count = ray_tracer.renderer.scene->sphere_count;
-
-    for (u32 i = 0; i < frame_buffer.size; i++)
-        if (rayIntersectsWithSpheres(ray_tracer.closest_hit, ray_direction++, sphere, sphere_count))
-            shadeClosestHitByNormal(ray_tracer.closest_hit, pixel++);
+    for (u32 i = 0; i < frame_buffer->size; i++)
+        if (rayIntersectsWithSpheres(ray_tracer->closest_hit, ray_direction++, sphere, sphere_count))
+            shadeClosestHitByNormal(ray_tracer->closest_hit, pixel++);
 //            shadeRayByDirection(ray_direction++, pixel++);
         else
             (pixel++)->value = 0;
 }
 
-void generateRaysRT(Camera* camera) {
+void generateRaysRT(Engine* engine) {
     generateRayDirections(
-            ray_tracer.ray_directions,
-            camera->focal_length,
-            frame_buffer.width,
-            frame_buffer.height);
+            engine->renderers.ray_tracer->ray_directions,
+            engine->active_viewport->controller->camera->focal_length,
+            engine->frame_buffer->width,
+            engine->frame_buffer->height);
 }
 
-void onResizeRT(Viewport* viewport) {
-    generateRaysRT(viewport->controller->camera);
+void onResizeRT(Engine* engine) {
+    generateRaysRT(engine);
 }
 
-void onZoomRT(Viewport* viewport) {
-    generateRaysRT(viewport->controller->camera);
-    viewport->controller->changed.fov = false;
+void onZoomRT(Engine* engine) {
+    generateRaysRT(engine);
+    engine->active_viewport->controller->changed.fov = false;
 }
 
-void onRotateRT(Viewport* viewport) {
-    transposeMatrix3D(viewport->controller->camera->transform->rotation, &ray_tracer.inverted_camera_rotation);
-    viewport->controller->changed.orientation = false;
-    viewport->controller->changed.position = true;
+void onRotateRT(Engine* engine) {
+    Controller* controller = engine->active_viewport->controller;
+    RayTracer* ray_tracer = engine->renderers.ray_tracer;
+
+    transposeMatrix3D(controller->camera->transform->rotation, ray_tracer->inverted_camera_rotation);
+    controller->changed.orientation = false;
+    controller->changed.position = true;
 }
 
-void onMoveRT(Viewport* viewport) {
-    Controller* controller = viewport->controller;
-    Transform3D* tr = controller->camera->transform;
-
+void onMoveRT(Engine* engine) {
+    Controller* controller = engine->active_viewport->controller;
+    RayTracer* ray_tracer = engine->renderers.ray_tracer;
     Vector3* camera_position = controller->camera->transform->position;
-    Sphere *sphere = ray_tracer.renderer.scene->spheres;
-    u8 sphere_count = ray_tracer.renderer.scene->sphere_count;
+    Sphere *sphere = engine->scene->spheres;
+    u8 sphere_count = engine->scene->sphere_count;
     for (u8 i = 0; i < sphere_count; i++) {
         sub3D(sphere->world_position, camera_position, sphere->view_position);
-        imul3D(sphere->view_position, &ray_tracer.inverted_camera_rotation);
+        imul3D(sphere->view_position, ray_tracer->inverted_camera_rotation);
         sphere++;
     }
 
     controller->changed.position = false;
 }
 
-void initRayTracer(Scene* scene) {
-    ray_tracer.renderer.scene = scene;
-    ray_tracer.renderer.title = "RayTrace";
-    ray_tracer.rays_per_pixel = 1;
-    ray_tracer.ray_count = frame_buffer.width * frame_buffer.height * ray_tracer.rays_per_pixel;
-    ray_tracer.ray_directions = AllocN(Vector3, ray_tracer.ray_count);
-    ray_tracer.closest_hit = Alloc(RayHit);
-    initMatrix3x3(&ray_tracer.inverted_camera_rotation);
-    setMatrix3x3ToIdentity(&ray_tracer.inverted_camera_rotation);
+RayTracer* createRayTracer(Engine* engine) {
+    RayTracer* ray_tracer = Alloc(RayTracer);
+    ray_tracer->renderer.title = RAY_TRACER_TITLE;
+    ray_tracer->rays_per_pixel = 1;
+    ray_tracer->ray_count = engine->frame_buffer->width * engine->frame_buffer->height * ray_tracer->rays_per_pixel;
+    ray_tracer->ray_directions = AllocN(Vector3, ray_tracer->ray_count);
+    ray_tracer->closest_hit = Alloc(RayHit);
+    ray_tracer->inverted_camera_rotation = createMatrix3x3();
+    return ray_tracer;
 }

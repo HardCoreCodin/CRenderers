@@ -3,9 +3,17 @@
 #include "lib/core/types.h"
 #include "lib/memory/allocators.h"
 
-void initMatrix2x2(Matrix2x2* matrix) {
+void setMatrix2x2ToIdentity(Matrix2x2* M) {
+    M->x_axis->x = M->y_axis->y = 1.0f;
+    M->x_axis->y = M->y_axis->x = 0.0f;
+}
+
+Matrix2x2* createMatrix2x2() {
+    Matrix2x2* matrix = Alloc(Matrix2x2);
     matrix->x_axis = Alloc(Vector2);
     matrix->y_axis = Alloc(Vector2);
+    setMatrix2x2ToIdentity(matrix);
+    return matrix;
 }
 
 void getPointOnUnitCircle(f32 t, f32* s, f32*c) {
@@ -65,11 +73,6 @@ inline f32 squaredLength2D(Vector2* v) {
         (v->x * v->x) +
         (v->y * v->y)
     );
-}
-
-void setMatrix2x2ToIdentity(Matrix2x2* M) {
-    M->x_axis->x = M->y_axis->y = 1.0f; 
-    M->x_axis->y = M->y_axis->x = 0.0f;
 }
 
 inline void matmul2D(Matrix2x2* a, Matrix2x2* b, Matrix2x2* out) {

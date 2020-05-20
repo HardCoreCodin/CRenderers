@@ -12,6 +12,7 @@
 
 #define RAW_INPUT_MAX_SIZE Kilobytes(1)
 
+static Engine* engine;
 static WNDCLASSA window_class;
 static HWND window;
 static HDC win_dc;
@@ -23,123 +24,120 @@ static RAWMOUSE raw_mouse;
 static UINT size_ri, size_rih = sizeof(RAWINPUTHEADER);
 
 static u64 ticks_of_last_frame, ticks_of_current_frame, target_ticks_per_frame;
+static LARGE_INTEGER perf_counter;
 
 #define RELEASE_MOUSE { \
-    mouse.is_captured = false; \
+    engine->mouse->is_captured = false; \
     ReleaseCapture(); \
     ShowCursor(true); \
 }
 #define CAPTURE_MOUSE { \
-    mouse.is_captured = true; \
+    engine->mouse->is_captured = true; \
     SetCapture(window); \
     ShowCursor(false); \
 }
 
-void updateWindowTitle() {
-    SetWindowTextA(window, getTitle());
-}
-
-inline void resizeFrameBuffer() {
-    GetClientRect(window, &win_rect);
-
-    info.bmiHeader.biWidth = win_rect.right - win_rect.left;
-    info.bmiHeader.biHeight = win_rect.top - win_rect.bottom;
-
-    frame_buffer.width = (u16)info.bmiHeader.biWidth;
-    frame_buffer.height = (u16)-info.bmiHeader.biHeight;
-    frame_buffer.size = frame_buffer.width * frame_buffer.height;
-
-    resize();
-}
+void printDebugString(char* str) { OutputDebugStringA(str); }
+void updateWindowTitle() { SetWindowTextA(window, getTitle(engine)); }
+u64 getTicks() { QueryPerformanceCounter(&perf_counter); return (u64)perf_counter.QuadPart; }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_DESTROY:
-            engine.is_running = false;
+            engine->is_running = false;
             PostQuitMessage(0);
             break;
 
         case WM_SIZE:
-            resizeFrameBuffer();
-            updateAndRender();
+            GetClientRect(window, &win_rect);
+
+            info.bmiHeader.biWidth = win_rect.right - win_rect.left;
+            info.bmiHeader.biHeight = win_rect.top - win_rect.bottom;
+
+            engine->frame_buffer->width = (u16)info.bmiHeader.biWidth;
+            engine->frame_buffer->height = (u16)-info.bmiHeader.biHeight;
+            engine->frame_buffer->size = engine->frame_buffer->width * engine->frame_buffer->height;
+
+            resize(engine);
+            updateAndRender(engine);
+
             break;
 
         case WM_PAINT:
-            updateAndRender();
+            updateAndRender(engine);
 
-            GET_TICKS(ticks_of_current_frame);
-            while (ticks_of_current_frame - ticks_of_last_frame < target_ticks_per_frame) {
-                GET_TICKS(ticks_of_current_frame);
-            }
+            ticks_of_current_frame = getTicks();
+            while (ticks_of_current_frame - ticks_of_last_frame < target_ticks_per_frame)
+                ticks_of_current_frame = getTicks();
 
             SetDIBitsToDevice(win_dc,
-                    0, 0, frame_buffer.width, frame_buffer.height,
-                    0, 0, 0, frame_buffer.height,
-                    frame_buffer.pixels, &info, DIB_RGB_COLORS);
+                    0, 0, engine->frame_buffer->width, engine->frame_buffer->height,
+                    0, 0, 0, engine->frame_buffer->height,
+                    (u32*)engine->frame_buffer->pixels, &info, DIB_RGB_COLORS);
 
             ValidateRgn(window, NULL);
 
-            GET_TICKS(ticks_of_last_frame);
+            ticks_of_last_frame = getTicks();
             break;
 
         case WM_SYSKEYDOWN:
         case WM_KEYDOWN:
             if ((u32)wParam == VK_ESCAPE)
-                engine.is_running = false;
+                engine->is_running = false;
             else
-                OnKeyDown((u32)wParam);
+                onKeyDown(engine->keyboard, (u32)wParam);
             break;
 
         case WM_SYSKEYUP:
         case WM_KEYUP:
-            OnKeyUp((u32)wParam);
+            onKeyUp(engine->keyboard, (u32)wParam);
             break;
 
         case WM_LBUTTONDOWN:
             QueryPerformanceCounter(&perf_counter);
-            OnMouseLeftButtonDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
+            onMouseLeftButtonDown(engine->mouse, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
             break;
 
         case WM_RBUTTONDOWN:
             QueryPerformanceCounter(&perf_counter);
-            OnMouseRightButtonDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
+            onMouseRightButtonDown(engine->mouse, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
             CAPTURE_MOUSE
             break;
 
         case WM_MBUTTONDOWN:
             QueryPerformanceCounter(&perf_counter);
-            OnMouseMiddleButtonDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
+            onMouseMiddleButtonDown(engine->mouse, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
             CAPTURE_MOUSE
             break;
 
         case WM_LBUTTONUP:
             QueryPerformanceCounter(&perf_counter);
-            OnMouseLeftButtonUp(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
+            onMouseLeftButtonUp(engine->mouse,GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
             break;
 
         case WM_RBUTTONUP:
             QueryPerformanceCounter(&perf_counter);
-            OnMouseRightButtonUp(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
+            onMouseRightButtonUp(engine->mouse, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
             RELEASE_MOUSE
             break;
 
         case WM_MBUTTONUP:
             QueryPerformanceCounter(&perf_counter);
-            OnMouseMiddleButtonUp(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
+            onMouseMiddleButtonUp(engine->mouse, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), (u64)perf_counter.QuadPart);
             RELEASE_MOUSE
             break;
 
         case WM_LBUTTONDBLCLK:
-            mouse.double_clicked = true;
-            if (mouse.is_captured) RELEASE_MOUSE else CAPTURE_MOUSE
+            engine->mouse->double_clicked = true;
+            if (engine->mouse->is_captured) RELEASE_MOUSE else CAPTURE_MOUSE
             break;
 
         case WM_MOUSEWHEEL:
-            OnMouseWheelScrolled(GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA);
+            onMouseWheelScrolled(engine->mouse, GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA);
             break;
 
         case WM_MOUSEMOVE:
-            OnMouseMovedAbsolute(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+            onMouseMovedAbsolute(engine->mouse, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             break;
 
         case WM_INPUT:
@@ -149,7 +147,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
                  raw_inputs->header.dwType == RIM_TYPEMOUSE) {
                 raw_mouse = raw_inputs->data.mouse;
                 if (raw_mouse.lLastX || raw_mouse.lLastY)
-                    OnMouseMovedRelative((s16)raw_mouse.lLastX, (s16)raw_mouse.lLastY);
+                    onMouseMovedRelative(engine->mouse, (s16)raw_mouse.lLastX, (s16)raw_mouse.lLastY);
             }
 
         default:
@@ -171,19 +169,22 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     if (!memory.address)
         return -1;
 
-    initEngine(updateWindowTitle);
+    LARGE_INTEGER performance_frequency;
+    QueryPerformanceFrequency(&performance_frequency);
+    u64 ticks_per_second = (u64)performance_frequency.QuadPart;
+    engine = createEngine(updateWindowTitle, printDebugString, getTicks, ticks_per_second);
 
-    target_ticks_per_frame = perf.ticks_per_second / 60;
+    target_ticks_per_frame = engine->perf->ticks_per_second / 60;
 
-    buttons.up.key = 'R';
-    buttons.down.key = 'F';
-    buttons.left.key = 'A';
-    buttons.right.key = 'D';
-    buttons.forward.key = 'W';
-    buttons.back.key = 'S';
-    buttons.first.key = '1';
-    buttons.second.key = '2';
-    buttons.hud.key = VK_TAB;
+    engine->keyboard->up.key = 'R';
+    engine->keyboard->down.key = 'F';
+    engine->keyboard->left.key = 'A';
+    engine->keyboard->right.key = 'D';
+    engine->keyboard->forward.key = 'W';
+    engine->keyboard->back.key = 'S';
+    engine->keyboard->first.key = '1';
+    engine->keyboard->second.key = '2';
+    engine->keyboard->hud.key = VK_TAB;
 
     info.bmiHeader.biSize        = sizeof(info.bmiHeader);
     info.bmiHeader.biCompression = BI_RGB;
@@ -200,7 +201,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
     window = CreateWindowA(
             window_class.lpszClassName,
-            getTitle(),
+            getTitle(engine),
             WS_OVERLAPPEDWINDOW,
 
             CW_USEDEFAULT,
@@ -227,9 +228,9 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     ShowWindow(window, nCmdShow);
 
     MSG message;
-    GET_TICKS(ticks_of_last_frame);
+    ticks_of_last_frame = getTicks();
 
-    while (engine.is_running) {
+    while (engine->is_running) {
         while (PeekMessageA(&message, 0, 0, 0, PM_REMOVE)) {
             TranslateMessage(&message);
             DispatchMessageA(&message);

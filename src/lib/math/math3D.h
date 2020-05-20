@@ -5,10 +5,19 @@
 #include "lib/math/math2D.h"
 #include "lib/memory/allocators.h"
 
-void initMatrix3x3(Matrix3x3* matrix) {
+void setMatrix3x3ToIdentity(Matrix3x3* M) {
+    M->x_axis->x = M->y_axis->y = M->z_axis->z = 1.0f;
+    M->x_axis->y = M->y_axis->x = M->y_axis->z = M->z_axis->y = M->x_axis->z = M->z_axis->x = 0.0f;
+}
+
+Matrix3x3* createMatrix3x3() {
+    Matrix3x3* matrix = Alloc(Matrix3x3);
     matrix->x_axis = Alloc(Vector3);
     matrix->y_axis = Alloc(Vector3);
     matrix->z_axis = Alloc(Vector3);
+    setMatrix3x3ToIdentity(matrix);
+
+    return matrix;
 }
 
 inline void fill3D(Vector3* vector, f32 value) {
@@ -92,11 +101,6 @@ inline f32 squaredLength3D(Vector3* v) {
         (v->y * v->y) +
         (v->z * v->z)
     );
-}
-
-void setMatrix3x3ToIdentity(Matrix3x3* M) {
-    M->x_axis->x = M->y_axis->y = M->z_axis->z = 1.0f; 
-    M->x_axis->y = M->y_axis->x = M->y_axis->z = M->z_axis->y = M->x_axis->z = M->z_axis->x = 0.0f;
 }
 
 void transposeMatrix3D(Matrix3x3* M, Matrix3x3* O) {

@@ -6,43 +6,27 @@
 #include "lib/memory/buffers.h"
 #include "lib/memory/allocators.h"
 
-#define HUD_LENGTH 100
 #define HUD_WIDTH 12
 #define HUD_RIGHT 100
 #define HUD_TOP 10
 #define HUD_COLOR 0x0000FF00
 
-typedef struct HUD {
-    bool is_visible;
-    char text[HUD_LENGTH];
-    char* width;
-    char* height;
-    char* fps;
-    char* msf;
-    char* mode;
-    char* rat;
-    char* perf;
-
-    Perf debug_perf;
-} HUD;
-
-static HUD hud;
-
-void setControllerModeInHUD(bool fps) {
-    char* mode = hud.mode;
+void setControllerModeInHUD(HUD* hud, bool fps) {
+    char* mode = hud->mode;
     *mode++ = fps ? 'F' : 'O';
     *mode++ = fps ? 'p' : 'r';
     *mode   = fps ? 's' : 'b';
 }
 
-void setRationalModeInHUD(bool rat) {
-    char* mode = hud.rat;
+void setRationalModeInHUD(HUD* hud, bool rat) {
+    char* mode = hud->rat;
     *mode++ = rat ? 'N' : 'f';
     *mode   = rat ? ' ' : 'f';
 }
 
-void initHUD() {
-    hud.is_visible = true;
+HUD* createHUD() {
+    HUD* hud = Alloc(HUD);
+    hud->is_visible = true;
 
     char* template = "Width  : ___1\n"
                      "Height : ___2\n"
@@ -53,35 +37,35 @@ void initHUD() {
                      "Perf   :     ";
 
     char* HUD_char = template;
-    char* HUD_text_char = hud.text;
+    char* HUD_text_char = hud->text;
 
     while (*HUD_char) {
         switch (*HUD_char) {
-            case '1':  hud.width = HUD_text_char; break;
-            case '2':  hud.height = HUD_text_char; break;
-            case '3':  hud.fps = HUD_text_char; break;
-            case '4':  hud.msf = HUD_text_char; break;
-            case '5':  hud.mode = HUD_text_char; break;
-            case '6':  hud.rat = HUD_text_char; break;
+            case '1':  hud->width = HUD_text_char; break;
+            case '2':  hud->height = HUD_text_char; break;
+            case '3':  hud->fps = HUD_text_char; break;
+            case '4':  hud->msf = HUD_text_char; break;
+            case '5':  hud->mode = HUD_text_char; break;
+            case '6':  hud->rat = HUD_text_char; break;
         }
 
         *HUD_text_char++ = *HUD_char++;
     }
-    hud.perf = HUD_text_char - 1;
+    hud->perf = HUD_text_char - 1;
     *HUD_text_char = '\0';
 
-    setControllerModeInHUD(false);
-    setRationalModeInHUD(false);
+    setControllerModeInHUD(hud, false);
+    setRationalModeInHUD(hud, false);
 
-    initPerf(&hud.debug_perf);
+    return hud;
 }
 
-inline void updateHUDCounters() {
-    printNumberIntoString(perf.avg.frames_per_second, hud.fps);
-    printNumberIntoString(perf.avg.milliseconds_per_frame, hud.msf);
+inline void updateHUDCounters(HUD* hud, Perf* perf) {
+    printNumberIntoString(perf->avg.frames_per_second, hud->fps);
+    printNumberIntoString(perf->avg.milliseconds_per_frame, hud->msf);
 }
 
-inline void updateHUDDimensions() {
-    printNumberIntoString(frame_buffer.width, hud.width);
-    printNumberIntoString(frame_buffer.height, hud.height);
+inline void updateHUDDimensions(HUD* hud, FrameBuffer* frame_buffer) {
+    printNumberIntoString(frame_buffer->width, hud->width);
+    printNumberIntoString(frame_buffer->height, hud->height);
 }

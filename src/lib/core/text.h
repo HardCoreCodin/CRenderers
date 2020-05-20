@@ -8,24 +8,24 @@
 #define FIRST_CHARACTER_CODE 32
 #define LAST_CHARACTER_CODE 127
 
-void drawText(char *str, u32 color, int x, int y) {
-    if (x < 0 || x > frame_buffer.width - FONT_WIDTH ||
-        y < 0 || y > frame_buffer.height - FONT_HEIGHT)
+void drawText(FrameBuffer* frame_buffer, char *str, u32 color, int x, int y) {
+    if (x < 0 || x > frame_buffer->width - FONT_WIDTH ||
+        y < 0 || y > frame_buffer->height - FONT_HEIGHT)
         return;
 
     u16 current_x = x;
     u16 current_y = y;
     u16 t_offset = 0;
-    u16 pixel_line_step = frame_buffer.width - FONT_WIDTH;
-    u32 char_line_step  = frame_buffer.width * LINE_HEIGHT;
-    u32* pixel = frame_buffer.pixels + frame_buffer.width * y + x;;
-    u32* character_pixel;
+    u16 pixel_line_step = frame_buffer->width - FONT_WIDTH;
+    u32 char_line_step  = frame_buffer->width * LINE_HEIGHT;
+    Pixel* pixel = frame_buffer->pixels + frame_buffer->width * y + x;;
+    Pixel* character_pixel;
     u8* byte;
     char character = *str;
 
     while (character) {
         if (character == '\n') {
-            if (current_y + FONT_HEIGHT > frame_buffer.height)
+            if (current_y + FONT_HEIGHT > frame_buffer->height)
                 break;
 
             pixel += char_line_step - current_x + x;
@@ -43,7 +43,7 @@ void drawText(char *str, u32 color, int x, int y) {
                 for (int w = 0; w < FONT_WIDTH; w++) {
                     /* skip background bits */
                     if (*byte & (0x80 >> w))
-                        *character_pixel = color;
+                        character_pixel->value = color;
 
                     character_pixel++;
                 }

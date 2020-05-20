@@ -2,58 +2,60 @@
 
 #include "lib/core/types.h"
 
-static Buttons buttons;
+Keyboard* createKeyboard() {
+    Keyboard* keyboard = Alloc(Keyboard);
 
-void initButtons() {
-    buttons.up.is_pressed = false;
-    buttons.down.is_pressed = false;
-    buttons.left.is_pressed = false;
-    buttons.right.is_pressed = false;
-    buttons.forward.is_pressed = false;
-    buttons.back.is_pressed = false;
-    buttons.hud.is_pressed = false;
-    buttons.first.is_pressed = false;
-    buttons.second.is_pressed = false;
+    keyboard->up.is_pressed = false;
+    keyboard->down.is_pressed = false;
+    keyboard->left.is_pressed = false;
+    keyboard->right.is_pressed = false;
+    keyboard->forward.is_pressed = false;
+    keyboard->back.is_pressed = false;
+    keyboard->hud.is_pressed = false;
+    keyboard->first.is_pressed = false;
+    keyboard->second.is_pressed = false;
+
+    return keyboard;
 };
 
-void OnKeyDown(u32 key) {
-    if (key == buttons.hud.key)
-        buttons.hud.is_pressed = true;
-    else if (key == buttons.up.key)
-        buttons.up.is_pressed = true;
-    else if (key == buttons.down.key)
-        buttons.down.is_pressed = true;
-    else if (key == buttons.left.key)
-        buttons.left.is_pressed = true;
-    else if (key == buttons.right.key)
-        buttons.right.is_pressed = true;
-    else if (key == buttons.forward.key)
-        buttons.forward.is_pressed = true;
-    else if (key == buttons.back.key)
-        buttons.back.is_pressed = true;
-    else if (key == buttons.first.key)
-        buttons.first.is_pressed = true;
-    else if (key == buttons.second.key)
-        buttons.second.is_pressed = true;
+void onKeyDown(Keyboard* keyboard, u32 key) {
+    if (key == keyboard->hud.key)
+        keyboard->hud.is_pressed = true;
+    else if (key == keyboard->up.key)
+        keyboard->up.is_pressed = true;
+    else if (key == keyboard->down.key)
+        keyboard->down.is_pressed = true;
+    else if (key == keyboard->left.key)
+        keyboard->left.is_pressed = true;
+    else if (key == keyboard->right.key)
+        keyboard->right.is_pressed = true;
+    else if (key == keyboard->forward.key)
+        keyboard->forward.is_pressed = true;
+    else if (key == keyboard->back.key)
+        keyboard->back.is_pressed = true;
+    else if (key == keyboard->first.key)
+        keyboard->first.is_pressed = true;
+    else if (key == keyboard->second.key)
+        keyboard->second.is_pressed = true;
 }
 
-void OnKeyUp(u8 key) {
-    if (key == buttons.hud.key)
-        buttons.hud.is_pressed = false;
-    else if (key == buttons.up.key)
-        buttons.up.is_pressed = false;
-    else if (key == buttons.down.key)
-        buttons.down.is_pressed = false;
-    else if (key == buttons.left.key)
-        buttons.left.is_pressed = false;
-    else if (key == buttons.right.key)
-        buttons.right.is_pressed = false;
-    else if (key == buttons.forward.key)
-        buttons.forward.is_pressed = false;
-    else if (key == buttons.back.key)
-        buttons.back.is_pressed = false;
-    else if (key == buttons.first.key)
-        buttons.first.is_pressed = false;
-    else if (key == buttons.second.key)
-        buttons.second.is_pressed = false;
+void onKeyUp(Keyboard* keyboard, u8 key) {
+    if (key == keyboard->hud.key)
+        keyboard->hud.is_pressed = false;
+    else if (key == keyboard->up.key)
+        keyboard->up.is_pressed = false;
+    else if (key == keyboard->down.key)
+        keyboard->down.is_pressed = false;
+    else if (key == keyboard->left.key)
+        keyboard->left.is_pressed = false;
+    else if (key == keyboard->right.key)
+        keyboard->right.is_pressed = false;
+    else if (key == keyboard->forward.key)
+        keyboard->forward.is_pressed = false;
+    else if (key == keyboard->back.key)
+        keyboard->back.is_pressed = false;
+    else if (key == keyboard->first.key)
+        keyboard->first.is_pressed = false;
+    else if (key == keyboard->second.key)
+        keyboard->second.is_pressed = false;
 }

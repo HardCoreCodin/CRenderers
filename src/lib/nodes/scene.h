@@ -9,13 +9,11 @@
 #define SPHERE_HCOUNT 3
 #define SPHERE_VCOUNT 3
 
-void initScene(Scene* scene) {
-    scene->camera = Alloc(Camera);
-    initCamera(scene->camera);
-
+Scene* createScene() {
+    Scene* scene = Alloc(Scene);
+    scene->camera = createCamera();
     scene->sphere_count = SPHERE_HCOUNT * SPHERE_VCOUNT;
     scene->spheres = AllocN(Sphere, scene->sphere_count);
-
     Sphere* sphere = scene->spheres;
 
     u8 gap = SPHERE_RADIUS * 3;
@@ -41,4 +39,6 @@ void initScene(Scene* scene) {
 
         sphere_z += gap;
     }
+
+    return scene;
 }

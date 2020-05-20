@@ -1,99 +1,78 @@
 #pragma once
 
 #include "lib/core/types.h"
+#include "lib/memory/allocators.h"
 
 #define MOUSE_CLICK_TICKS 10000
 
-static Mouse mouse;
+Mouse* createMouse() {
+    Mouse* mouse = Alloc(Mouse);
+    mouse->is_captured = false;
+    mouse->double_clicked = false;
+    mouse->coords.absolute.changed = false;
+    mouse->coords.relative.changed = false;
 
-void initMouse() {
-    mouse.is_captured = false;
-    mouse.double_clicked = false;
-    mouse.coords.absolute.changed = false;
-    mouse.coords.relative.changed = false;
+    mouse->wheel.changed = false;
+    mouse->wheel.scroll = 0;
 
-    mouse.wheel.changed = false;
-    mouse.wheel.scroll = 0;
+    mouse->coords.absolute.x = 0;
+    mouse->coords.absolute.y = 0;
+    mouse->coords.relative.x = 0;
+    mouse->coords.relative.y = 0;
 
-    mouse.coords.absolute.x = 0;
-    mouse.coords.absolute.y = 0;
-    mouse.coords.relative.x = 0;
-    mouse.coords.relative.y = 0;
+    mouse->buttons.left.is_down = false;
+    mouse->buttons.left.clicked = false;
+    mouse->buttons.left.up.ticks = 0;
+    mouse->buttons.left.down.ticks = 0;
 
-    mouse.buttons.left.is_down = false;
-    mouse.buttons.left.clicked = false;
-    mouse.buttons.left.up.ticks = 0;
-    mouse.buttons.left.down.ticks = 0;
+    mouse->buttons.right.is_down = false;
+    mouse->buttons.right.clicked = false;
+    mouse->buttons.right.down.ticks = 0;
+    mouse->buttons.right.up.ticks = 0;
 
-    mouse.buttons.right.is_down = false;
-    mouse.buttons.right.clicked = false;
-    mouse.buttons.right.down.ticks = 0;
-    mouse.buttons.right.up.ticks = 0;
+    mouse->buttons.middle.is_down = false;
+    mouse->buttons.middle.clicked = false;
+    mouse->buttons.middle.down.ticks = 0;
+    mouse->buttons.middle.up.ticks = 0;
 
-    mouse.buttons.middle.is_down = false;
-    mouse.buttons.middle.clicked = false;
-    mouse.buttons.middle.down.ticks = 0;
-    mouse.buttons.middle.up.ticks = 0;
+    return mouse;
 }
 
-void OnMouseMovedAbsolute(s16 x, s16 y) {
-    mouse.coords.absolute.changed = true;
-    mouse.coords.absolute.x = x;
-    mouse.coords.absolute.y = y;
+void onMouseMovedAbsolute(Mouse* mouse, s16 x, s16 y) {
+    mouse->coords.absolute.changed = true;
+    mouse->coords.absolute.x = x;
+    mouse->coords.absolute.y = y;
 }
 
-void OnMouseMovedRelative(s16 dx, s16 dy) {
-    mouse.coords.relative.changed = true;
-    mouse.coords.relative.x += dx;
-    mouse.coords.relative.y += dy;
+void onMouseMovedRelative(Mouse* mouse, s16 dx, s16 dy) {
+    mouse->coords.relative.changed = true;
+    mouse->coords.relative.x += dx;
+    mouse->coords.relative.y += dy;
 }
 
-void OnMouseWheelScrolled(f32 amount) {
-    mouse.wheel.scroll = amount;
-    mouse.wheel.changed = true;
+void onMouseWheelScrolled(Mouse* mouse, f32 amount) {
+    mouse->wheel.scroll = amount;
+    mouse->wheel.changed = true;
 }
 
-void OnMouseLeftButtonDown(s16 x, s16 y, u64 ticks) {
-    mouse.buttons.left.down.ticks = ticks;
-    mouse.buttons.left.down.coords.x = x;
-    mouse.buttons.left.down.coords.y = y;
-    mouse.buttons.left.is_down = true;
+inline void onMouseButtonDown(MouseButton* mouse_button, s16 x, s16 y, u64 ticks) {
+    mouse_button->down.ticks = ticks;
+    mouse_button->down.coords.x = x;
+    mouse_button->down.coords.y = y;
+    mouse_button->is_down = true;
 }
 
-void OnMouseLeftButtonUp(s16 x, s16 y, u64 ticks) {
-    mouse.buttons.left.up.ticks = ticks;
-    mouse.buttons.left.up.coords.x = x;
-    mouse.buttons.left.up.coords.y = y;
-    mouse.buttons.left.is_down = false;
-    mouse.buttons.left.clicked = ticks - mouse.buttons.left.down.ticks < MOUSE_CLICK_TICKS;
+inline void onMouseButtonUp(MouseButton* mouse_button, s16 x, s16 y, u64 ticks) {
+    mouse_button->up.ticks = ticks;
+    mouse_button->up.coords.x = x;
+    mouse_button->up.coords.y = y;
+    mouse_button->is_down = false;
+    mouse_button->clicked = ticks - mouse_button->down.ticks < MOUSE_CLICK_TICKS;
 }
 
-void OnMouseRightButtonDown(s16 x, s16 y, u64 ticks) {
-    mouse.buttons.right.down.ticks = ticks;
-    mouse.buttons.right.down.coords.x = x;
-    mouse.buttons.right.down.coords.y = y;
-    mouse.buttons.right.is_down = true;
-}
-
-void OnMouseRightButtonUp(s16 x, s16 y, u64 ticks) {
-    mouse.buttons.right.up.ticks = ticks;
-    mouse.buttons.right.up.coords.x = x;
-    mouse.buttons.right.up.coords.y = y;
-    mouse.buttons.right.is_down = false;
-    mouse.buttons.right.clicked = ticks - mouse.buttons.right.down.ticks < MOUSE_CLICK_TICKS;
-}
-
-void OnMouseMiddleButtonDown(s16 x, s16 y, u64 ticks) {
-    mouse.buttons.middle.down.ticks = ticks;
-    mouse.buttons.middle.down.coords.x = x;
-    mouse.buttons.middle.down.coords.y = y;
-    mouse.buttons.middle.is_down = true;
-}
-
-void OnMouseMiddleButtonUp(s16 x, s16 y, u64 ticks) {
-    mouse.buttons.middle.up.ticks = ticks;
-    mouse.buttons.middle.up.coords.x = x;
-    mouse.buttons.middle.up.coords.y = y;
-    mouse.buttons.middle.is_down = false;
-    mouse.buttons.middle.clicked = ticks - mouse.buttons.middle.down.ticks < MOUSE_CLICK_TICKS;
-}
+void onMouseLeftButtonDown(Mouse* mouse, s16 x, s16 y, u64 ticks ) { onMouseButtonDown(&mouse->buttons.left, x, y, ticks); }
+void onMouseLeftButtonUp(Mouse* mouse, s16 x, s16 y, u64 ticks   ) { onMouseButtonUp(&mouse->buttons.left, x, y, ticks); }
+void onMouseRightButtonDown(Mouse* mouse, s16 x, s16 y, u64 ticks ) { onMouseButtonDown(&mouse->buttons.right, x, y, ticks); }
+void onMouseRightButtonUp(Mouse* mouse, s16 x, s16 y, u64 ticks   ) { onMouseButtonUp(&mouse->buttons.right, x, y, ticks); }
+void onMouseMiddleButtonDown(Mouse* mouse, s16 x, s16 y, u64 ticks ) { onMouseButtonDown(&mouse->buttons.middle, x, y, ticks); }
+void onMouseMiddleButtonUp(Mouse* mouse, s16 x, s16 y, u64 ticks   ) { onMouseButtonUp(&mouse->buttons.middle, x, y, ticks); }
