@@ -10,7 +10,8 @@
 #define SPHERE_VCOUNT 3
 
 void initScene(Scene* scene) {
-    initCamera(&scene->camera);
+    scene->camera = Alloc(Camera);
+    initCamera(scene->camera);
 
     scene->sphere_count = SPHERE_HCOUNT * SPHERE_VCOUNT;
     scene->spheres = AllocN(Sphere, scene->sphere_count);

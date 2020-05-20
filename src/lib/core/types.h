@@ -52,12 +52,12 @@ typedef union {
 } Pixel;
 
 typedef struct {
-    Matrix2x2 rotation;
+    Matrix2x2* rotation;
     Vector2 *forward, *position, *right;
 } Transform2D;
 
 typedef struct {
-    Matrix3x3 yaw, pitch, roll, rotation;
+    Matrix3x3 *yaw, *pitch, *roll, *rotation;
     Vector3 *position, *forward, *right, *up;
 } Transform3D;
 
@@ -67,40 +67,41 @@ typedef struct {
     Transform2D* transform2D;
 } Camera;
 
+enum ControllerType {
+    CONTROLLER_ORB,
+    CONTROLLER_FPS
+};
 typedef struct { bool position, orientation, fov; } ControllerChanged;
-typedef struct { Callback update, mouse_moved, mouse_scrolled; } ControllerCallbacks;
 typedef struct {
-    Camera* camera;
+    enum ControllerType type;
     ControllerChanged changed;
-    ControllerCallbacks on;
-    Callback move, rotate, zoom;
+    Camera* camera;
 } Controller;
 
-typedef void (*ControllerCallback)(Controller* controller);
 typedef struct {
-    char* title;
-    ControllerCallback resize, render, move, rotate, zoom;
-} Renderer;
-
-typedef struct {
-    bool in_fps_mode;
-    Camera* camera;
-    Renderer* renderer;
-    Controller* controller;
-    Callback toggleControllerMode, refresh, resize, updateWindowTitle;
-    void (*setRenderer)(Renderer*);
-    void (*setController)(Controller*);
-} Viewport;
-
-typedef struct {
-    Camera camera;
+    Camera *camera;
     u8 sphere_count;
     Sphere *spheres;
 } Scene;
 
+enum RendererType {
+    RENDERER_RT,
+    RENDERER_RC
+};
 typedef struct {
-    char* (*getTitle)();
-    bool is_running;
+    enum RendererType type;
+    char* title;
+    Scene* scene;
+} Renderer;
+
+typedef struct {
+    bool in_fps_mode;
+    Renderer* renderer;
+    Controller* controller;
+} Viewport;
+
+typedef struct {
     Scene scene;
-    Callback updateAndRender;
+    Viewport viewport;
+    bool is_running;
 } Engine;

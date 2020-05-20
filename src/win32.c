@@ -11,8 +11,6 @@
 #include "lib/engine.h"
 
 #define RAW_INPUT_MAX_SIZE Kilobytes(1)
-#define MEMORY_SIZE Gigabytes(1)
-#define MEMORY_BASE Terabytes(2)
 
 static WNDCLASSA window_class;
 static HWND window;
@@ -38,7 +36,7 @@ static u64 ticks_of_last_frame, ticks_of_current_frame, target_ticks_per_frame;
 }
 
 void updateWindowTitle() {
-    SetWindowTextA(window, engine.getTitle());
+    SetWindowTextA(window, getTitle());
 }
 
 inline void resizeFrameBuffer() {
@@ -51,7 +49,7 @@ inline void resizeFrameBuffer() {
     frame_buffer.height = (u16)-info.bmiHeader.biHeight;
     frame_buffer.size = frame_buffer.width * frame_buffer.height;
 
-    viewport.resize();
+    resize();
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -63,11 +61,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
         case WM_SIZE:
             resizeFrameBuffer();
-            engine.updateAndRender();
+            updateAndRender();
             break;
 
         case WM_PAINT:
-            engine.updateAndRender();
+            updateAndRender();
 
             GET_TICKS(ticks_of_current_frame);
             while (ticks_of_current_frame - ticks_of_last_frame < target_ticks_per_frame) {
@@ -202,7 +200,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
     window = CreateWindowA(
             window_class.lpszClassName,
-            engine.getTitle(),
+            getTitle(),
             WS_OVERLAPPEDWINDOW,
 
             CW_USEDEFAULT,

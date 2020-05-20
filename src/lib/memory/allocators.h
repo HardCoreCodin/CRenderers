@@ -8,6 +8,9 @@
 #define Alloc(T) (T*)allocate(sizeof(T))
 #define AllocN(T, N) (T*)allocate(sizeof(T) * N)
 
+#define MEMORY_SIZE Gigabytes(1)
+#define MEMORY_BASE Terabytes(2)
+
 typedef struct Memory {
     u8* address;
     u64 occupied;

@@ -12,7 +12,6 @@
 #include "lib/nodes/camera.h"
 #include "lib/memory/buffers.h"
 #include "lib/memory/allocators.h"
-#include "lib/display/viewport.h"
 #include "lib/engine.h"
 #include "lib/render/raytracing/raytracer.h"
 #include "lib/render/raycasting/raycaster.h"
@@ -20,18 +19,84 @@
 static Engine engine;
 
 char* getTitle() {
-    return viewport.renderer->title;
+    return engine.viewport.renderer->title;
 }
 
-void onUpdateAndRender() {
+void resize() {
+    switch (engine.viewport.renderer->type) {
+        case RENDERER_RT: onResizeRT(&engine.viewport); break;
+        case RENDERER_RC: onResizeRC(&engine.viewport); break;
+    }
+    updateHUDDimensions();
+}
+
+void toggleControllerMode() {
+    engine.viewport.in_fps_mode = !engine.viewport.in_fps_mode;
+    engine.viewport.controller = engine.viewport.in_fps_mode ? &fps.controller : &orb.controller;
+    setControllerModeInHUD(engine.viewport.in_fps_mode);
+}
+
+void updateAndRender() {
     PERF_START_FRAME
 
-    updateController(viewport.controller);
-    viewport.refresh();
+    Controller* controller = engine.viewport.controller;
 
-    if (fps.controller.changed.fov) viewport.renderer->zoom(&fps.controller);
-    if (fps.controller.changed.orientation) viewport.renderer->rotate(&fps.controller);
-    if (fps.controller.changed.position) viewport.renderer->move(&fps.controller);
+    if (mouse.wheel.changed) {
+        mouse.wheel.changed = false;
+        switch (controller->type) {
+            case CONTROLLER_FPS: onMouseScrolledFps(); break;
+            case CONTROLLER_ORB: onMouseScrolledOrb(); break;
+        }
+        mouse.wheel.scroll = 0;
+    }
+
+    if (mouse.coords.relative.changed) {
+        mouse.coords.relative.changed = false;
+        switch (controller->type) {
+            case CONTROLLER_FPS: onMouseMovedFps(); break;
+            case CONTROLLER_ORB: onMouseMovedOrb(); break;
+        }
+        mouse.coords.relative.x = 0;
+        mouse.coords.relative.y = 0;
+    }
+
+    switch (controller->type) {
+        case CONTROLLER_FPS:
+            onUpdateFps();
+            break;
+        case CONTROLLER_ORB:
+            onUpdateOrb();
+            break;
+    }
+
+    if (controller->changed.fov) {
+        controller->changed.fov = false;
+        switch (engine.viewport.renderer->type) {
+            case RENDERER_RT: onZoomRT(&engine.viewport); break;
+            case RENDERER_RC: onZoomRC(&engine.viewport); break;
+        }
+    }
+
+    if (controller->changed.orientation) {
+        controller->changed.orientation = false;
+        switch (engine.viewport.renderer->type) {
+            case RENDERER_RT: onRotateRT(&engine.viewport); break;
+            case RENDERER_RC: onRotateRC(&engine.viewport); break;
+        }
+    }
+
+    if (controller->changed.position) {
+        controller->changed.position = false;
+        switch (engine.viewport.renderer->type) {
+            case RENDERER_RT: onMoveRT(&engine.viewport); break;
+            case RENDERER_RC: onMoveRC(&engine.viewport); break;
+        }
+    }
+
+    switch (engine.viewport.renderer->type) {
+        case RENDERER_RT: onRenderRT(&engine.viewport); break;
+        case RENDERER_RC: onRenderRC(&engine.viewport); break;
+    }
 
     PERF_END_FRAME
     if (hud.is_visible) {
@@ -51,7 +116,7 @@ void onUpdateAndRender() {
 
     if (mouse.double_clicked) {
         mouse.double_clicked = false;
-        viewport.toggleControllerMode();
+        toggleControllerMode(engine.viewport);
     }
 }
 
@@ -62,23 +127,19 @@ void initEngine(Callback updateWindowTitle) {
     initMouse();
     initButtons();
 
-    initScene(&engine.scene);
-    initController(&fps.controller, &engine.scene.camera, FpsOnUpdate, FpsOnMouseMoved, FpsOnMouseScrolled);
-    initController(&orb.controller, &engine.scene.camera, OrbOnUpdate, OrbOnMouseMoved, OrbOnMouseScrolled);
-
     initFrameBuffer();
-    initRayTracer(&engine);
-    initRayCaster(&engine);
-    initViewport(&ray_tracer.renderer, &orb.controller);
+    initScene(&engine.scene);
+    initRayTracer(&engine.scene);
+    initRayCaster(&engine.scene);
 
-    engine.getTitle = getTitle;
-    engine.updateAndRender = onUpdateAndRender;
+    orb.controller.camera = engine.scene.camera;
+    fps.controller.camera = engine.scene.camera;
+
     engine.is_running = true;
-
-    viewport.updateWindowTitle = updateWindowTitle;
-
-    engine.scene.camera.transform->position->x = 5;
-    engine.scene.camera.transform->position->y = 5;
-    engine.scene.camera.transform->position->z = -10;
+    engine.viewport.controller = &orb.controller;
+    engine.viewport.renderer = &ray_tracer.renderer;
+    engine.scene.camera->transform->position->x = 5;
+    engine.scene.camera->transform->position->y = 5;
+    engine.scene.camera->transform->position->z = -10;
     orb.controller.changed.position = true;
 }

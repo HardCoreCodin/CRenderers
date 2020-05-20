@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lib/core/types.h"
+#include "lib/shapes/line.h"
 #include "lib/input/keyboard.h"
 #include "lib/controllers/fps.h"
 #include "lib/controllers/orb.h"
@@ -16,7 +17,6 @@ typedef struct {
     Renderer renderer;
     u32 ray_count;
     u8 rays_per_pixel;
-    Scene* scene;
     RayHit* closest_hit;
     Vector3 *ray_directions;
     Matrix3x3 inverted_camera_rotation;
@@ -24,11 +24,11 @@ typedef struct {
 
 RayTracer ray_tracer;
 
-void rayTrace(Controller* controller) {
+void onRenderRT(Viewport* viewport) {
     Pixel* pixel = (Pixel*)frame_buffer.pixels;
     Vector3* ray_direction = ray_tracer.ray_directions;
-    Sphere* sphere = ray_tracer.scene->spheres;
-    u8 sphere_count = ray_tracer.scene->sphere_count;
+    Sphere* sphere = ray_tracer.renderer.scene->spheres;
+    u8 sphere_count = ray_tracer.renderer.scene->sphere_count;
 
     for (u32 i = 0; i < frame_buffer.size; i++)
         if (rayIntersectsWithSpheres(ray_tracer.closest_hit, ray_direction++, sphere, sphere_count))
@@ -46,46 +46,44 @@ void generateRaysRT(Camera* camera) {
             frame_buffer.height);
 }
 
-void resizeRT(Controller* controller) {
-    generateRaysRT(controller->camera);
+void onResizeRT(Viewport* viewport) {
+    generateRaysRT(viewport->controller->camera);
 }
 
-void zoomRT(Controller* controller) {
-    generateRaysRT(controller->camera);
-    controller->changed.fov = false;
+void onZoomRT(Viewport* viewport) {
+    generateRaysRT(viewport->controller->camera);
+    viewport->controller->changed.fov = false;
 }
 
-void rotateRT(Controller* controller) {
-    transposeMatrix3D(controller->camera->transform->rotation, ray_tracer.inverted_camera_rotation);
-    controller->changed.orientation = false;
-    controller->changed.position = true;
+void onRotateRT(Viewport* viewport) {
+    transposeMatrix3D(viewport->controller->camera->transform->rotation, &ray_tracer.inverted_camera_rotation);
+    viewport->controller->changed.orientation = false;
+    viewport->controller->changed.position = true;
 }
 
-void moveRT(Controller* controller) {
+void onMoveRT(Viewport* viewport) {
+    Controller* controller = viewport->controller;
+    Transform3D* tr = controller->camera->transform;
+
     Vector3* camera_position = controller->camera->transform->position;
-    Sphere *sphere = ray_tracer.scene->spheres;
-    u8 sphere_count = ray_tracer.scene->sphere_count;
+    Sphere *sphere = ray_tracer.renderer.scene->spheres;
+    u8 sphere_count = ray_tracer.renderer.scene->sphere_count;
     for (u8 i = 0; i < sphere_count; i++) {
         sub3D(sphere->world_position, camera_position, sphere->view_position);
-        imul3D(sphere->view_position, ray_tracer.inverted_camera_rotation);
+        imul3D(sphere->view_position, &ray_tracer.inverted_camera_rotation);
         sphere++;
     }
 
     controller->changed.position = false;
 }
 
-void initRayTracer(Engine* engine) {
+void initRayTracer(Scene* scene) {
+    ray_tracer.renderer.scene = scene;
     ray_tracer.renderer.title = "RayTrace";
-    ray_tracer.renderer.render = rayTrace;
-    ray_tracer.renderer.resize = resizeRT;
-    ray_tracer.renderer.move = moveRT;
-    ray_tracer.renderer.zoom = zoomRT;
-    ray_tracer.renderer.rotate = rotateRT;
-    ray_tracer.scene = &engine->scene;
     ray_tracer.rays_per_pixel = 1;
     ray_tracer.ray_count = frame_buffer.width * frame_buffer.height * ray_tracer.rays_per_pixel;
     ray_tracer.ray_directions = AllocN(Vector3, ray_tracer.ray_count);
     ray_tracer.closest_hit = Alloc(RayHit);
     initMatrix3x3(&ray_tracer.inverted_camera_rotation);
-    setMatrix3x3ToIdentity(ray_tracer.inverted_camera_rotation);
+    setMatrix3x3ToIdentity(&ray_tracer.inverted_camera_rotation);
 }
