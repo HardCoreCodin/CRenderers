@@ -61,9 +61,9 @@ void onMoveRT(Engine* engine) {
     Controller* controller = engine->active_viewport->controller;
     RayTracer* ray_tracer = engine->renderers.ray_tracer;
     Vector3* camera_position = controller->camera->transform->position;
-    Sphere *sphere = engine->scene->spheres;
-    u8 sphere_count = engine->scene->sphere_count;
-    for (u8 i = 0; i < sphere_count; i++) {
+    Sphere* sphere = engine->scene->spheres;
+    const Sphere* last_sphere = sphere + engine->scene->sphere_count;
+    while (sphere != last_sphere) {
         sub3D(sphere->world_position, camera_position, sphere->view_position);
         imul3D(sphere->view_position, ray_tracer->inverted_camera_rotation);
         sphere++;
@@ -75,6 +75,11 @@ void onMoveRT(Engine* engine) {
 RayTracer* createRayTracer(Engine* engine) {
     RayTracer* ray_tracer = Alloc(RayTracer);
     ray_tracer->renderer.title = RAY_TRACER_TITLE;
+    ray_tracer->renderer.on.zoom = onZoomRT;
+    ray_tracer->renderer.on.move = onMoveRT;
+    ray_tracer->renderer.on.rotate = onRotateRT;
+    ray_tracer->renderer.on.resize = onResizeRT;
+    ray_tracer->renderer.on.render = onRenderRT;
     ray_tracer->rays_per_pixel = 1;
     ray_tracer->ray_count = engine->frame_buffer->width * engine->frame_buffer->height * ray_tracer->rays_per_pixel;
     ray_tracer->ray_directions = AllocN(Vector3, ray_tracer->ray_count);

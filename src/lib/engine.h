@@ -21,20 +21,8 @@ char* getTitle(Engine* engine) {
 }
 
 void resize(Engine* engine) {
-    switch (engine->active_viewport->renderer->type) {
-        case RENDERER_RT: onResizeRT(engine); break;
-        case RENDERER_RC: onResizeRC(engine); break;
-    }
+    engine->active_viewport->renderer->on.resize(engine);
     updateHUDDimensions(engine->hud, engine->frame_buffer);
-}
-
-void toggleControllerMode(Engine* engine) {
-    Viewport* viewport = engine->active_viewport;
-    bool in_fps_mode = viewport->controller->type == CONTROLLER_FPS;
-    viewport->controller = in_fps_mode ?
-            &engine->controllers.orb->controller :
-            &engine->controllers.fps->controller;
-    setControllerModeInHUD(engine->hud, !in_fps_mode);
 }
 
 void updateAndRender(Engine* engine) {
@@ -47,62 +35,38 @@ void updateAndRender(Engine* engine) {
     Viewport* viewport = engine->active_viewport;
     Renderer* renderer = viewport->renderer;
     Controller* controller = viewport->controller;
-    FpsController* fps = engine->controllers.fps;
-    OrbController* orb = engine->controllers.orb;
-    f32 dt = (f32)perf->delta.seconds;
 
     if (mouse->wheel.changed) {
         mouse->wheel.changed = false;
-        switch (controller->type) {
-            case CONTROLLER_FPS: onMouseScrolledFps(fps, mouse); break;
-            case CONTROLLER_ORB: onMouseScrolledOrb(orb, mouse); break;
-        }
+        controller->on.mouseScrolled(engine);
         mouse->wheel.scroll = 0;
     }
 
     if (mouse->coords.relative.changed) {
         mouse->coords.relative.changed = false;
-        switch (controller->type) {
-            case CONTROLLER_FPS: onMouseMovedFps(fps, mouse); break;
-            case CONTROLLER_ORB: onMouseMovedOrb(orb, mouse); break;
-        }
+        controller->on.mouseMoved(engine);
         mouse->coords.relative.x = 0;
         mouse->coords.relative.y = 0;
     }
 
-    switch (controller->type) {
-        case CONTROLLER_FPS: onUpdateFps(fps, keyboard, dt); break;
-        case CONTROLLER_ORB: onUpdateOrb(orb, keyboard, dt); break;
-    }
+    controller->on.update(engine);
 
     if (controller->changed.fov) {
         controller->changed.fov = false;
-        switch (renderer->type) {
-            case RENDERER_RT: onZoomRT(engine); break;
-            case RENDERER_RC: onZoomRC(engine); break;
-        }
+        renderer->on.zoom(engine);
     }
 
     if (controller->changed.orientation) {
         controller->changed.orientation = false;
-        switch (renderer->type) {
-            case RENDERER_RT: onRotateRT(engine); break;
-            case RENDERER_RC: onRotateRC(engine); break;
-        }
+        renderer->on.rotate(engine);
     }
 
     if (controller->changed.position) {
         controller->changed.position = false;
-        switch (renderer->type) {
-            case RENDERER_RT: onMoveRT(engine); break;
-            case RENDERER_RC: onMoveRC(engine); break;
-        }
+        renderer->on.move(engine);
     }
 
-    switch (renderer->type) {
-        case RENDERER_RT: onRenderRT(engine); break;
-        case RENDERER_RC: onRenderRC(engine); break;
-    }
+    renderer->on.render(engine);
 
     perfEndFrame(perf);
     if (hud->is_visible) {
@@ -113,7 +77,6 @@ void updateAndRender(Engine* engine) {
 //    if (buttons.first.is_pressed) engine.renderer = &ray_tracer.renderer;
 //    if (buttons.second.is_pressed) engine.renderer = &ray_caster.base;
 
-
     if (keyboard->hud.is_pressed) {
         keyboard->hud.is_pressed = false;
         hud->is_visible = !hud->is_visible;
@@ -121,7 +84,11 @@ void updateAndRender(Engine* engine) {
 
     if (mouse->double_clicked) {
         mouse->double_clicked = false;
-        toggleControllerMode(engine);
+        bool in_fps_mode = viewport->controller->type == CONTROLLER_FPS;
+        viewport->controller = in_fps_mode ?
+                               &engine->controllers.orb->controller :
+                               &engine->controllers.fps->controller;
+        setControllerModeInHUD(engine->hud, !in_fps_mode);
     }
 }
 

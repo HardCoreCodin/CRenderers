@@ -41,6 +41,11 @@ void onResizeRC(Engine* engine) { generateRays2D(engine); }
 RayCaster* createRayCaster(Engine* engine) {
     RayCaster* ray_caster = Alloc(RayCaster);
     ray_caster->renderer.title = RAY_CASTER_TITLE;
+    ray_caster->renderer.on.zoom = onZoomRC;
+    ray_caster->renderer.on.move = onMoveRC;
+    ray_caster->renderer.on.rotate = onRotateRC;
+    ray_caster->renderer.on.resize = onResizeRC;
+    ray_caster->renderer.on.render = onRenderRC;
     ray_caster->rays_per_pixel = 1;
     ray_caster->ray_count = ray_caster->rays_per_pixel * engine->frame_buffer->width * engine->frame_buffer->height;
     ray_caster->ray_directions = AllocN(Vector2, ray_caster->ray_count);

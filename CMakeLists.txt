@@ -17,7 +17,7 @@ target_compile_definitions(Renderer PRIVATE PERF)
 
 if (MSVC)
     add_compile_options(
-            $<$<CONFIG:RELEASE>:-O2>
+            $<$<CONFIG:RELEASE>:-O3>
             $<$<CONFIG:RELEASE>:-Oi>
             $<$<CONFIG:RELEASE>:-Mt>
             $<$<CONFIG:DEBUG>:-JMC>

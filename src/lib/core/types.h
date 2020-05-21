@@ -20,6 +20,8 @@ typedef signed   long long s64;
 typedef float  f32;
 typedef double f64;
 
+typedef struct Engine Engine;
+typedef void (*EngineCallback)(Engine* engine);
 typedef void (*UpdateWindowTitle)();
 typedef void (*PrintDebugString)(char* str);
 typedef u64 (*GetTicks)();
@@ -212,10 +214,17 @@ typedef struct {
     fov;
 } ControllerChanged;
 
+typedef struct { EngineCallback
+    mouseMoved,
+    mouseScrolled,
+    update;
+} ControllerCallbacks;
+
 typedef struct {
     enum ControllerType type;
     ControllerChanged changed;
     Camera* camera;
+    ControllerCallbacks on;
 } Controller;
 
 typedef struct { Controller controller;
@@ -259,6 +268,14 @@ typedef struct {
     Sphere *spheres;
 } Scene;
 
+typedef struct { EngineCallback
+    zoom,
+    move,
+    rotate,
+    resize,
+    render;
+} RendererCallbacks;
+
 enum RendererType {
     RENDERER_RT,
     RENDERER_RC
@@ -266,6 +283,7 @@ enum RendererType {
 typedef struct {
     enum RendererType type;
     char* title;
+    RendererCallbacks on;
 } Renderer;
 
 typedef struct {
@@ -310,7 +328,7 @@ typedef struct {
 } Viewport;
 
 
-typedef struct {
+typedef struct Engine {
     UpdateWindowTitle updateWindowTitle;
     PrintDebugString printDebugString;
 

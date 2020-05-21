@@ -3,57 +3,41 @@
 #include "lib/core/types.h"
 #include "lib/math/math3D.h"
 
-OrbController* createOrbController(Camera* camera) {
-    OrbController* orb_controller = Alloc(OrbController);
-    orb_controller->controller.type = CONTROLLER_ORB;
-    orb_controller->controller.camera = camera;
-
-    orb_controller->target_position = Alloc(Vector3);
-    orb_controller->scaled_right = Alloc(Vector3);
-    orb_controller->scaled_up = Alloc(Vector3);
-    orb_controller->movement = Alloc(Vector3);
-
-    orb_controller->pan_speed = 1.0f / 100;
-    orb_controller->dolly_speed = 4;
-    orb_controller->orbit_speed = 1.0f / 1000;
-    orb_controller->dolly_amount = 0;
-    orb_controller->dolly_ratio = 4;
-    orb_controller->target_distance = 4;
-
-    return orb_controller;
-}
-
-void onMouseScrolledOrb(OrbController* orb, Mouse* mouse) {
+void onMouseScrolledOrb(Engine* engine) {
+    OrbController* orb = engine->controllers.orb;
     Transform3D* tr = orb->controller.camera->transform;
-    Vector3* trg_p = orb->target_position;
+    Mouse* mouse = engine->mouse;
+    Vector3* trg = orb->target_position;
     Vector3* mov = orb->movement;
     Vector3* pos = tr->position;
     Vector3* fwd = tr->forward;
-    f32* ratio = &orb->dolly_ratio;
+    f32 ratio = orb->dolly_ratio;
+    f32 dolly = orb->dolly_amount;
 
     // Compute target position:
-    scale3D(fwd, *ratio, mov);
-    add3D(pos, mov, trg_p);
+    scale3D(fwd, ratio, mov);
+    add3D(pos, mov, trg);
 
     // Compute new ratio:
-    orb->dolly_amount += orb->dolly_speed * mouse->wheel.scroll;
-    *ratio = orb->dolly_amount ? orb->target_distance * (
-            orb->dolly_amount > 0 ? (
-                    1 / orb->dolly_amount
-            ) : (
-                        1 - orb->dolly_amount
-                ) / 2
-    ) : orb->target_distance;
+    dolly += orb->dolly_speed * mouse->wheel.scroll;
+    if      (dolly == 0) ratio = orb->target_distance;
+    else if (dolly >  0) ratio = orb->target_distance / dolly;
+    else                 ratio = orb->target_distance * (1 - dolly) / 2;
+
+    orb->dolly_ratio = ratio;
+    orb->dolly_amount = dolly;
 
     // Back-track from target position to new current position:
-    scale3D(fwd, *ratio, mov);
-    sub3D(trg_p, mov, pos);
+    scale3D(fwd, ratio, mov);
+    sub3D(trg, mov, pos);
 
     orb->controller.changed.position = true;
 }
 
-void onMouseMovedOrb(OrbController* orb, Mouse* mouse) {
+void onMouseMovedOrb(Engine* engine) {
+    OrbController* orb = engine->controllers.orb;
     Transform3D* tr = orb->controller.camera->transform;
+    Mouse* mouse = engine->mouse;
     Vector3* pos = tr->position;
     Vector3* mov = orb->movement;
 
@@ -98,4 +82,29 @@ void onMouseMovedOrb(OrbController* orb, Mouse* mouse) {
     }
 }
 
-void onUpdateOrb(OrbController* orb, Keyboard* keyboard, f32 seconds_passed) {}
+void onUpdateOrb(Engine* engine) {}
+
+
+OrbController* createOrbController(Camera* camera) {
+    OrbController* orb_controller = Alloc(OrbController);
+
+    orb_controller->controller.on.mouseScrolled = onMouseScrolledOrb;
+    orb_controller->controller.on.mouseMoved = onMouseMovedOrb;
+    orb_controller->controller.on.update = onUpdateOrb;
+    orb_controller->controller.type = CONTROLLER_ORB;
+    orb_controller->controller.camera = camera;
+
+    orb_controller->target_position = Alloc(Vector3);
+    orb_controller->scaled_right = Alloc(Vector3);
+    orb_controller->scaled_up = Alloc(Vector3);
+    orb_controller->movement = Alloc(Vector3);
+
+    orb_controller->pan_speed = 1.0f / 100;
+    orb_controller->dolly_speed = 4;
+    orb_controller->orbit_speed = 1.0f / 1000;
+    orb_controller->dolly_amount = 0;
+    orb_controller->dolly_ratio = 4;
+    orb_controller->target_distance = 4;
+
+    return orb_controller;
+}
