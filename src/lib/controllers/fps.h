@@ -2,88 +2,85 @@
 
 #include "lib/core/types.h"
 #include "lib/math/math3D.h"
+#include "lib/nodes/transform.h"
+#include "lib/controllers/camera_controller.h"
 
-void onMouseScrolledFps(Engine* engine) {
-    FpsController* fps = engine->controllers.fps;
-    fps->controller.camera->focal_length += fps->zoom_speed * engine->mouse->wheel.scroll;
-    fps->controller.changed.fov = true;
+#define ZOOM_SPEED 0.002f
+#define MAX_VELOCITY 8.0f
+#define MAX_ACCELERATION 20.0f
+#define MOUSE_TURN_SPEED 0.0005f
+#define KEYBOARD_TURN_SPEED 1.0f
+
+FpsCameraController fps_camera_controller;
+
+void onMouseScrolledFps() {
+    f32 zoom = fps_camera_controller.zoom_amount + mouse_wheel_scroll_amount * ZOOM_SPEED;
+    fps_camera_controller.controller.camera->focal_length = zoom > 1 ? zoom : (zoom < -1 ? (-1/zoom) : 1);
+    fps_camera_controller.controller.camera->one_over_focal_length = 1.0f / fps_camera_controller.controller.camera->focal_length;
+    fps_camera_controller.zoom_amount = zoom;
+    fps_camera_controller.controller.zoomed = true;
+    mouse_wheel_scrolled = false;
+    mouse_wheel_scroll_amount = 0;
 }
 
-void onMouseMovedFps(Engine* engine) {
-    FpsController* fps = engine->controllers.fps;
-    Transform3D* tr = fps->controller.camera->transform;
-    f32 speed = fps->orientation_speed;
-    f32 x = (f32)engine->mouse->coords.relative.x;
-    f32 y = (f32)engine->mouse->coords.relative.y;
-
-    f32 yaw   = speed * -x;
-    f32 pitch = speed * -y;
-
-    if (yaw) yaw3D(yaw, tr->yaw);
-    if (pitch) pitch3D(pitch, tr->pitch);
-    matMul3D(tr->pitch, tr->yaw, tr->rotation);
-
-    fps->controller.changed.orientation = true;
+void onMouseMovedFps() {
+    rotateXform3(&fps_camera_controller.controller.camera->transform,
+             MOUSE_TURN_SPEED * -mouse_pos_diff.x,
+             MOUSE_TURN_SPEED * -mouse_pos_diff.y,
+             0);
+    fps_camera_controller.controller.turned = true;
+    mouse_pos_diff.x = 0;
+    mouse_pos_diff.y = 0;
+    mouse_moved = false;
 }
 
-void onUpdateFps(Engine* engine) {
-    FpsController* fps = engine->controllers.fps;
-    Transform3D* tr = fps->controller.camera->transform;
-    Keyboard* keyboard = engine->keyboard;
+void onUpdateFps() {
+    xform3 *xform = &fps_camera_controller.controller.camera->transform;
+    vec3 *position = &xform->position;
 
-    bool* moved = &fps->controller.changed.position;
-    f32 dt = (f32)engine->perf->delta.seconds;
-    Vector3* trg_v = fps->target_velocity;
-    Vector3* cur_v = fps->current_velocity;
-    f32 max_v = fps->max_velocity;
+    vec3 *movement = &fps_camera_controller.movement;
+    vec3 *current_velocity = &fps_camera_controller.current_velocity;
+    vec3 *target_velocity = &fps_camera_controller.target_velocity;
 
-    // Compute the target velocity:
-    trg_v->x = trg_v->y = trg_v->z = 0;
-    if (keyboard->right.is_pressed  ) trg_v->x += max_v;
-    if (keyboard->left.is_pressed   ) trg_v->x -= max_v;
-    if (keyboard->up.is_pressed     ) trg_v->y += max_v;
-    if (keyboard->down.is_pressed   ) trg_v->y -= max_v;
-    if (keyboard->forward.is_pressed) trg_v->z += max_v;
-    if (keyboard->back.is_pressed   ) trg_v->z -= max_v;
+    fillVec3(target_velocity, 0);
+    if (move_right)    target_velocity->x += MAX_VELOCITY;
+    if (move_left)     target_velocity->x -= MAX_VELOCITY;
+    if (move_up)       target_velocity->y += MAX_VELOCITY;
+    if (move_down)     target_velocity->y -= MAX_VELOCITY;
+    if (move_forward)  target_velocity->z += MAX_VELOCITY;
+    if (move_backward) target_velocity->z -= MAX_VELOCITY;
+    if (turn_right ||
+        turn_left) {
+        fps_camera_controller.controller.turned = true;
+        f32 yaw = update_timer.delta_time * KEYBOARD_TURN_SPEED;
+        rotateXform3(xform, turn_left ? yaw : -yaw, 0, 0);
+    }
 
     // Update the current velocity:
-    fps->delta_time = dt > 1 ? 1 : dt;
-    f32 dv = fps->delta_time * fps->max_acceleration;
-    approach3D(cur_v, trg_v, dv);
+    approachVec3(current_velocity, target_velocity, update_timer.delta_time * MAX_ACCELERATION);
+    fps_camera_controller.controller.moved = nonZeroVec3(current_velocity);
+    if (fps_camera_controller.controller.moved) { // Update the current position:
+        *movement = *current_velocity;
+        iscaleVec3(movement, update_timer.delta_time);
+        imulVec3Mat3(movement, &xform->rotation_matrix);
 
-    *moved = cur_v->x || cur_v->y || cur_v->z;
-    if (*moved) {
-        // Update the current position:
-        scale3D(cur_v, fps->delta_time, fps->movement);
-
-        Vector3* pos = tr->position;
-        Vector3* X = tr->yaw->x_axis;
-        Vector3* Z = tr->yaw->z_axis;
-        Vector3* M = fps->movement;
-
-        pos->y += M->y;
-        pos->x += M->x * X->x + M->z * Z->x;
-        pos->z += M->x * X->z + M->z * Z->z;
+        fps_camera_controller.old_position = *position;
+        iaddVec3(position, movement);
     }
 }
 
-FpsController* createFpsController(Camera* camera) {
-    FpsController* fps_controller = Alloc(FpsController);
+void initFpsController(Camera* camera) {
+    initCameraController(camera,
+            &fps_camera_controller.controller,
+            CONTROLLER_FPS,
+            onUpdateFps,
+            onMouseMovedFps,
+            onMouseScrolledFps);
 
-    fps_controller->controller.on.mouseScrolled = onMouseScrolledFps;
-    fps_controller->controller.on.mouseMoved = onMouseMovedFps;
-    fps_controller->controller.on.update = onUpdateFps;
-    fps_controller->controller.type = CONTROLLER_FPS;
-    fps_controller->controller.camera = camera;
+    fillVec3(&fps_camera_controller.movement, 0);
+    fillVec3(&fps_camera_controller.old_position, 0);
+    fillVec3(&fps_camera_controller.target_velocity, 0);
+    fillVec3(&fps_camera_controller.current_velocity, 0);
 
-    fps_controller->target_velocity = Alloc(Vector3);
-    fps_controller->current_velocity = Alloc(Vector3);
-    fps_controller->movement = Alloc(Vector3);
-
-    fps_controller->max_velocity = 8;
-    fps_controller->max_acceleration = 20;
-    fps_controller->orientation_speed = 7.0f / 10000;
-    fps_controller->zoom_speed = 1;
-
-    return fps_controller;
+    fps_camera_controller.zoom_amount = camera->focal_length;
 }

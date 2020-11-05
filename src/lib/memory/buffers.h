@@ -6,12 +6,15 @@
 #define PIXEL_SIZE 4
 #define RENDER_SIZE Megabytes(8 * PIXEL_SIZE)
 
-FrameBuffer* createFrameBuffer() {
-    FrameBuffer* frame_buffer = Alloc(FrameBuffer);
-    frame_buffer->width = 3840;
-    frame_buffer->height = 2160;
-    frame_buffer->size = frame_buffer->width * frame_buffer->height;
-    frame_buffer->pixels = AllocN(Pixel, RENDER_SIZE);
-
-    return frame_buffer;
+FrameBuffer frame_buffer;
+Color WHITE;
+void initFrameBuffer() {
+    frame_buffer.width = 3840;
+    frame_buffer.height = 2160;
+    frame_buffer.size = frame_buffer.width * frame_buffer.height;
+    frame_buffer.pixels = AllocN(Pixel, RENDER_SIZE);
+    WHITE.R = 255;
+    WHITE.G = 255;
+    WHITE.B = 255;
+    WHITE.A = 0;
 }

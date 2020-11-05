@@ -8,126 +8,192 @@
 #include "lib/input/keyboard.h"
 #include "lib/controllers/fps.h"
 #include "lib/controllers/orb.h"
+#include "lib/controllers/camera_controller.h"
 #include "lib/nodes/scene.h"
 #include "lib/nodes/camera.h"
 #include "lib/memory/buffers.h"
 #include "lib/memory/allocators.h"
-#include "lib/engine.h"
-#include "lib/render/raytracing/raytracer.h"
-#include "lib/render/raycasting/raycaster.h"
+#include "lib/render/raytracer.h"
 
-char* getTitle(Engine* engine) {
-    return engine->active_viewport->renderer->title;
+UpdateWindowTitle updateWindowTitle;
+PrintDebugString printDebugString;
+
+char* getTitle() {
+    return RAY_TRACER_TITLE;
 }
 
-void resize(Engine* engine) {
-    engine->active_viewport->renderer->on.resize(engine);
-    updateHUDDimensions(engine->hud, engine->frame_buffer);
-}
+void updateAndRender() {
+    startFrameTimer(&update_timer);
 
-void updateAndRender(Engine* engine) {
-    perfStartFrame(engine->perf);
+    if (mouse_wheel_scrolled) current_camera_controller->onMouseWheelScrolled();
+    if (mouse_moved)          current_camera_controller->onMouseMoved();
+    current_camera_controller->onUpdate();
 
-    HUD* hud = engine->hud;
-    Perf* perf = engine->perf;
-    Mouse* mouse = engine->mouse;
-    Keyboard* keyboard = engine->keyboard;
-    Viewport* viewport = engine->active_viewport;
-    Renderer* renderer = viewport->renderer;
-    Controller* controller = viewport->controller;
+    if (current_camera_controller->zoomed) onZoom();
+    if (current_camera_controller->turned) onTurn();
+    if (current_camera_controller->moved)  onMove();
+    if (shading_mode != last_shading_mode) onShadingModeChanged();
 
-    if (mouse->wheel.changed) {
-        mouse->wheel.changed = false;
-        controller->on.mouseScrolled(engine);
-        mouse->wheel.scroll = 0;
+    onRender();
+
+    endFrameTimer(&update_timer);
+    if (hud.is_visible) {
+        if (!update_timer.accumulated_frame_count) updateHUDCounters(&update_timer);
+        drawText(&frame_buffer, hud.text, HUD_COLOR, frame_buffer.width - HUD_RIGHT - HUD_WIDTH, HUD_TOP);
     }
 
-    if (mouse->coords.relative.changed) {
-        mouse->coords.relative.changed = false;
-        controller->on.mouseMoved(engine);
-        mouse->coords.relative.x = 0;
-        mouse->coords.relative.y = 0;
-    }
-
-    controller->on.update(engine);
-
-    if (controller->changed.fov) {
-        controller->changed.fov = false;
-        renderer->on.zoom(engine);
-    }
-
-    if (controller->changed.orientation) {
-        controller->changed.orientation = false;
-        renderer->on.rotate(engine);
-    }
-
-    if (controller->changed.position) {
-        controller->changed.position = false;
-        renderer->on.move(engine);
-    }
-
-    renderer->on.render(engine);
-
-    perfEndFrame(perf);
-    if (hud->is_visible) {
-        if (!perf->accum.frames) updateHUDCounters(hud, perf);
-        drawText(engine->frame_buffer, hud->text, HUD_COLOR, engine->frame_buffer->width - HUD_RIGHT - HUD_WIDTH, HUD_TOP);
-    }
-
-//    if (buttons.first.is_pressed) engine.renderer = &ray_tracer.renderer;
-//    if (buttons.second.is_pressed) engine.renderer = &ray_caster.base;
-
-    if (keyboard->hud.is_pressed) {
-        keyboard->hud.is_pressed = false;
-        hud->is_visible = !hud->is_visible;
-    }
-
-    if (mouse->double_clicked) {
-        mouse->double_clicked = false;
-        bool in_fps_mode = viewport->controller->type == CONTROLLER_FPS;
-        viewport->controller = in_fps_mode ?
-                               &engine->controllers.orb->controller :
-                               &engine->controllers.fps->controller;
-        setControllerModeInHUD(engine->hud, !in_fps_mode);
+    if (mouse_double_clicked) {
+        mouse_double_clicked = false;
+        bool in_fps_mode = current_camera_controller == &fps_camera_controller.controller;
+        current_camera_controller = in_fps_mode ?
+                                    &orb_camera_controller.controller :
+                                    &fps_camera_controller.controller;
+        setControllerModeInHUD(!in_fps_mode);
     }
 }
 
-Engine* createEngine(
-    UpdateWindowTitle updateWindowTitle,
-    PrintDebugString printDebugString,
-    GetTicks getTicks,
-    u64 ticks_per_second
+void resize(u16 width, u16 height) {
+    frame_buffer.width = width;
+    frame_buffer.height = height;
+    frame_buffer.size = frame_buffer.width * frame_buffer.height;
+    frame_buffer.width_over_height = (f32)frame_buffer.width / (f32)frame_buffer.height;
+    frame_buffer.height_over_width = (f32)frame_buffer.height / (f32)frame_buffer.width;
+
+    onResize();
+    updateHUDDimensions();
+    updateAndRender();
+}
+
+void initEngine(
+    UpdateWindowTitle platformUpdateWindowTitle,
+    PrintDebugString platformPrintDebugString,
+    GetTicks platformGetTicks,
+    u64 platformTicksPerSecond
 ) {
-    Engine* engine = Alloc(Engine);
-    engine->is_running = true;
-
-    engine->printDebugString = printDebugString;
-    engine->updateWindowTitle = updateWindowTitle;
-
-    engine->mouse = createMouse();
-    engine->keyboard = createKeyboard();
-
-    engine->hud = createHUD();
-    engine->hud->debug_perf = createPerf(getTicks, ticks_per_second);
-    engine->perf = createPerf(getTicks, ticks_per_second);
-
-    engine->scene = createScene();
-    engine->frame_buffer = createFrameBuffer();
-
-    engine->controllers.fps = createFpsController(engine->scene->camera);
-    engine->controllers.orb = createOrbController(engine->scene->camera);
-
-    engine->renderers.ray_tracer = createRayTracer(engine);
-    engine->renderers.ray_caster = createRayCaster(engine);
-
-    engine->active_viewport = Alloc(Viewport);
-    engine->active_viewport->controller = &engine->controllers.orb->controller;
-    engine->active_viewport->renderer = &engine->renderers.ray_tracer->renderer;
-
-    engine->scene->camera->transform->position->x = 5;
-    engine->scene->camera->transform->position->y = 5;
-    engine->scene->camera->transform->position->z = -10;
-    engine->active_viewport->controller->changed.position = true;
-
-    return engine;
+    updateWindowTitle = platformUpdateWindowTitle;
+    printDebugString  = platformPrintDebugString;
+    initTimers(platformGetTicks, platformTicksPerSecond);
+    initHUD();
+    initFrameBuffer();
+    initScene();
+    initFpsController(scene.camera);
+    initOrbController(scene.camera);
+    initRayTracer();
+    scene.camera->transform.position.x = 5;
+    scene.camera->transform.position.y = 5;
+    scene.camera->transform.position.z = -10;
+    current_camera_controller = &orb_camera_controller.controller;
+    current_camera_controller->turned = true;
 }
+
+//void draw_line(int x0, int y0, int x1, int y1, u32 color) {
+//    int index = x0 + y0 * window_width;
+//    if (x0 == x1 && y0 == y1) { // Draw single pixel:
+//        DRAW_PIXEL(index, color);
+//        return;
+//    }
+//
+//    int dx = 1;
+//    int dy = 1;
+//    int run  = x1 - x0;
+//    int rise = y1 - y0;
+//    if (x0 > x1) {
+//        dx = -1;
+//        run  = x0 - x1;
+//    }
+//
+//    int index_inc_per_line = window_width;
+//    if (y0 > y1) {
+//        dy = -1;
+//        rise = y0 - y1;
+//        index_inc_per_line = -window_width;
+//    }
+//
+//    // Configure for a trivial line (horizontal, vertical or diagonal, default to a shallow line):
+//    int inc = dx;
+//    int start = x0;
+//    int end = x1 + inc;
+//    int index_inc = dx;
+//    if (rise > run) { // Reconfigure for a steep line:
+//        inc = dy;
+//        start = y0;
+//        end = y1 + inc;
+//        index_inc = index_inc_per_line;
+//    }
+//
+//    if (rise == run || !rise || !run) { // Draw a trivial line:
+//        if (rise && run) // Reconfigure for a diagonal line:
+//            index_inc = index_inc_per_line + dx;
+//
+//        for (int i = start; i != end; i += inc, index += index_inc)
+//            DRAW_PIXEL(index, color);
+//
+//        return;
+//    }
+//
+//    // Configure for a non-trivial line (default to a shallow line):
+//    int rise_twice = rise + rise;
+//    int run_twice  = run + run;
+//    int threshold = run;
+//    int error_dec = run_twice;
+//    int error_inc = rise_twice;
+//    int secondary_inc = index_inc_per_line;
+//    if (rise > run) { // Reconfigure for a steep line:
+//        secondary_inc = dx;
+//        threshold = rise;
+//        error_dec = rise_twice;
+//        error_inc = run_twice;
+//    }
+//
+//    int error = 0;
+//    for (int i = start; i != end; i += inc) {
+//        DRAW_PIXEL(index, color);
+//        index += index_inc;
+//        error += error_inc;
+//        if (error > threshold) {
+//            error -= error_dec;
+//            index += secondary_inc;
+//        }
+//    }
+//}
+//
+//
+//void drawTriangle(float* X, float* Y, int pitch, u32 color, u32* pixels) {
+//    float dx1, x1, y1, xs,
+//          dx2, x2, y2, xe,
+//          dx3, x3, y3, dy;
+//    int offset,
+//        x, x1i, y1i, x2i, xsi, ysi = 0,
+//        y, y2i, x3i, y3i, xei, yei = 0;
+//    for (int i = 1; i <= 2; i++) {
+//        if (Y[i] < Y[ysi]) ysi = i;
+//        if (Y[i] > Y[yei]) yei = i;
+//    }
+//    byte* id = ysi ? (ysi == 1 ?
+//            (byte[3]){1, 2, 0} :
+//            (byte[3]){2, 0, 1}) :
+//            (byte[3]){0, 1, 2};
+//    x1 = X[id[0]]; y1 = Y[id[0]]; x1i = (int)x1; y1i = (int)y1;
+//    x2 = X[id[1]]; y2 = Y[id[1]]; x2i = (int)x2; y2i = (int)y2;
+//    x3 = X[id[2]]; y3 = Y[id[2]]; x3i = (int)x3; y3i = (int)y3;
+//    dx1 = x1i == x2i || y1i == y2i ? 0 : (x2 - x1) / (y2 - y1);
+//    dx2 = x2i == x3i || y2i == y3i ? 0 : (x3 - x2) / (y3 - y2);
+//    dx3 = x1i == x3i || y1i == y3i ? 0 : (x3 - x1) / (y3 - y1);
+//    dy = 1 - (y1 - (float)y1);
+//    xs = dx3 ? x1 + dx3 * dy : x1; ysi = (int)Y[ysi];
+//    xe = dx1 ? x1 + dx1 * dy : x1; yei = (int)Y[yei];
+//    offset = pitch * y1i;
+//    for (y = ysi; y < yei; y++){
+//        if (y == y3i) xs = dx2 ? (x3 + dx2 * (1 - (y3 - (float)y3i))) : x3;
+//        if (y == y2i) xe = dx2 ? (x2 + dx2 * (1 - (y2 - (float)y2i))) : x2;
+//        xsi = (int)xs;
+//        xei = (int)xe;
+//        for (x = xsi; x < xei; x++) pixels[offset + x] = color;
+//        offset += pitch;
+//        xs += y < y3i ? dx3 : dx2;
+//        xe += y < y2i ? dx1 : dx2;
+//    }
+//}
+//
+//float triangles_x[3] = {120.7f, 220.3f, 320.4f};
+//float triangles_y[3] = {200.5f, 158.2f, 200.6f};

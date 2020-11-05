@@ -5,32 +5,23 @@
 #include "lib/math/math2D.h"
 #include "lib/memory/allocators.h"
 
-void setMatrix3x3ToIdentity(Matrix3x3* M) {
-    M->x_axis->x = M->y_axis->y = M->z_axis->z = 1.0f;
-    M->x_axis->y = M->y_axis->x = M->y_axis->z = M->z_axis->y = M->x_axis->z = M->z_axis->x = 0.0f;
+inline void setMat3ToIdentity(mat3 *m) {
+    m->X.x = 1; m->X.y = 0; m->X.z = 0;
+    m->Y.x = 0; m->Y.y = 1; m->Y.z = 0;
+    m->Z.x = 0; m->Z.y = 0; m->Z.z = 1;
 }
 
-Matrix3x3* createMatrix3x3() {
-    Matrix3x3* matrix = Alloc(Matrix3x3);
-    matrix->x_axis = Alloc(Vector3);
-    matrix->y_axis = Alloc(Vector3);
-    matrix->z_axis = Alloc(Vector3);
-    setMatrix3x3ToIdentity(matrix);
-
-    return matrix;
+inline void fillVec3(vec3* v, f32 value) {
+    v->x = v->y = v->z = value;
 }
 
-inline void fill3D(Vector3* vector, f32 value) {
-    vector->x = vector->y = value, vector->z = value;
-}
-
-inline void approach3D(Vector3* current, Vector3* target, f32 delta) {
+inline void approachVec3(vec3* current, vec3* target, f32 delta) {
     approach(&current->x, target->x, delta);
     approach(&current->y, target->y, delta);
     approach(&current->z, target->z, delta);
 }
 
-void setPointOnUnitSphere(f32 s, f32 t, Vector3* out) {
+void setPointOnUnitSphere(f32 s, f32 t, vec3* out) {
     f32 t_squared = t * t;
     f32 s_squared = s * s;
     f32 factor = 1 / ( t_squared + s_squared + 1);
@@ -39,63 +30,69 @@ void setPointOnUnitSphere(f32 s, f32 t, Vector3* out) {
     out->z = (t_squared + s_squared - 1) * t_squared;
 }
 
-inline void sub3D(Vector3* p1, Vector3* p2, Vector3* out) {
+inline bool nonZeroVec3(vec3 *v) {
+    return v->x != 0 ||
+           v->y != 0 ||
+           v->z !=0;
+}
+
+inline void subVec3(vec3* p1, vec3* p2, vec3* out) {
     out->x = p1->x - p2->x;
     out->y = p1->y - p2->y;
     out->z = p1->z - p2->z;
 }
-inline void isub3D(Vector3* p1, Vector3* p2) {
+inline void isubVec3(vec3* p1, vec3* p2) {
     p1->x -= p2->x;
     p1->y -= p2->y;
     p1->z -= p2->z;
 }
-inline void add3D(Vector3* p1, Vector3* p2, Vector3* out) {
+inline void addVec3(vec3* p1, vec3* p2, vec3* out) {
     out->x = p1->x + p2->x;
     out->y = p1->y + p2->y;
     out->z = p1->z + p2->z;
 }
-inline void iadd3D(Vector3* p1, Vector3* p2) {
+inline void iaddVec3(vec3* p1, vec3* p2) {
     p1->x += p2->x;
     p1->y += p2->y;
     p1->z += p2->z;
 }
-inline void scale3D(Vector3* p1, f32 factor, Vector3* out) {
+inline void scaleVec3(vec3* p1, f32 factor, vec3* out) {
     out->x = p1->x * factor;
     out->y = p1->y * factor;
     out->z = p1->z * factor;
 }
-inline void iscale3D(Vector3* v, f32 factor) {
+inline void iscaleVec3(vec3* v, f32 factor) {
     v->x *= factor;
     v->y *= factor;
     v->z *= factor;
 }
-inline void mul3D(Vector3* in, Matrix3x3* matrix, Vector3* out) {
-    out->x = in->x*matrix->x_axis->x + in->y*matrix->y_axis->x + in->z*matrix->z_axis->x;
-    out->y = in->x*matrix->x_axis->y + in->y*matrix->y_axis->y + in->z*matrix->z_axis->y;
-    out->z = in->x*matrix->x_axis->z + in->y*matrix->y_axis->z + in->z*matrix->z_axis->z;    
+inline void mulVec3Mat3(vec3* in, mat3* matrix, vec3* out) {
+    out->x = in->x*matrix->X.x + in->y*matrix->Y.x + in->z*matrix->Z.x;
+    out->y = in->x*matrix->X.y + in->y*matrix->Y.y + in->z*matrix->Z.y;
+    out->z = in->x*matrix->X.z + in->y*matrix->Y.z + in->z*matrix->Z.z;
 }
-inline void imul3D(Vector3* v, Matrix3x3* matrix) {
+inline void imulVec3Mat3(vec3* v, mat3* matrix) {
     f32 x = v->x;
     f32 y = v->y;
     f32 z = v->z;
 
-    v->x = x*matrix->x_axis->x + y*matrix->y_axis->x + z*matrix->z_axis->x;
-    v->y = x*matrix->x_axis->y + y*matrix->y_axis->y + z*matrix->z_axis->y;
-    v->z = x*matrix->x_axis->z + y*matrix->y_axis->z + z*matrix->z_axis->z;    
+    v->x = x*matrix->X.x + y*matrix->Y.x + z*matrix->Z.x;
+    v->y = x*matrix->X.y + y*matrix->Y.y + z*matrix->Z.y;
+    v->z = x*matrix->X.z + y*matrix->Y.z + z*matrix->Z.z;
 }
-inline void cross3D(Vector3* p1, Vector3* p2, Vector3* out) {
+inline void crossVec3(vec3* p1, vec3* p2, vec3* out) {
     out->x = (p1->y * p2->z) - (p1->z * p2->y);
     out->y = (p1->z * p2->x) - (p1->x * p2->z);
     out->z = (p1->x * p2->y) - (p1->y * p2->x);
 }
-inline f32 dot3D(Vector3* p1, Vector3* p2) {
+inline f32 dotVec3(vec3* p1, vec3* p2) {
     return (
         (p1->x * p2->x) +
         (p1->y * p2->y) +
         (p1->z * p2->z)
     );
 }
-inline f32 squaredLength3D(Vector3* v) {
+inline f32 squaredLengthVec3(vec3* v) {
     return (
         (v->x * v->x) +
         (v->y * v->y) +
@@ -103,217 +100,122 @@ inline f32 squaredLength3D(Vector3* v) {
     );
 }
 
-void transposeMatrix3D(Matrix3x3* M, Matrix3x3* O) {
-    O->x_axis->x = M->x_axis->x; O->y_axis->y = M->y_axis->y; O->z_axis->z = M->z_axis->z;
-    O->x_axis->y = M->y_axis->x; O->y_axis->x = M->x_axis->y;
-    O->x_axis->z = M->z_axis->x; O->z_axis->x = M->x_axis->z;
-    O->y_axis->z = M->z_axis->y; O->z_axis->y = M->y_axis->z;
+inline void norm3(vec3* v) {
+    iscaleVec3(v, 1.0f / sqrtf(squaredLengthVec3(v)));
 }
 
-inline void matMul3D(Matrix3x3* a, Matrix3x3* b, Matrix3x3* out) {
-    out->x_axis->x = a->x_axis->x*b->x_axis->x + a->x_axis->y*b->y_axis->x + a->x_axis->z*b->z_axis->x; // Row 1 | Column 1
-    out->x_axis->y = a->x_axis->x*b->x_axis->y + a->x_axis->y*b->y_axis->y + a->x_axis->z*b->z_axis->y; // Row 1 | Column 2
-    out->x_axis->z = a->x_axis->x*b->x_axis->z + a->x_axis->y*b->y_axis->z + a->x_axis->z*b->z_axis->z; // Row 1 | Column 3
-
-    out->y_axis->x = a->y_axis->x*b->x_axis->x + a->y_axis->y*b->y_axis->x + a->y_axis->z*b->z_axis->x; // Row 2 | Column 1
-    out->y_axis->y = a->y_axis->x*b->x_axis->y + a->y_axis->y*b->y_axis->y + a->y_axis->z*b->z_axis->y; // Row 2 | Column 2
-    out->y_axis->z = a->y_axis->x*b->x_axis->z + a->y_axis->y*b->y_axis->z + a->y_axis->z*b->z_axis->z; // Row 2 | Column 3
-
-    out->z_axis->x = a->z_axis->x*b->x_axis->x + a->z_axis->y*b->y_axis->x + a->z_axis->z*b->z_axis->x; // Row 3 | Column 1
-    out->z_axis->y = a->z_axis->x*b->x_axis->y + a->z_axis->y*b->y_axis->y + a->z_axis->z*b->z_axis->y; // Row 3 | Column 2
-    out->z_axis->z = a->z_axis->x*b->x_axis->z + a->z_axis->y*b->y_axis->z + a->z_axis->z*b->z_axis->z; // Row 3 | Column 3
+inline void transposeMat3(mat3* m, mat3* out) {
+    out->X.x = m->X.x;  out->X.y = m->Y.x;  out->X.z = m->Z.x;
+    out->Y.x = m->X.y;  out->Y.y = m->Y.y;  out->Y.z = m->Z.y;
+    out->Z.x = m->X.z;  out->Z.y = m->Y.z;  out->Z.z = m->Z.z;
 }
 
-inline void imatMul3D(Matrix3x3* a, Matrix3x3* b) {
-    Vector3 x_axis = *a->x_axis;
-    Vector3 y_axis = *a->y_axis;
-    Vector3 z_axis = *a->z_axis;
+inline void mulMat3(mat3* a, mat3* b, mat3* out) {
+    out->X.x = a->X.x*b->X.x + a->X.y*b->Y.x + a->X.z*b->Z.x; // Row 1 | Column 1
+    out->X.y = a->X.x*b->X.y + a->X.y*b->Y.y + a->X.z*b->Z.y; // Row 1 | Column 2
+    out->X.z = a->X.x*b->X.z + a->X.y*b->Y.z + a->X.z*b->Z.z; // Row 1 | Column 3
 
-    a->x_axis->x = x_axis.x*b->x_axis->x + x_axis.y*b->y_axis->x + x_axis.z*b->z_axis->x; // Row 1 | Column 1
-    a->x_axis->y = x_axis.x*b->x_axis->y + x_axis.y*b->y_axis->y + x_axis.z*b->z_axis->y; // Row 1 | Column 2
-    a->x_axis->z = x_axis.x*b->x_axis->z + x_axis.y*b->y_axis->z + x_axis.z*b->z_axis->z; // Row 1 | Column 3
+    out->Y.x = a->Y.x*b->X.x + a->Y.y*b->Y.x + a->Y.z*b->Z.x; // Row 2 | Column 1
+    out->Y.y = a->Y.x*b->X.y + a->Y.y*b->Y.y + a->Y.z*b->Z.y; // Row 2 | Column 2
+    out->Y.z = a->Y.x*b->X.z + a->Y.y*b->Y.z + a->Y.z*b->Z.z; // Row 2 | Column 3
 
-    a->y_axis->x = y_axis.x*b->x_axis->x + y_axis.y*b->y_axis->x + y_axis.z*b->z_axis->x; // Row 2 | Column 1
-    a->y_axis->y = y_axis.x*b->x_axis->y + y_axis.y*b->y_axis->y + y_axis.z*b->z_axis->y; // Row 2 | Column 2
-    a->y_axis->z = y_axis.x*b->x_axis->z + y_axis.y*b->y_axis->z + y_axis.z*b->z_axis->z; // Row 2 | Column 3
-
-    a->z_axis->x = z_axis.x*b->x_axis->x + z_axis.y*b->y_axis->x + z_axis.z*b->z_axis->x; // Row 3 | Column 1
-    a->z_axis->y = z_axis.x*b->x_axis->y + z_axis.y*b->y_axis->y + z_axis.z*b->z_axis->y; // Row 3 | Column 2
-    a->z_axis->z = z_axis.x*b->x_axis->z + z_axis.y*b->y_axis->z + z_axis.z*b->z_axis->z; // Row 3 | Column 3
+    out->Z.x = a->Z.x*b->X.x + a->Z.y*b->Y.x + a->Z.z*b->Z.x; // Row 3 | Column 1
+    out->Z.y = a->Z.x*b->X.y + a->Z.y*b->Y.y + a->Z.z*b->Z.y; // Row 3 | Column 2
+    out->Z.z = a->Z.x*b->X.z + a->Z.y*b->Y.z + a->Z.z*b->Z.z; // Row 3 | Column 3
 }
 
-inline void relativeYaw3D(f32 yaw, Matrix3x3* yaw_matrix) {
+inline void imulMat3(mat3* a, mat3* b) {
+    vec3 X = a->X;
+    vec3 Y = a->Y;
+    vec3 Z = a->Z;
+
+    a->X.x = X.x * b->X.x + X.y * b->Y.x + X.z * b->Z.x; // Row 1 | Column 1
+    a->X.y = X.x * b->X.y + X.y * b->Y.y + X.z * b->Z.y; // Row 1 | Column 2
+    a->X.z = X.x * b->X.z + X.y * b->Y.z + X.z * b->Z.z; // Row 1 | Column 3
+
+    a->Y.x = Y.x * b->X.x + Y.y * b->Y.x + Y.z * b->Z.x; // Row 2 | Column 1
+    a->Y.y = Y.x * b->X.y + Y.y * b->Y.y + Y.z * b->Z.y; // Row 2 | Column 2
+    a->Y.z = Y.x * b->X.z + Y.y * b->Y.z + Y.z * b->Z.z; // Row 2 | Column 3
+
+    a->Z.x = Z.x * b->X.x + Z.y * b->Y.x + Z.z * b->Z.x; // Row 3 | Column 1
+    a->Z.y = Z.x * b->X.y + Z.y * b->Y.y + Z.z * b->Z.y; // Row 3 | Column 2
+    a->Z.z = Z.x * b->X.z + Z.y * b->Y.z + Z.z * b->Z.z; // Row 3 | Column 3
+}
+
+inline void yawMat3(f32 amount, mat3* out) {
+    f32 s, c;
+    getPointOnUnitCircle(amount, &s, &c);
+
+    vec3 X = out->X;
+    vec3 Y = out->Y;
+    vec3 Z = out->Z;
+
+    out->X.x = c * X.x - s * X.z;
+    out->Y.x = c * Y.x - s * Y.z;
+    out->Z.x = c * Z.x - s * Z.z;
+
+    out->X.z = c * X.z + s * X.x;
+    out->Y.z = c * Y.z + s * Y.x;
+    out->Z.z = c * Z.z + s * Z.x;
+}
+
+inline void pitchMat3(f32 amount, mat3* out) {
+    f32 s, c;
+    getPointOnUnitCircle(amount, &s, &c);
+
+    vec3 X = out->X;
+    vec3 Y = out->Y;
+    vec3 Z = out->Z;
+
+    out->X.y = c * X.y + s * X.z;
+    out->Y.y = c * Y.y + s * Y.z;
+    out->Z.y = c * Z.y + s * Z.z;
+
+    out->X.z = c * X.z - s * X.y;
+    out->Y.z = c * Y.z - s * Y.y;
+    out->Z.z = c * Z.z - s * Z.y;
+}
+
+inline void rollMat3(f32 amount, mat3* out) {
+    f32 s, c;
+    getPointOnUnitCircle(amount, &s, &c);
+
+    vec3 X = out->X;
+    vec3 Y = out->Y;
+    vec3 Z = out->Z;
+
+    out->X.x = c * X.x + s * X.y;
+    out->Y.x = c * Y.x + s * Y.y;
+    out->Z.x = c * Z.x + s * Z.y;
+
+    out->X.y = c * X.y - s * X.x;
+    out->Y.y = c * Y.y - s * Y.x;
+    out->Z.y = c * Z.y - s * Z.x;
+}
+
+inline void setYawMat3(f32 yaw, mat3* yaw_matrix) {
     f32 s, c;
     getPointOnUnitCircle(yaw, &s, &c);
 
-    Vector3 x_axis = *yaw_matrix->x_axis;
-    Vector3 y_axis = *yaw_matrix->y_axis;
-    Vector3 z_axis = *yaw_matrix->z_axis;
-
-    yaw_matrix->x_axis->x = c * x_axis.x - s * x_axis.z;
-    yaw_matrix->y_axis->x = c * y_axis.x - s * y_axis.z;
-    yaw_matrix->z_axis->x = c * z_axis.x - s * z_axis.z;
-
-    yaw_matrix->x_axis->z = c * x_axis.z + s * x_axis.x;
-    yaw_matrix->y_axis->z = c * y_axis.z + s * y_axis.x;
-    yaw_matrix->z_axis->z = c * z_axis.z + s * z_axis.x;
+    yaw_matrix->X.x = yaw_matrix->Z.z = c;
+    yaw_matrix->X.z = +s;
+    yaw_matrix->Z.x = -s;
 };
 
-inline void relativePitch3D(f32 pitch, Matrix3x3* pitch_matrix) {
+inline void setPitchMat3(f32 pitch, mat3* pitch_matrix) {
     f32 s, c;
     getPointOnUnitCircle(pitch, &s, &c);
 
-    Vector3 x_axis = *pitch_matrix->x_axis;
-    Vector3 y_axis = *pitch_matrix->y_axis;
-    Vector3 z_axis = *pitch_matrix->z_axis;
-
-    pitch_matrix->x_axis->y = c * x_axis.y + s * x_axis.z;
-    pitch_matrix->y_axis->y = c * y_axis.y + s * y_axis.z;
-    pitch_matrix->z_axis->y = c * z_axis.y + s * z_axis.z;
-
-    pitch_matrix->x_axis->z = c * x_axis.z - s * x_axis.y;
-    pitch_matrix->y_axis->z = c * y_axis.z - s * y_axis.y;
-    pitch_matrix->z_axis->z = c * z_axis.z - s * z_axis.y;
+    pitch_matrix->Z.z = pitch_matrix->Y.y = c;
+    pitch_matrix->Y.z = -s;
+    pitch_matrix->Z.y = +s;
 };
 
-inline void relativeRoll3D(f32 roll, Matrix3x3* roll_matrix) {
+inline void setRollMat3(f32 roll, mat3* roll_matrix) {
     f32 s, c;
     getPointOnUnitCircle(roll, &s, &c);
 
-    Vector3 x_axis = *roll_matrix->x_axis;
-    Vector3 y_axis = *roll_matrix->y_axis;
-    Vector3 z_axis = *roll_matrix->z_axis;
-
-    roll_matrix->x_axis->x = c * x_axis.x + s * x_axis.y;
-    roll_matrix->y_axis->x = c * y_axis.x + s * y_axis.y;
-    roll_matrix->z_axis->x = c * z_axis.x + s * z_axis.y;
-
-    roll_matrix->x_axis->y = c * x_axis.y - s * x_axis.x;
-    roll_matrix->y_axis->y = c * y_axis.y - s * y_axis.x;
-    roll_matrix->z_axis->y = c * z_axis.y - s * z_axis.x;
+    roll_matrix->X.x = roll_matrix->Y.y = c;
+    roll_matrix->X.y = -s;
+    roll_matrix->Y.x = +s;
 };
-
-inline void yaw3D(f32 yaw, Matrix3x3* yaw_matrix) {
-    f32 s, c;
-    getPointOnUnitCircle(yaw, &s, &c);
-
-    Vector3 x_axis = *yaw_matrix->x_axis;
-    Vector3 y_axis = *yaw_matrix->y_axis;
-    Vector3 z_axis = *yaw_matrix->z_axis;
-
-    yaw_matrix->x_axis->x = c * x_axis.x - s * x_axis.z;
-    yaw_matrix->y_axis->x = c * y_axis.x - s * y_axis.z;
-    yaw_matrix->z_axis->x = c * z_axis.x - s * z_axis.z;
-
-    yaw_matrix->x_axis->z = c * x_axis.z + s * x_axis.x;
-    yaw_matrix->y_axis->z = c * y_axis.z + s * y_axis.x;
-    yaw_matrix->z_axis->z = c * z_axis.z + s * z_axis.x;
-};
-
-inline void pitch3D(f32 pitch, Matrix3x3* pitch_matrix) {
-    f32 s, c;
-    getPointOnUnitCircle(pitch, &s, &c);
-
-    Vector3 x_axis = *pitch_matrix->x_axis;
-    Vector3 y_axis = *pitch_matrix->y_axis;
-    Vector3 z_axis = *pitch_matrix->z_axis;
-
-    pitch_matrix->x_axis->y = c * x_axis.y + s * x_axis.z;
-    pitch_matrix->y_axis->y = c * y_axis.y + s * y_axis.z;
-    pitch_matrix->z_axis->y = c * z_axis.y + s * z_axis.z;
-
-    pitch_matrix->x_axis->z = c * x_axis.z - s * x_axis.y;
-    pitch_matrix->y_axis->z = c * y_axis.z - s * y_axis.y;
-    pitch_matrix->z_axis->z = c * z_axis.z - s * z_axis.y;
-};
-
-inline void roll3D(f32 roll, Matrix3x3* roll_matrix) {
-    f32 s, c;
-    getPointOnUnitCircle(roll, &s, &c);
-
-    Vector3 x_axis = *roll_matrix->x_axis;
-    Vector3 y_axis = *roll_matrix->y_axis;
-    Vector3 z_axis = *roll_matrix->z_axis;
-    
-    roll_matrix->x_axis->x = c * x_axis.x + s * x_axis.y;
-    roll_matrix->y_axis->x = c * y_axis.x + s * y_axis.y;
-    roll_matrix->z_axis->x = c * z_axis.x + s * z_axis.y;
-
-    roll_matrix->x_axis->y = c * x_axis.y - s * x_axis.x;
-    roll_matrix->y_axis->y = c * y_axis.y - s * y_axis.x;
-    roll_matrix->z_axis->y = c * z_axis.y - s * z_axis.x;
-};
-
-inline void setYaw3D(f32 yaw, Matrix3x3* yaw_matrix) {
-    f32 s, c;
-    getPointOnUnitCircle(yaw, &s, &c);
-
-    yaw_matrix->x_axis->x = yaw_matrix->z_axis->z = c;
-    yaw_matrix->x_axis->z = +s;
-    yaw_matrix->z_axis->x = -s;
-};
-
-inline void setPitch3D(f32 pitch, Matrix3x3* pitch_matrix) {
-    f32 s, c;
-    getPointOnUnitCircle(pitch, &s, &c);
-
-    pitch_matrix->z_axis->z = pitch_matrix->y_axis->y = c;
-    pitch_matrix->y_axis->z = -s;
-    pitch_matrix->z_axis->y = +s;
-};
-
-inline void setRoll3D(f32 roll, Matrix3x3* roll_matrix) {
-    f32 s, c;
-    getPointOnUnitCircle(roll, &s, &c);
-
-    roll_matrix->x_axis->x = roll_matrix->y_axis->y = c;
-    roll_matrix->x_axis->y = -s;
-    roll_matrix->y_axis->x = +s;
-};
-
-void rotateRelative3D(f32 yaw, f32 pitch, f32 roll, Matrix3x3* rotation_matrix) {
-    if (yaw) relativeYaw3D(yaw, rotation_matrix);
-    if (pitch) relativePitch3D(pitch, rotation_matrix);
-    if (roll) relativeRoll3D(roll, rotation_matrix);
-}
-
-void rotateAbsolute3D(
-        f32 yaw,
-        f32 pitch,
-        f32 roll,
-
-        Matrix3x3* yaw_matrix,
-        Matrix3x3* pitch_matrix,
-        Matrix3x3* roll_matrix,
-
-        Matrix3x3* rotation_matrix
-) {
-    if (roll)
-        setRoll3D(roll, roll_matrix);
-    else
-        setMatrix3x3ToIdentity(roll_matrix);
-
-    if (pitch)
-        setPitch3D(pitch, pitch_matrix);
-    else
-        setMatrix3x3ToIdentity(pitch_matrix);
-
-    if (yaw)
-        setYaw3D(yaw, yaw_matrix);
-    else
-        setMatrix3x3ToIdentity(yaw_matrix);
-
-    matMul3D(roll_matrix, pitch_matrix, rotation_matrix);
-    imatMul3D(rotation_matrix, yaw_matrix);
-}
-
-void rotate3D(f32 yaw, f32 pitch, f32 roll, Transform3D* transform) {
-    if (yaw) yaw3D(yaw, transform->yaw);
-    if (pitch) pitch3D(pitch, transform->pitch);
-    if (roll) {
-        roll3D(roll, transform->roll);
-        matMul3D(transform->roll, transform->pitch, transform->rotation);
-        imatMul3D(transform->rotation, transform->yaw);
-    } else
-        matMul3D(transform->pitch, transform->yaw, transform->rotation);
-}
