@@ -20,31 +20,6 @@ void setControllerModeInHUD(bool fps) {
     *mode   = fps ? 's' : 'b';
 }
 
-void setShadingModeInHUD() {
-    char *mode = hud.shading;
-    if (shading_mode == Normal) {
-        *mode++ = 'N';
-        *mode++ = 'r';
-        *mode++ = 'm';
-        *mode = 'l';
-    } else if (shading_mode == Lambert) {
-        *mode++ = 'L';
-        *mode++ = 'm';
-        *mode++ = 'b';
-        *mode = 'r';
-    } else if (shading_mode == Phong) {
-        *mode++ = 'P';
-        *mode++ = 'h';
-        *mode++ = 'n';
-        *mode = 'g';
-    } else {
-        *mode++ = 'B';
-        *mode++ = 'l';
-        *mode++ = 'n';
-        *mode = 'n';
-    }
-}
-
 void initHUD() {
     hud.is_visible = true;
 
@@ -54,8 +29,7 @@ void initHUD() {
                      "Ms/F   : ___4\n"
                      "Spheres: ___5\n"
                      "Pixels : __6%\n"
-                     "Shading: 7___\n"
-                     "Mode   :  8__\n";
+                     "Mode   :  7__\n";
 
     char* HUD_char = template;
     char* HUD_text_char = hud.text;
@@ -68,8 +42,7 @@ void initHUD() {
             case '4':  hud.msf = HUD_text_char; break;
             case '5':  hud.spr = HUD_text_char; break;
             case '6':  hud.pixels = HUD_text_char; break;
-            case '7':  hud.shading = HUD_text_char; break;
-            case '8':  hud.mode = HUD_text_char; break;
+            case '7':  hud.mode = HUD_text_char; break;
         }
 
         *HUD_text_char++ = *HUD_char++;
@@ -77,7 +50,6 @@ void initHUD() {
     *HUD_text_char = '\0';
 
     setControllerModeInHUD(false);
-    setShadingModeInHUD();
 }
 
 inline void updateHUDCounters(Timer *timer) {

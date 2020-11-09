@@ -10,21 +10,14 @@
 #include "lib/memory/buffers.h"
 #include "lib/memory/allocators.h"
 
-#include "lib/render/shaders/closest_hit/normal.h"
-#include "lib/render/shaders/closest_hit/lambert.h"
-#include "lib/render/shaders/closest_hit/phong.h"
-#include "lib/render/shaders/closest_hit/blinn.h"
-#include "lib/render/shaders/intersection/ray_sphere.h"
-#include "lib/render/shaders/intersection/ray_plane.h"
-#include "lib/render/shaders/generation/ray_generation.h"
+#include "lib/render/shaders/closest_hit.h"
+#include "lib/render/shaders/intersection.h"
+#include "lib/render/shaders/ray_generation.h"
 
 static char* RAY_TRACER_TITLE = "RayTrace";
 
 RayTracer ray_tracer;
-
-typedef void (*Shader)(RayHit* closestHit, Pixel* pixel);
-Shader current_shader = shadeClosestHitByNormal;
-enum ShadingMode last_shading_mode = Normal;
+RayHit farther_hit;
 
 inline bool inRange(range2i range, u16 value) {
     return value >= range.min &&
@@ -36,40 +29,43 @@ inline bool inBounds(Bounds2Di *bounds, u16 x, u16 y) {
            inRange(bounds->y_range, y);
 }
 
-inline bool pixelIsActive(u16 x, u16 y) {
+inline bool hasSpheres(u16 x, u16 y) {
     Sphere* last_sphere = scene.spheres + scene.sphere_count;
     for (Sphere* sphere = scene.spheres; sphere != last_sphere; sphere++)
-        if (inBounds(&sphere->view_bounds, x, y)) {
+        if (inBounds(&sphere->bounds, x, y)) {
             frame_buffer.active_pixel_count++;
             return true;
         }
     return false;
 }
 
-void onShadingModeChanged() {
-    last_shading_mode = shading_mode;
-    if      (shading_mode == Lambert) current_shader = shadeLambert;
-    else if (shading_mode == Phong) current_shader = shadePhong;
-    else if (shading_mode == Blinn) current_shader = shadeBlinn;
-    else current_shader = shadeClosestHitByNormal;
-    setShadingModeInHUD();
-}
-
 void onRender() {
     Pixel* pixel = frame_buffer.pixels;
     vec3* ray_direction = ray_tracer.ray_directions;
+    vec3 color;
 
     frame_buffer.active_pixel_count = 0;
     for (u16 y = 0; y < frame_buffer.height; y++)
         for (u16 x = 0; x < frame_buffer.width; x++) {
-            pixel->value = 0;
-            rayIntersectsWithPlanes(&ray_tracer.closest_hit, ray_direction, scene.planes, scene.plane_count);
-            if (pixelIsActive(x, y)) {
-                if (ctrl_is_pressed) pixel->color = WHITE;
-                else rayIntersectsWithSpheres(&ray_tracer.closest_hit, ray_direction, scene.spheres, scene.sphere_count);
+            ray_tracer.closest_hit.ray_direction = ray_direction;
+            if (ctrl_is_pressed) {
+                pixel->value = 0;
+                if (hasSpheres(x, y)) pixel->color = WHITE;
+            } else {
+                hitPlanes(&ray_tracer.closest_hit);
+                if (hasSpheres(x, y)) hitSpheresDoubleSided(&ray_tracer.closest_hit, &farther_hit);
+                if (alt_is_pressed) shadeNormal(&ray_tracer.closest_hit, &color);
+                else switch (ray_tracer.closest_hit.material_id) {
+                    case LAMBERT: shadeLambert(&ray_tracer.closest_hit, &color); break;
+                    case PHONG: shadePhong(&ray_tracer.closest_hit, &color); break;
+                    case BLINN: shadeBlinn(&ray_tracer.closest_hit, &color); break;
+                    case REFLECTION: shadeReflection(&ray_tracer.closest_hit, &color); break;
+                    case REFRACTION: shadeReflectionRefractionDoubleSided(&ray_tracer.closest_hit, &farther_hit, &color); break;
+                }
+                pixel->color.R = color.x > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.x;
+                pixel->color.G = color.y > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.y;
+                pixel->color.B = color.z > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.z;
             }
-            current_shader(&ray_tracer.closest_hit, pixel);
-
             pixel++;
             ray_direction++;
         }
@@ -82,14 +78,19 @@ void generateRays() {
         frame_buffer.width,
         frame_buffer.height
     );
+    vec3 *last_ray_direction = ray_tracer.ray_directions + frame_buffer.size;
+    for (vec3 *ray_direction = ray_tracer.ray_directions; ray_direction != last_ray_direction; ray_direction++)
+        imulVec3Mat3(ray_direction, &scene.camera->transform.rotation_matrix);
 }
 
 void onZoom() {
     generateRays();
+    current_camera_controller->moved = true;
     current_camera_controller->zoomed = false;
 }
 
 void onTurn() {
+    generateRays();
     transposeMat3(
             &current_camera_controller->camera->transform.rotation_matrix,
             &ray_tracer.inverted_camera_rotation);
@@ -102,16 +103,17 @@ void onMove() {
     const Sphere* last_sphere = scene.spheres + scene.sphere_count;
     scene.active_sphere_count = 0;
     f32 x, y, z, r, w, h, f, ff, left, right, top, bottom;
+    vec3 position;
     for (Sphere* sphere = scene.spheres; sphere != last_sphere; sphere++) {
-        subVec3(sphere->world_position, camera_position, sphere->view_position);
-        imulVec3Mat3(sphere->view_position, &ray_tracer.inverted_camera_rotation);
+        subVec3(sphere->position, camera_position, &position);
+        imulVec3Mat3(&position, &ray_tracer.inverted_camera_rotation);
 
         // Check sphere's visibility:
         sphere->in_view = false;
         r = sphere->radius;
-        x = sphere->view_position->x;
-        y = sphere->view_position->y;
-        z = sphere->view_position->z;
+        x = position.x;
+        y = position.y;
+        z = position.z;
 
         if (z > r) {
             // w / z = 1 / focal_length
@@ -128,35 +130,20 @@ void onMove() {
                     (y < 0 && top > -h)) {
                     f = (f32)frame_buffer.width / (w + w);
 
-                    ff = f / z;
-                    ff /= 100;
+                    ff = f / (z * r/2 * current_camera_controller->camera->focal_length);
                     left -= ff;
                     right += ff;
                     bottom -= ff;
                     top += ff;
                     sphere->in_view = true;
-                    sphere->view_bounds.x_range.min = (u16)(f * (w + max(-w, left)));
-                    sphere->view_bounds.x_range.max = (u16)(f * (w + min(+w, right)));
-                    sphere->view_bounds.y_range.max = frame_buffer.height - (u16)(f * (h + max(-h, bottom)));
-                    sphere->view_bounds.y_range.min = frame_buffer.height - (u16)(f * (h + min(+h, top)));
+                    sphere->bounds.x_range.min = (u16)(f * (w + max(-w, left)));
+                    sphere->bounds.x_range.max = (u16)(f * (w + min(+w, right)));
+                    sphere->bounds.y_range.max = frame_buffer.height - (u16)(f * (h + max(-h, bottom)));
+                    sphere->bounds.y_range.min = frame_buffer.height - (u16)(f * (h + min(+h, top)));
                     scene.active_sphere_count++;
                 }
             }
         }
-    }
-
-    Plane* last_plane = scene.planes + scene.plane_count;
-    for (Plane* plane = scene.planes; plane != last_plane; plane++) {
-        subVec3(plane->world_position, camera_position, plane->view_position);
-        imulVec3Mat3(plane->view_position, &ray_tracer.inverted_camera_rotation);
-        mulVec3Mat3(plane->world_normal, &ray_tracer.inverted_camera_rotation, plane->view_normal);
-        plane->in_view = plane->view_normal->z < 0;
-    }
-
-    Light *last_light = scene.lights + scene.light_count;
-    for (Light* light = scene.lights; light != last_light; light++) {
-        subVec3(light->world_position, camera_position, light->view_position);
-        imulVec3Mat3(light->view_position, &ray_tracer.inverted_camera_rotation);
     }
 
     current_camera_controller->moved = false;
@@ -167,6 +154,8 @@ void onResize() {
     onMove();
 }
 
+vec3 origin;
+
 void initRayTracer() {
     ray_tracer.rays_per_pixel = 1;
     ray_tracer.ray_count = ray_tracer.rays_per_pixel * frame_buffer.size;
@@ -175,4 +164,6 @@ void initRayTracer() {
     fillVec3(&ray_tracer.closest_hit.position, 0);
     fillVec3(&ray_tracer.closest_hit.normal, 0);
     ray_tracer.closest_hit.distance = 0;
+    ray_tracer.closest_hit.ray_origin = &scene.camera->transform.position;
+    fillVec3(&origin, 0);
 }

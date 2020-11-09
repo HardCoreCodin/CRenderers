@@ -32,7 +32,6 @@ void updateAndRender() {
     if (current_camera_controller->zoomed) onZoom();
     if (current_camera_controller->turned) onTurn();
     if (current_camera_controller->moved)  onMove();
-    if (shading_mode != last_shading_mode) onShadingModeChanged();
 
     onRender();
 

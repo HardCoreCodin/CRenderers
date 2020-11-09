@@ -74,35 +74,31 @@ typedef struct { u16 min, max; } range2i;
 typedef struct { range2i x_range, y_range; } Bounds2Di;
 
 typedef struct {
-    vec3 *world_position,
-         *view_position,
-         *world_normal,
-         *view_normal;
-
-    bool in_view;
+    vec3 *position,
+         *normal;
+    u8 material_id;
 } Plane;
 
 typedef struct {
     f32 radius;
-    vec3 *world_position,
-         *view_position;
-    Bounds2Di view_bounds;
+    vec3 *position;
+    Bounds2Di bounds;
+    u8 material_id;
     bool in_view;
 } Sphere;
 
 typedef struct {
-    vec3 *world_position,
-         *view_position;
+    vec3 color;
+    vec3 *position;
     f32 intensity;
-    Color color;
 } Light;
 
 typedef struct {
-    f32 distance;
-
     vec3 position,
          normal;
-    vec3 *ray_direction;
+    vec3 *ray_direction, *ray_origin;
+    f32 distance;
+    u8 material_id;
 } RayHit;
 
 typedef struct {
@@ -144,12 +140,6 @@ typedef struct {
 enum ControllerType {
     CONTROLLER_ORB,
     CONTROLLER_FPS
-};
-enum ShadingMode {
-    Normal,
-    Lambert,
-    Phong,
-    Blinn
 };
 
 typedef struct {

@@ -167,13 +167,10 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     backward_key = 'S';
     left_key     = 'A';
     right_key    = 'D';
-    normal_key   = '1';
-    lambert_key  = '2';
-    phong_key    = '3';
-    blinn_key    = '4';
     turn_right_key = 'E';
     turn_left_key  = 'Q';
     ctrl_key       = VK_CONTROL;
+    alt_key        = VK_MENU;
     toggle_hud_key = VK_TAB;
 
     info.bmiHeader.biSize        = sizeof(info.bmiHeader);
