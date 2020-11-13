@@ -17,7 +17,6 @@
 static char* RAY_TRACER_TITLE = "RayTrace";
 
 RayTracer ray_tracer;
-RayHit farther_hit;
 
 inline bool inRange(range2i range, u16 value) {
     return value >= range.min &&
@@ -44,24 +43,26 @@ void onRender() {
     vec3* ray_direction = ray_tracer.ray_directions;
     vec3 color;
 
+    ray_tracer.closest_hit.ray_origin = scene.camera->transform.position;
+    Material* material;
     frame_buffer.active_pixel_count = 0;
     for (u16 y = 0; y < frame_buffer.height; y++)
         for (u16 x = 0; x < frame_buffer.width; x++) {
-            ray_tracer.closest_hit.ray_direction = ray_direction;
             if (ctrl_is_pressed) {
                 pixel->value = 0;
                 if (hasSpheres(x, y)) pixel->color = WHITE;
             } else {
-                hitPlanes(&ray_tracer.closest_hit);
-                if (hasSpheres(x, y)) hitSpheresDoubleSided(&ray_tracer.closest_hit, &farther_hit);
-                if (alt_is_pressed) shadeNormal(&ray_tracer.closest_hit, &color);
-                else switch (ray_tracer.closest_hit.material_id) {
-                    case LAMBERT: shadeLambert(&ray_tracer.closest_hit, &color); break;
-                    case PHONG: shadePhong(&ray_tracer.closest_hit, &color); break;
-                    case BLINN: shadeBlinn(&ray_tracer.closest_hit, &color); break;
-                    case REFLECTION: shadeReflection(&ray_tracer.closest_hit, &color); break;
-                    case REFRACTION: shadeReflectionRefractionDoubleSided(&ray_tracer.closest_hit, &farther_hit, &color); break;
-                }
+                fillVec3(&color, 0);
+                ray_tracer.closest_hit.hit_depth = 0;
+                ray_tracer.closest_hit.distance = MAX_DISTANCE;
+                ray_tracer.closest_hit.n2_over_n1 = IOR_GLASS;
+                ray_tracer.closest_hit.n1_over_n2 = n1_over_n2_for_air_and_glass;
+                ray_tracer.closest_hit.ray_direction = *ray_direction;
+                hitPlanes(&ray_tracer.closest_hit, &material);
+                if (hasSpheres(x, y)) hitSpheres(&ray_tracer.closest_hit, &material, true, NULL);
+                if (alt_is_pressed) shadeNormal(&ray_tracer.closest_hit.normal, ray_tracer.closest_hit.distance, &color);
+                else shade(&ray_tracer.closest_hit, material, &color);
+
                 pixel->color.R = color.x > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.x;
                 pixel->color.G = color.y > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.y;
                 pixel->color.B = color.z > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.z;
@@ -105,7 +106,7 @@ void onMove() {
     f32 x, y, z, r, w, h, f, ff, left, right, top, bottom;
     vec3 position;
     for (Sphere* sphere = scene.spheres; sphere != last_sphere; sphere++) {
-        subVec3(sphere->position, camera_position, &position);
+        subVec3(&sphere->position, camera_position, &position);
         imulVec3Mat3(&position, &ray_tracer.inverted_camera_rotation);
 
         // Check sphere's visibility:
@@ -164,6 +165,7 @@ void initRayTracer() {
     fillVec3(&ray_tracer.closest_hit.position, 0);
     fillVec3(&ray_tracer.closest_hit.normal, 0);
     ray_tracer.closest_hit.distance = 0;
-    ray_tracer.closest_hit.ray_origin = &scene.camera->transform.position;
+    ray_tracer.closest_hit.ray_origin = scene.camera->transform.position;
     fillVec3(&origin, 0);
+    initShaders();
 }

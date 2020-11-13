@@ -4,7 +4,7 @@
 #ifndef __cplusplus
 #define false 0
 #define true 1
-#define EPS 0.000001f
+#define EPS 0.0001f
 typedef unsigned char      bool;
 #endif
 
@@ -74,32 +74,69 @@ typedef struct { u16 min, max; } range2i;
 typedef struct { range2i x_range, y_range; } Bounds2Di;
 
 typedef struct {
-    vec3 *position,
-         *normal;
-    u8 material_id;
+    vec2 uv;
+    vec3 position,
+         normal,
+         ray_origin,
+         ray_direction;
+    f32 distance,
+         n1_over_n2,
+         n2_over_n1;
+    u8 hit_depth;
+    bool inner;
+} RayHit;
+
+typedef struct {
+    f32 RLdotL,
+        NdotL,
+        NdotV,
+        NdotH;
+    vec3 *N, *V, L, H, RL, RV;
+
+    bool has_NdotL,
+         has_NdotV,
+         has_NdotH,
+         has_RLdotL,
+         has_H,
+         has_RL,
+         had_RR;
+} HitInfo;
+
+typedef f32 (*DiffuseShader)(HitInfo *hit_info, f32 intensity);
+typedef f32 (*SpecularShader)(HitInfo *hit_info, f32 intensity, u8 exponent);
+typedef bool (*ReflectionShader)(RayHit *hit, HitInfo *hit_info, vec3* reflected_color);
+typedef bool (*RefractionShader)(RayHit *hit, HitInfo *hit_info, vec3* refracted_color);
+
+typedef struct {
+    vec3 diffuse_color;
+    f32 specular_intensity, diffuse_intensity;
+    u8 specular_exponent, uses;
+    bool has_diffuse, has_specular, has_reflection, has_refraction, has_transparency;
+    DiffuseShader diffuse_shader;
+    SpecularShader specular_shader;
+    ReflectionShader reflection_shader;
+    RefractionShader refraction_shader;
+} Material;
+
+typedef struct {
+    Material* material;
+    vec3 position,
+         normal;
 } Plane;
 
 typedef struct {
-    f32 radius;
-    vec3 *position;
+    Material* material;
+    vec3 position;
     Bounds2Di bounds;
-    u8 material_id;
+    f32 radius;
     bool in_view;
 } Sphere;
 
 typedef struct {
     vec3 color;
-    vec3 *position;
+    vec3 position;
     f32 intensity;
-} Light;
-
-typedef struct {
-    vec3 position,
-         normal;
-    vec3 *ray_direction, *ray_origin;
-    f32 distance;
-    u8 material_id;
-} RayHit;
+} PointLight;
 
 typedef struct {
     bool is_pressed,
@@ -178,7 +215,8 @@ typedef struct {
     Camera *camera;
     Sphere *spheres;
     Plane *planes;
-    Light *lights;
+    PointLight *point_lights;
+    Material *materials;
     u8 sphere_count,
        plane_count,
        light_count,

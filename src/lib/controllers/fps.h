@@ -6,7 +6,7 @@
 #include "lib/controllers/camera_controller.h"
 
 #define ZOOM_SPEED 0.002f
-#define MAX_VELOCITY 8.0f
+#define MAX_VELOCITY 4.0f
 #define MAX_ACCELERATION 20.0f
 #define MOUSE_TURN_SPEED 0.0005f
 #define KEYBOARD_TURN_SPEED 1.0f
