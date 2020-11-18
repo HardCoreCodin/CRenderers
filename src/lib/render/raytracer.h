@@ -59,9 +59,10 @@ void onRender() {
                 ray_tracer.closest_hit.n1_over_n2 = n1_over_n2_for_air_and_glass;
                 ray_tracer.closest_hit.ray_direction = *ray_direction;
                 hitPlanes(&ray_tracer.closest_hit, &material);
-                if (hasSpheres(x, y)) hitSpheres(&ray_tracer.closest_hit, &material, true, NULL);
+                hitCubes(&ray_tracer.closest_hit, &material);
+//                if (hasSpheres(x, y)) hitSpheresSimple(&ray_tracer.closest_hit, &material, true, NULL);
                 if (alt_is_pressed) shadeNormal(&ray_tracer.closest_hit.normal, ray_tracer.closest_hit.distance, &color);
-                else shade(&ray_tracer.closest_hit, material, &color);
+                else shadeLambert(&ray_tracer.closest_hit, &color);
 
                 pixel->color.R = color.x > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.x;
                 pixel->color.G = color.y > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.y;
@@ -75,13 +76,10 @@ void onRender() {
 void generateRays() {
     generateRayDirections(
         ray_tracer.ray_directions,
-        current_camera_controller->camera->focal_length,
+        current_camera_controller->camera,
         frame_buffer.width,
         frame_buffer.height
     );
-    vec3 *last_ray_direction = ray_tracer.ray_directions + frame_buffer.size;
-    for (vec3 *ray_direction = ray_tracer.ray_directions; ray_direction != last_ray_direction; ray_direction++)
-        imulVec3Mat3(ray_direction, &scene.camera->transform.rotation_matrix);
 }
 
 void onZoom() {

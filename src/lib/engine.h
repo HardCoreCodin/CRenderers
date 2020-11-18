@@ -22,8 +22,29 @@ char* getTitle() {
     return RAY_TRACER_TITLE;
 }
 
+#define SPHERE_TURN_SPEED 0.3f
+#define TETRAHEDRON_TURN_SPEED 0.3f
+
+Sphere *rotating_sphere;
+Tetrahedron *rotating_tetrahedron, ref_tetrahedron;
+
 void updateAndRender() {
     startFrameTimer(&update_timer);
+
+    yawMat3(update_timer.delta_time * SPHERE_TURN_SPEED, &rotating_sphere->rotation_matrix);
+//    yawMat3(update_timer.delta_time * TETRAHEDRON_TURN_SPEED, &rotating_tetrahedron->rotation_matrix);
+//    vec3 *ref_vertex = ref_tetrahedron.vertices,
+//         *tet_vertex = rotating_tetrahedron->vertices,
+//         *position = &rotating_tetrahedron->position;
+//    mat3 *rotation = &rotating_tetrahedron->rotation_matrix;
+//    Triangle *ref_triangle = ref_tetrahedron.triangles,
+//             *tet_triangle = rotating_tetrahedron->triangles;
+//    for (u8 i = 0; i < 4; i++, ref_vertex++, tet_vertex++, ref_triangle++, tet_triangle++) {
+//        mulVec3Mat3(ref_vertex, rotation, tet_vertex);
+//        iaddVec3(tet_vertex, position);
+//        mulMat3(&ref_triangle->tangent_to_world, rotation, &tet_triangle->tangent_to_world);
+//        transposeMat3(&tet_triangle->tangent_to_world, &tet_triangle->world_to_tangent);
+//    }
 
     if (mouse_wheel_scrolled) current_camera_controller->onMouseWheelScrolled();
     if (mouse_moved)          current_camera_controller->onMouseMoved();
@@ -78,6 +99,10 @@ void initEngine(
     initFpsController(scene.camera);
     initOrbController(scene.camera);
     initRayTracer();
+    initTetrahedron(&ref_tetrahedron);
+    rotating_tetrahedron = scene.tetrahedra;
+    rotating_sphere = scene.spheres + 1;
+
     scene.camera->transform.position.x = 5;
     scene.camera->transform.position.y = 5;
     scene.camera->transform.position.z = -10;

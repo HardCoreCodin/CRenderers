@@ -56,6 +56,16 @@ inline void iaddVec3(vec3* p1, vec3* p2) {
     p1->y += p2->y;
     p1->z += p2->z;
 }
+inline void mulVec3(vec3* p1, vec3* p2, vec3* out) {
+    out->x = p1->x * p2->x;
+    out->y = p1->y * p2->y;
+    out->z = p1->z * p2->z;
+}
+inline void imulVec3(vec3* p1, vec3* p2) {
+    p1->x *= p2->x;
+    p1->y *= p2->y;
+    p1->z *= p2->z;
+}
 inline void scaleVec3(vec3* p1, f32 factor, vec3* out) {
     out->x = p1->x * factor;
     out->y = p1->y * factor;
@@ -143,79 +153,73 @@ inline void imulMat3(mat3* a, mat3* b) {
 }
 
 inline void yawMat3(f32 amount, mat3* out) {
-    f32 s, c;
-    getPointOnUnitCircle(amount, &s, &c);
+    vec2 xy = getPointOnUnitCircle(amount);
 
     vec3 X = out->X;
     vec3 Y = out->Y;
     vec3 Z = out->Z;
 
-    out->X.x = c * X.x - s * X.z;
-    out->Y.x = c * Y.x - s * Y.z;
-    out->Z.x = c * Z.x - s * Z.z;
+    out->X.x = xy.x * X.x - xy.y * X.z;
+    out->Y.x = xy.x * Y.x - xy.y * Y.z;
+    out->Z.x = xy.x * Z.x - xy.y * Z.z;
 
-    out->X.z = c * X.z + s * X.x;
-    out->Y.z = c * Y.z + s * Y.x;
-    out->Z.z = c * Z.z + s * Z.x;
+    out->X.z = xy.x * X.z + xy.y * X.x;
+    out->Y.z = xy.x * Y.z + xy.y * Y.x;
+    out->Z.z = xy.x * Z.z + xy.y * Z.x;
 }
 
 inline void pitchMat3(f32 amount, mat3* out) {
-    f32 s, c;
-    getPointOnUnitCircle(amount, &s, &c);
+    vec2 xy = getPointOnUnitCircle(amount);
 
     vec3 X = out->X;
     vec3 Y = out->Y;
     vec3 Z = out->Z;
 
-    out->X.y = c * X.y + s * X.z;
-    out->Y.y = c * Y.y + s * Y.z;
-    out->Z.y = c * Z.y + s * Z.z;
+    out->X.y = xy.x * X.y + xy.y * X.z;
+    out->Y.y = xy.x * Y.y + xy.y * Y.z;
+    out->Z.y = xy.x * Z.y + xy.y * Z.z;
 
-    out->X.z = c * X.z - s * X.y;
-    out->Y.z = c * Y.z - s * Y.y;
-    out->Z.z = c * Z.z - s * Z.y;
+    out->X.z = xy.x * X.z - xy.y * X.y;
+    out->Y.z = xy.x * Y.z - xy.y * Y.y;
+    out->Z.z = xy.x * Z.z - xy.y * Z.y;
 }
 
 inline void rollMat3(f32 amount, mat3* out) {
-    f32 s, c;
-    getPointOnUnitCircle(amount, &s, &c);
+    vec2 xy = getPointOnUnitCircle(amount);
 
     vec3 X = out->X;
     vec3 Y = out->Y;
     vec3 Z = out->Z;
 
-    out->X.x = c * X.x + s * X.y;
-    out->Y.x = c * Y.x + s * Y.y;
-    out->Z.x = c * Z.x + s * Z.y;
+    out->X.x = xy.x * X.x + xy.y * X.y;
+    out->Y.x = xy.x * Y.x + xy.y * Y.y;
+    out->Z.x = xy.x * Z.x + xy.y * Z.y;
 
-    out->X.y = c * X.y - s * X.x;
-    out->Y.y = c * Y.y - s * Y.x;
-    out->Z.y = c * Z.y - s * Z.x;
+    out->X.y = xy.x * X.y - xy.y * X.x;
+    out->Y.y = xy.x * Y.y - xy.y * Y.x;
+    out->Z.y = xy.x * Z.y - xy.y * Z.x;
 }
 
 inline void setYawMat3(f32 yaw, mat3* yaw_matrix) {
-    f32 s, c;
-    getPointOnUnitCircle(yaw, &s, &c);
+    vec2 xy = getPointOnUnitCircle(yaw);
 
-    yaw_matrix->X.x = yaw_matrix->Z.z = c;
-    yaw_matrix->X.z = +s;
-    yaw_matrix->Z.x = -s;
+    yaw_matrix->X.x = yaw_matrix->Z.z = xy.x;
+    yaw_matrix->X.z = +xy.y;
+    yaw_matrix->Z.x = -xy.y;
 };
 
 inline void setPitchMat3(f32 pitch, mat3* pitch_matrix) {
-    f32 s, c;
-    getPointOnUnitCircle(pitch, &s, &c);
+    vec2 xy = getPointOnUnitCircle(pitch);
 
-    pitch_matrix->Z.z = pitch_matrix->Y.y = c;
-    pitch_matrix->Y.z = -s;
-    pitch_matrix->Z.y = +s;
+    pitch_matrix->Z.z = pitch_matrix->Y.y = xy.x;
+    pitch_matrix->Y.z = -xy.y;
+    pitch_matrix->Z.y = +xy.y;
 };
 
 inline void setRollMat3(f32 roll, mat3* roll_matrix) {
-    f32 s, c;
-    getPointOnUnitCircle(roll, &s, &c);
+    vec2 xy = getPointOnUnitCircle(roll);
 
-    roll_matrix->X.x = roll_matrix->Y.y = c;
-    roll_matrix->X.y = -s;
-    roll_matrix->Y.x = +s;
+    roll_matrix->X.x = roll_matrix->Y.y = xy.x;
+    roll_matrix->X.y = -xy.y;
+    roll_matrix->Y.x = +xy.y;
 };

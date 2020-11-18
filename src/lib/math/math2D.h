@@ -15,13 +15,11 @@ mat2* createMat2() {
     return matrix;
 }
 
-void getPointOnUnitCircle(f32 t, f32* s, f32*c) {
+vec2 getPointOnUnitCircle(f32 t) {
     f32 t_squared = t * t;
     f32 factor = 1 / (1 + t_squared);
-    *c = factor - factor * t_squared;
-    *s = factor * 2 * t;
-//    *c = cosf(t);
-//    *s = sinf(t);
+    vec2 xy = {factor - factor * t_squared, factor * 2 * t};
+    return xy;
 }
 
 inline void fillVec2(vec2* v, f32 value) {
@@ -101,24 +99,21 @@ inline void imulMat2(mat2* a, mat2* b) {
 }
 
 inline void rotateMat2(mat2* matrix, f32 amount) {
-    f32 s, c;
-    getPointOnUnitCircle(amount, &s, &c);
-    
+    vec2 xy = getPointOnUnitCircle(amount);
     vec2 X = matrix->X;
     vec2 Y = matrix->Y;
 
-    matrix->X.x = X.x*c + X.y*s;
-    matrix->Y.x = Y.x*c + Y.y*s;
+    matrix->X.x = X.x*xy.x + X.y*xy.y;
+    matrix->Y.x = Y.x*xy.x + Y.y*xy.y;
 
-    matrix->X.y = X.y*c - X.x*s;
-    matrix->Y.y = Y.y*c - Y.x*s;
+    matrix->X.y = X.y*xy.x - X.x*xy.y;
+    matrix->Y.y = Y.y*xy.x - Y.x*xy.y;
 }
 
 inline void setRotationMat2(f32 amount, mat2* matrix) {
-    f32 s, c;
-    getPointOnUnitCircle(amount, &s, &c);
+    vec2 xy = getPointOnUnitCircle(amount);
 
-    matrix->X.x = matrix->Y.y = c;
-    matrix->X.y = -s;
-    matrix->Y.x = +s;
+    matrix->X.x = matrix->Y.y = xy.x;
+    matrix->X.y = -xy.y;
+    matrix->Y.x = +xy.y;
 }

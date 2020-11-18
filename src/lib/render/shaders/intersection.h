@@ -19,34 +19,41 @@ inline void getSphereHitPosition(vec3 *origin, vec3 *direction, f32 distance, ve
     iaddVec3(position, origin);
 }
 
-inline void getSphereHitNormal(vec3 *position, vec3 *center, bool inner, f32 scale, vec3 *normal) {
-    subVec3(inner ? center : position, inner ? position : center, normal);
-    if (scale) iscaleVec3(normal, scale);
+inline void getSphereHitNormal(vec3 *position, vec3 *center, vec3 *normal) {
+    subVec3(position, center, normal);
+    norm3(normal);
 }
 
 inline void getSphereHitUV(vec3 *normal, vec2 *uv) {
+    f32 factor;
     if (normal->x > +NORMAL_THRESHOLD) { // right:
-        uv->x = 0.5f + normal->z * 0.5f;
-        uv->y = 0.5f + normal->y * 0.5f;
+        factor = 0.5f / normal->x;
+        uv->x = 0.5f + factor*normal->z;
+        uv->y = 0.5f + factor*normal->y;
     } else if (normal->x < -NORMAL_THRESHOLD) { // left:
-        uv->x = 0.5f - normal->z * 0.5f;
-        uv->y = 0.5f + normal->y * 0.5f;
+        factor = -0.5f / normal->x;
+        uv->x = 1 - (0.5f + factor*normal->z);
+        uv->y = 0.5f + factor*normal->y;
     } else if (normal->z > +NORMAL_THRESHOLD) { // front:
-        uv->x = 0.5f + normal->x * 0.5f;
-        uv->y = 0.5f + normal->y * 0.5f;
+        factor = 0.5f / normal->z;
+        uv->x = 0.5f + factor*normal->x;
+        uv->y = 0.5f + factor*normal->y;
     } else if (normal->z < -NORMAL_THRESHOLD) { // back:
-        uv->x = 0.5f - normal->x * 0.5f;
-        uv->y = 0.5f + normal->y * 0.5f;
+        factor = -0.5f / normal->z;
+        uv->x = 1 - (0.5f + factor*normal->x);
+        uv->y = 0.5f + factor*normal->y;
     } else if (normal->y > +NORMAL_THRESHOLD) { // top:
-        uv->x = 0.5f + normal->x * 0.5f;
-        uv->y = 0.5f + normal->z * 0.5f;
+        factor = 0.5f / normal->y;
+        uv->x = 0.5f + factor*normal->x;
+        uv->y = 0.5f + factor*normal->z;
     } else if (normal->y < -NORMAL_THRESHOLD) { // bottom:
-        uv->x = 0.5f + normal->x * 0.5f;
-        uv->y = 0.5f - normal->z * 0.5f;
+        factor = -0.5f / normal->y;
+        uv->x = 0.5f + factor*normal->x;
+        uv->y = 1 - (0.5f + factor*normal->z);
     }
 }
 
-bool hitSpheres(RayHit* closest_hit, Material** material_ptr, bool skip_out_of_view, Sphere *skip_sphere) {
+bool hitSpheresSimple(RayHit* closest_hit, Material** material_ptr, bool skip_out_of_view, Sphere *skip_sphere) {
     f32 t, dt, r, closest_distance = closest_hit->distance;
     vec3 _I, *I = &_I, _C, *C = &_C;
     bool found = false;
@@ -73,7 +80,7 @@ bool hitSpheres(RayHit* closest_hit, Material** material_ptr, bool skip_out_of_v
             isubVec3(I, C);
             r = sphere->radius;
             dt = r*r - squaredLengthVec3(I);
-            if (dt > 0) { // Inside the sphere
+            if (dt > 0 && t*t > dt*dt) { // Inside the sphere
                 distance = t - sqrtf(dt);
                 if (distance > 0 && distance < closest_distance) {
                     closest_distance = distance;
@@ -100,26 +107,28 @@ bool hitSpheres(RayHit* closest_hit, Material** material_ptr, bool skip_out_of_v
     return found;
 }
 
-inline void populateHit(RayHit *hit, Sphere *sphere, f32 distance, bool inner, bool get_uv) {
+inline void populateHit(RayHit *hit, Sphere *sphere, f32 distance, bool get_uv) {
     getSphereHitPosition(&hit->ray_origin, &hit->ray_direction, distance, &hit->position);
-    getSphereHitNormal(&hit->position, &sphere->position, inner, sphere->radius == 1 ? 0 : 1.0f / sphere->radius, &hit->normal);
-    if (get_uv) getSphereHitUV(&hit->normal, &hit->uv);
-
-    hit->inner = inner;
+    getSphereHitNormal(&hit->position, &sphere->position, &hit->normal);
+    if (get_uv && sphere->material->uses & TRANSPARENCY) {
+        vec3 rotated_normal;
+        mulVec3Mat3(&hit->normal, &sphere->rotation_matrix, &rotated_normal);
+        getSphereHitUV(&rotated_normal, &hit->uv);
+    }
     hit->distance = distance;
 }
-bool hitSpheres2(RayHit* closest_hit, Material** material_ptr, bool skip_out_of_view, Sphere *skip_sphere) {
+bool hitSpheres(RayHit* closest_hit, Material** material_ptr, bool skip_out_of_view, Sphere *skip_sphere) {
     f32 t, dt, r, d, closest_distance = closest_hit->distance;
     vec3 _I, *I = &_I, _C, *C = &_C;
     bool found = false;
     u8 sphere_id;
     Sphere *sphere = scene.spheres;
+    SphereHit *sphere_hit = sphere_hits;
 
     // Loop over all the spheres and intersect the ray against them:
-    for (sphere_id = 0; sphere_id != SPHERE_COUNT; sphere_id++) {
-        sphere_hits[sphere_id].hit = false;
+    for (sphere_id = 0; sphere_id != SPHERE_COUNT; sphere_id++, sphere++, sphere_hit++) {
+        sphere_hit->hit = false;
 
-        sphere = &scene.spheres[sphere_id];
         if (skip_sphere == sphere ||
            (skip_out_of_view &&
             !sphere->in_view))
@@ -134,104 +143,105 @@ bool hitSpheres2(RayHit* closest_hit, Material** material_ptr, bool skip_out_of_
             dt = r*r - squaredLengthVec3(I);
             if (dt > 0) { // Inside the sphere
                 d = sqrtf(dt);
-                sphere_hits[sphere_id].hit = true;
-                sphere_hits[sphere_id].inner_hit_distance = d + t;
-                sphere_hits[sphere_id].outer_hit_distance = d - t;
+                sphere_hit->hit = true;
+                sphere_hit->inner_hit_distance = t + d;
+                sphere_hit->outer_hit_distance = t - d;
                 found = true;
             }
         }
     }
 
     if (found) {
-        bool found_inner = false, inner, outer, populate_hit = true;
-        SphereHit *sphere_hit;
-        for (sphere_id = 0; sphere_id != SPHERE_COUNT; sphere_id++) {
-            sphere = &scene.spheres[sphere_id];
-            sphere_hit = &sphere_hits[sphere_id];
-            if (sphere_hit->hit) {
-                inner = sphere_hit->inner_hit_distance < closest_distance;
-                outer = sphere_hit->outer_hit_distance < closest_distance;
-                if (inner || outer) {
-                    populate_hit = true;
+        bool inner, outer, populate_hit = true;
 
-                    if (sphere->material->has_transparency) {
+        sphere = scene.spheres;
+        sphere_hit = sphere_hits;
+        Sphere* hit_sphere = sphere;
+        for (sphere_id = 0; sphere_id != SPHERE_COUNT; sphere_id++, sphere++, sphere_hit++) {
+            if (!sphere_hit->hit) continue;
+            inner = sphere_hit->inner_hit_distance > 0 && sphere_hit->inner_hit_distance < closest_distance;
+            outer = sphere_hit->outer_hit_distance > 0 && sphere_hit->outer_hit_distance < closest_distance;
+            if (inner || outer) {
+                populate_hit = true;
+
+                    if (sphere->material->uses & TRANSPARENCY) {
                         if (outer) {
-                            populateHit(closest_hit, &scene.spheres[sphere_id], sphere_hit->outer_hit_distance, false, true);
-                            if (closest_hit->uv.x > 0.5f &&
-                                closest_hit->uv.y < 0.5f) {
+                            populateHit(closest_hit, sphere, sphere_hit->outer_hit_distance, true);
+                            if (((u8)(closest_hit->uv.x * 8) % 2) &&
+                                (((u8)((closest_hit->uv.y + 0.125) * 8)) % 2)) {
                                 if (inner) {
-                                    populateHit(closest_hit, &scene.spheres[sphere_id], sphere_hit->inner_hit_distance, true, true);
-                                    if (closest_hit->uv.x > 0.5f &&
-                                        closest_hit->uv.y < 0.5f)
+                                    populateHit(closest_hit, sphere, sphere_hit->inner_hit_distance, true);
+                                    if (((u8)(closest_hit->uv.x * 8) % 2) &&
+                                        (((u8)((closest_hit->uv.y + 0.125) * 8)) % 2))
                                         continue;
                                 }
                             }
                         } else {
-                            populateHit(closest_hit, &scene.spheres[sphere_id], sphere_hit->inner_hit_distance, true, true);
-                            if (closest_hit->uv.x > 0.5f &&
-                                closest_hit->uv.y < 0.5f)
+                            populateHit(closest_hit, sphere, sphere_hit->inner_hit_distance, true);
+                            if (((u8)(closest_hit->uv.x * 8) % 2) &&
+                                (((u8)((closest_hit->uv.y + 0.125) * 8)) % 2))
                                 continue;
                         }
 
                         populate_hit = false;
                     }
 
-                    found_inner = !outer;
-                    sphere = &scene.spheres[sphere_id];
-                    closest_distance = outer ? sphere_hit->outer_hit_distance : sphere_hit->inner_hit_distance;
-                }
+                hit_sphere = sphere;
+                closest_distance = outer ? sphere_hit->outer_hit_distance : sphere_hit->inner_hit_distance;
             }
         }
 
-        if (populate_hit) populateHit(closest_hit, sphere, closest_distance, found_inner, false);
+        if (populate_hit)
+            populateHit(closest_hit, hit_sphere, closest_distance, true);
 
-        *material_ptr = sphere->material;
+        *material_ptr = hit_sphere->material;
     }
 
     return found;
 }
 
+inline bool hitPlane(vec3 *position, vec3 *normal, vec3 *ray_direction, vec3 *ray_origin, f32 *hit_distance) {
+    f32 Rd_dot_n = dotVec3(ray_direction, normal);
+    if (Rd_dot_n >= 0 ||
+        -Rd_dot_n < EPS)
+        return false;
+
+    vec3 ray_origin_to_position;
+    subVec3(position, ray_origin, &ray_origin_to_position);
+    f32 p_dot_n = dotVec3(&ray_origin_to_position, normal);
+    if (p_dot_n >= 0 ||
+        -p_dot_n < EPS)
+        return false;
+
+    *hit_distance = p_dot_n / Rd_dot_n;
+    return true;
+}
 bool hitPlanes(RayHit* closest_hit, Material** material_ptr) {
     vec3 *Rd = &closest_hit->ray_direction;
     vec3 *Ro = &closest_hit->ray_origin;
-    vec3 *n, _p, *p = &_p;
-    f32 Rd_dot_n,
-        p_dot_n,
-        closest_hit_distance = 10000,
-        hit_distance = 0;
-
+    f32 closest_distance = closest_hit->distance;
+    f32 hit_distance = 0;
     bool found = false;
 
     // Loop over all the planes and intersect the ray against them:
     Plane* hit_plane = scene.planes;
     Plane* last_plane = scene.planes + scene.plane_count;
     for (Plane* plane = scene.planes; plane != last_plane; plane++) {
-        subVec3(&plane->position, Ro, p);
-        n = &plane->normal;
-
-        Rd_dot_n = dotVec3(Rd, n);
-        if (Rd_dot_n >= 0 ||
-            -Rd_dot_n < EPS)
+        if (!hitPlane(&plane->position, &plane->normal, Rd, Ro, &hit_distance))
             continue;
 
-        p_dot_n = dotVec3(p, n);
-        if (p_dot_n >= 0 ||
-            -p_dot_n < EPS)
-            continue;
-
-        hit_distance = p_dot_n / Rd_dot_n;
-        if (hit_distance < closest_hit_distance) {
-            closest_hit_distance = hit_distance;
+        if (hit_distance < closest_distance) {
+            closest_distance = hit_distance;
             hit_plane = plane;
             found = true;
         }
     }
 
     if (found) {
-        scaleVec3(Rd, closest_hit_distance, &closest_hit->position);
+        scaleVec3(Rd, closest_distance, &closest_hit->position);
         iaddVec3(&closest_hit->position, Ro);
         closest_hit->normal = hit_plane->normal;
-        closest_hit->distance = closest_hit_distance;
+        closest_hit->distance = closest_distance;
         closest_hit->inner = false;
 
         *material_ptr = hit_plane->material;
@@ -240,86 +250,199 @@ bool hitPlanes(RayHit* closest_hit, Material** material_ptr) {
     return found;
 }
 
-//bool hitSpheresDoubleSided(RayHit* closest_hit, RayHit* farther_hit) {
-//    f32 distance1, distance2, t, dt, r, d2 = 100000, d1 = 100000;
-//    vec3 *Rd = closest_hit->ray_direction,
-//            *Ro = closest_hit->ray_origin,
-//            *P1 = &closest_hit->position,
-//            *N1 = &closest_hit->normal,
-//            *P2 = &farther_hit->position,
-//            *N2 = &farther_hit->normal;
+bool hitTriangles(RayHit* closest_hit, Material** material_ptr) {
+    vec3 *Rd = &closest_hit->ray_direction;
+    vec3 *Ro = &closest_hit->ray_origin;
+    vec3 hit_position, closest_hit_position, closest_hit_normal;
+    f32 hit_distance, closest_hit_distance = closest_hit->distance;
+    Material *closest_hit_material = NULL;
+    bool found = false;
+
+    // Loop over all tetrahedra and intersect the ray against them:
+    Triangle* last_triangle = scene.triangles + scene.triangle_count;
+    for (Triangle* triangle = scene.triangles; triangle != last_triangle; triangle++) {
+        if (hitPlane(triangle->p1, triangle->normal, Rd, Ro, &hit_distance) && hit_distance < closest_hit_distance) {
+
+            scaleVec3(Rd, hit_distance, &hit_position);
+            iaddVec3(&hit_position, Ro);
+
+            vec3 p1p2; subVec3(triangle->p2, triangle->p1, &p1p2);
+            vec3 p2p3; subVec3(triangle->p3, triangle->p2, &p2p3);
+            vec3 p3p1; subVec3(triangle->p1, triangle->p3, &p3p1);
+
+            vec3 p1P; subVec3(&hit_position, triangle->p1, &p1P);
+            vec3 p2P; subVec3(&hit_position, triangle->p2, &p2P);
+            vec3 p3P; subVec3(&hit_position, triangle->p3, &p3P);
+
+            vec3 c1; crossVec3(&p1P, &p1p2, &c1);
+            vec3 c2; crossVec3(&p2P, &p2p3, &c2);
+            vec3 c3; crossVec3(&p3P, &p3p1, &c3);
+
+            if (dotVec3(triangle->normal, &c1) > 0 &&
+                dotVec3(triangle->normal, &c2) > 0 &&
+                dotVec3(triangle->normal, &c3) > 0) {
+                closest_hit_distance = hit_distance;
+                closest_hit_position = hit_position;
+                closest_hit_normal   = *triangle->normal;
+//                closest_hit_material = tetrahedron->material;
+
+                found = true;
+            }
+        }
+    }
+
+    if (found) {
+        closest_hit->normal = closest_hit_normal;
+        closest_hit->position = closest_hit_position;
+        closest_hit->distance = closest_hit_distance;
+        *material_ptr = closest_hit_material;
+    }
+
+    return found;
+}
+
+bool hitCubes(RayHit* closest_hit, Material** material_ptr) {
+    vec3 *Rd = &closest_hit->ray_direction;
+    vec3 *Ro = &closest_hit->ray_origin;
+    vec3 hit_position, closest_hit_position, closest_hit_normal;
+    f32 hit_distance, closest_hit_distance = closest_hit->distance;
+    Material *closest_hit_material = NULL;
+    bool found = false;
+
+    // Loop over all tetrahedra and intersect the ray against them:
+    Triangle* last_triangle = scene.triangles + scene.triangle_count;
+    for (Triangle* triangle = scene.triangles; triangle != last_triangle; triangle++) {
+        if (hitPlane(triangle->p1, triangle->normal, Rd, Ro, &hit_distance) &&
+            hit_distance < closest_hit_distance) {
+
+            vec3 p1p2; subVec3(triangle->p2, triangle->p1, &p1p2);
+            vec3 p2p3; subVec3(triangle->p3, triangle->p2, &p2p3);
+            vec3 p3p1; subVec3(triangle->p1, triangle->p3, &p3p1);
+
+            vec3 p1P; subVec3(&hit_position, triangle->p1, &p1P);
+            vec3 p2P; subVec3(&hit_position, triangle->p2, &p2P);
+            vec3 p3P; subVec3(&hit_position, triangle->p3, &p3P);
+
+            vec3 c1; crossVec3(&p1P, &p1p2, &c1);
+            vec3 c2; crossVec3(&p2P, &p2p3, &c2);
+            vec3 c3; crossVec3(&p3P, &p3p1, &c3);
+
+            if (dotVec3(triangle->normal, &c1) > 0 &&
+                dotVec3(triangle->normal, &c2) > 0 &&
+                dotVec3(triangle->normal, &c3) > 0) {
+                closest_hit_distance = hit_distance;
+                closest_hit_position = hit_position;
+                closest_hit_normal   = *triangle->normal;
+//                closest_hit_material = tetrahedron->material;
+
+                found = true;
+            }
+        }
+    }
+
+    if (found) {
+        closest_hit->normal = closest_hit_normal;
+        closest_hit->position = closest_hit_position;
+        closest_hit->distance = closest_hit_distance;
+        *material_ptr = closest_hit_material;
+    }
+
+    return found;
+}
+
+// ad - bc > 0
+// a = p3.x = 1/2
+// b = p3.y = s3/2
+// c = P.x
+// d = P.y
 //
-//    vec3 _I, *I = &_I,
-//            _C, *C = &_C;
-//    bool found = false, found_double_sided = false, found_back_side = false;
+// P.y > s3*P.x
+
+// ad - bc > 0
+// a = P.x
+// b = P.y
+// c = p2.x = 1
+// d = P2.y = 0
 //
-//    // Loop over all the spheres and intersect the ray against them:
-//    Sphere* hit_sphere = scene.spheres;
-//    Sphere* last_sphere = scene.spheres + scene.sphere_count;
-//    for (Sphere* sphere = scene.spheres; sphere != last_sphere; sphere++) {
-//        subVec3(sphere->position, Ro, C);
-//        t = dotVec3(C, Rd);
-//        scaleVec3(Rd, t, I);
-//        isubVec3(I, C);
-//        r = sphere->radius;
-//        dt = r*r - squaredLengthVec3(I);
-//        if (dt > 0) { // Inside the sphere
-//            dt = sqrtf(dt);
-//            distance1 = t - dt;
-//            if (sphere->material_id == REFRACTION) {
-//                distance2 = t + dt;
-//                if (distance1 > 0 &&
-//                    distance1 < d1) {
-//                    d1 = distance1;
-//                    d2 = distance2;
-//                    hit_sphere = sphere;
+// 0 < P.y
+
+// ad - bc > 0
+// a = P.x - p2.x = P.x - 1 = (P.x - 1)
+// b = P.y - p2.y = P.y - 0 = P.y
+// c = p3.x - p2.x = 1/2 - 1 = -1/2
+// d = P3.y - p2.y = s3/2 - 0 = s3/2
+//
+// (P.x - 1)s3/2 > P.y*-1/2
+// (P.x - 1)s3 > P.y*-1
+// -1*(1 - P.x)s3 > -1*P.y
+// (1 - P.x)s3 < P.y
+
+bool hitTetrahedra(RayHit* closest_hit, Material** material_ptr) {
+    vec3 *Rd = &closest_hit->ray_direction;
+    vec3 *Ro = &closest_hit->ray_origin;
+    vec3 hit_position, closest_hit_position, hit_position_tangent, closest_hit_normal;
+    f32 hit_distance, closest_hit_distance = closest_hit->distance;
+    Material *closest_hit_material = NULL;
+    bool found = false;
+
+    // Loop over all tetrahedra and intersect the ray against them:
+    Tetrahedron* last_tetrahedron = scene.tetrahedra + scene.tetrahedron_count;
+    for (Tetrahedron* tetrahedron = scene.tetrahedra; tetrahedron != last_tetrahedron; tetrahedron++) {
+        Triangle* triangle;
+        for (u8 i = 0; i < 4; i++) {
+            triangle = &tetrahedron->triangles[i];
+            if (hitPlane(triangle->p1, triangle->normal, Rd, Ro, &hit_distance) && hit_distance < closest_hit_distance) {
+
+                scaleVec3(Rd, hit_distance, &hit_position);
+                iaddVec3(&hit_position, Ro);
+
+                vec3 p1p2; subVec3(triangle->p2, triangle->p1, &p1p2);
+                vec3 p2p3; subVec3(triangle->p3, triangle->p2, &p2p3);
+                vec3 p3p1; subVec3(triangle->p1, triangle->p3, &p3p1);
+
+                vec3 p1P; subVec3(&hit_position, triangle->p1, &p1P);
+                vec3 p2P; subVec3(&hit_position, triangle->p2, &p2P);
+                vec3 p3P; subVec3(&hit_position, triangle->p3, &p3P);
+
+                vec3 c1; crossVec3(&p1P, &p1p2, &c1);
+                vec3 c2; crossVec3(&p2P, &p2p3, &c2);
+                vec3 c3; crossVec3(&p3P, &p3p1, &c3);
+
+                if (dotVec3(triangle->normal, &c1) > 0 &&
+                    dotVec3(triangle->normal, &c2) > 0 &&
+                    dotVec3(triangle->normal, &c3) > 0) {
+                    closest_hit_distance = hit_distance;
+                    closest_hit_position = hit_position;
+                    closest_hit_normal   = *triangle->normal;
+                    closest_hit_material = tetrahedron->material;
+
+                    found = true;
+                }
+
+//                subVec3(&hit_position, triangle->p1, &hit_position_tangent);
+//                imulVec3Mat3(&hit_position_tangent, &triangle->world_to_tangent);
+//
+//                if (hit_position_tangent.y > 0 &&
+//                    hit_position_tangent.y > SQRT_OF_THREE*hit_position_tangent.x &&
+//                    hit_position_tangent.y > SQRT_OF_THREE*(1 - hit_position_tangent.x)) {
+//
+//                    closest_hit_distance = hit_distance;
+//                    closest_hit_position = hit_position;
+//                    closest_hit_normal   = *triangle->normal;
+//                    closest_hit_material = tetrahedron->material;
+//
 //                    found = true;
-//                    found_double_sided = true;
-//                    found_back_side = false;
-//                } else if (distance1 < 0 &&
-//                           distance2 > 0 &&
-//                           distance2 < d2) {
-//                    d2 = distance2;
-//                    hit_sphere = sphere;
-//                    found = true;
-//                    found_double_sided = true;
-//                    found_back_side = true;
 //                }
-//            } else {
-//                if (distance1 > 0 &&
-//                    distance1 < d1) {
-//                    d1 = distance1;
-//                    hit_sphere = sphere;
-//                    found = true;
-//                    found_double_sided = false;
-//                    found_back_side = false;
-//                }
-//            }
-//        }
-//    }
-//
-//    if (found) {
-//        C = hit_sphere->position;
-////        r = 1.0f / hit_sphere->radius;
-//        closest_hit->material_id = hit_sphere->material_id;
-//        closest_hit->distance = d1;
-//        farther_hit->distance = d2;
-//
-//        if (found_double_sided) {
-//            scaleVec3(Rd, d2, P2);
-//            iaddVec3(P2, Ro);
-//            subVec3(C, P2, N2);
-////            iscaleVec3(N2, r);
-//            if (found_back_side) closest_hit->distance = 0;
-//        }
-//
-//        if (!found_double_sided || !found_back_side) {
-//            scaleVec3(Rd, d1, P1);
-//            iaddVec3(P1, Ro);
-//            subVec3(P1, C, N1);
-////            iscaleVec3(N1, r);
-//        }
-//    }
-//
-//    return found;
-//}
+            }
+        }
+    }
+
+    if (found) {
+        closest_hit->normal = closest_hit_normal;
+        closest_hit->position = closest_hit_position;
+        closest_hit->distance = closest_hit_distance;
+        *material_ptr = closest_hit_material;
+    }
+
+    return found;
+}

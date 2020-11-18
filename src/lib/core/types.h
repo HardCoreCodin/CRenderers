@@ -5,6 +5,13 @@
 #define false 0
 #define true 1
 #define EPS 0.0001f
+
+#define SQRT_OF_THREE 1.73205080757f
+#define HALF_OF_SQRT_OF_THREE 0.86602540378f
+#define SQRT_OF_TWO_THIRDS 0.81649658092f
+#define SQRT_OF_THREE_OVER_SIX 0.28867513459f
+#define SQRT_OF_THREE_OVER_THREE 0.57735026919f
+
 typedef unsigned char      bool;
 #endif
 
@@ -25,6 +32,13 @@ typedef void (*UpdateWindowTitle)();
 typedef void (*PrintDebugString)(char* str);
 typedef u64 (*GetTicks)();
 typedef void (*CallBack)();
+
+u8 LAMBERT      = 1 << 0;
+u8 PHONG        = 1 << 1;
+u8 BLINN        = 1 << 2;
+u8 REFLECTION   = 1 << 3;
+u8 REFRACTION   = 1 << 4;
+u8 TRANSPARENCY = 1 << 5;
 
 typedef struct {
     f32 delta_time;
@@ -87,35 +101,9 @@ typedef struct {
 } RayHit;
 
 typedef struct {
-    f32 RLdotL,
-        NdotL,
-        NdotV,
-        NdotH;
-    vec3 *N, *V, L, H, RL, RV;
-
-    bool has_NdotL,
-         has_NdotV,
-         has_NdotH,
-         has_RLdotL,
-         has_H,
-         has_RL,
-         had_RR;
-} HitInfo;
-
-typedef f32 (*DiffuseShader)(HitInfo *hit_info, f32 intensity);
-typedef f32 (*SpecularShader)(HitInfo *hit_info, f32 intensity, u8 exponent);
-typedef bool (*ReflectionShader)(RayHit *hit, HitInfo *hit_info, vec3* reflected_color);
-typedef bool (*RefractionShader)(RayHit *hit, HitInfo *hit_info, vec3* refracted_color);
-
-typedef struct {
     vec3 diffuse_color;
     f32 specular_intensity, diffuse_intensity;
     u8 specular_exponent, uses;
-    bool has_diffuse, has_specular, has_reflection, has_refraction, has_transparency;
-    DiffuseShader diffuse_shader;
-    SpecularShader specular_shader;
-    ReflectionShader reflection_shader;
-    RefractionShader refraction_shader;
 } Material;
 
 typedef struct {
@@ -125,11 +113,32 @@ typedef struct {
 } Plane;
 
 typedef struct {
+    vec3 *p1,
+         *p2,
+         *p3,
+         *normal;
+    mat3 tangent_to_world, world_to_tangent;
+} Triangle;
+typedef struct {
+    Triangle* triangles;
+    Material* material;
+    mat3 rotation_matrix;
+    vec3 position, *vertices;
+} Cube;
+typedef struct {
+    Triangle triangles[4];
+    Material* material;
+    mat3 rotation_matrix;
+    vec3 position, vertices[4];
+} Tetrahedron;
+
+typedef struct {
     Material* material;
     vec3 position;
+    mat3 rotation_matrix;
     Bounds2Di bounds;
     f32 radius;
-    bool in_view;
+    bool in_view, cast_shadows;
 } Sphere;
 
 typedef struct {
@@ -212,12 +221,20 @@ typedef struct { CameraController controller;
 } OrbCameraController;
 
 typedef struct {
+    PointLight *point_lights;
+    Material *materials;
     Camera *camera;
     Sphere *spheres;
     Plane *planes;
-    PointLight *point_lights;
-    Material *materials;
-    u8 sphere_count,
+    Cube *cubes;
+    vec3 *vertices;
+    Triangle *triangles;
+    Tetrahedron *tetrahedra;
+    u8 tetrahedron_count,
+            triangle_count,
+            vertex_count,
+       sphere_count,
+       cube_count,
        plane_count,
        light_count,
        active_sphere_count;
