@@ -158,9 +158,9 @@ void initCubeData(vec3 *vertices, Triangle *triangles) {
     transposeMat3(&bottom_top_left_triangle->tangent_to_world,
                   &bottom_top_left_triangle->world_to_tangent);
 
-    bottom_bottom_right_triangle->p1 = back_bottom_left_vertex;
-    bottom_bottom_right_triangle->p2 = front_bottom_left_vertex;
-    bottom_bottom_right_triangle->p3 = back_bottom_right_vertex;
+    bottom_bottom_right_triangle->p1 = back_bottom_right_vertex;
+    bottom_bottom_right_triangle->p2 = front_bottom_right_vertex;
+    bottom_bottom_right_triangle->p3 = back_bottom_left_vertex;
     bottom_bottom_right_triangle->tangent_to_world.X = left;
     bottom_bottom_right_triangle->tangent_to_world.Y = backward;
     bottom_bottom_right_triangle->tangent_to_world.Z = down;

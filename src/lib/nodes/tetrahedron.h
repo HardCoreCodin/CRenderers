@@ -3,9 +3,6 @@
 #include "lib/core/types.h"
 #include "lib/math/math3D.h"
 
-mat3 tetrahedron_tangent_to_world[4];
-bool _tetrahedron_tangent_to_world_initialized = false;
-
 void initTetrahedron(Tetrahedron *tet) {
     Triangle *top_triangle   = &tet->triangles[0];
     Triangle *front_triangle = &tet->triangles[1];
@@ -48,51 +45,33 @@ void initTetrahedron(Tetrahedron *tet) {
     left_triangle->p2 = top_left_vertex;
     left_triangle->p3 = top_back_vertex;
 
-    mat3 *matrix;
-//    if (!_tetrahedron_tangent_to_world_initialized) {
-        // Top triangle:
-        matrix = &tetrahedron_tangent_to_world[0];
-        subVec3(top_right_vertex, top_left_vertex, &matrix->X); norm3(&matrix->X);
-        subVec3(top_back_vertex, top_left_vertex, &matrix->Y); norm3(&matrix->Y);
-        crossVec3(&matrix->X, &matrix->Y, &matrix->Z); norm3(&matrix->Z);
-        crossVec3(&matrix->Z, &matrix->X, &matrix->Y); norm3(&matrix->Y);
+    Triangle *triangle = &tet->triangles[0];
+    for (u8 i = 0; i < 4; i++, triangle++) {
+        subVec3(triangle->p3,
+                triangle->p1,
+                &triangle->tangent_to_world.X);
+        subVec3(triangle->p2,
+                triangle->p1,
+                &triangle->tangent_to_world.Y);
 
-        // Front triangle:
-        matrix = &tetrahedron_tangent_to_world[1];
-        matrix->X = *top_right_vertex;  norm3(&matrix->X);
-        matrix->Y = *top_left_vertex;   norm3(&matrix->Y);
-        crossVec3(&matrix->X, &matrix->Y, &matrix->Z); norm3(&matrix->Z);
-        crossVec3(&matrix->Z, &matrix->X, &matrix->Y); norm3(&matrix->Y);
+        norm3(&triangle->tangent_to_world.X);
+        norm3(&triangle->tangent_to_world.Y);
 
-        // Right triangle:
-        matrix = &tetrahedron_tangent_to_world[2];
-        matrix->X = *top_left_vertex;  norm3(&matrix->X);
-        matrix->Y = *top_back_vertex;  norm3(&matrix->Y);
-        crossVec3(&matrix->X, &matrix->Y, &matrix->Z); norm3(&matrix->Z);
-        crossVec3(&matrix->Z, &matrix->X, &matrix->Y); norm3(&matrix->Y);
+        crossVec3(&triangle->tangent_to_world.X,
+                  &triangle->tangent_to_world.Y,
+                  &triangle->tangent_to_world.Z);
+        crossVec3(&triangle->tangent_to_world.Z,
+                  &triangle->tangent_to_world.X,
+                  &triangle->tangent_to_world.Y);
 
-        // Left triangle:
-        matrix = &tetrahedron_tangent_to_world[3];
-        matrix->X = *top_back_vertex;  norm3(&matrix->X);
-        matrix->Y = *top_right_vertex; norm3(&matrix->Y);
-        crossVec3(&matrix->X, &matrix->Y, &matrix->Z); norm3(&matrix->Z);
-        crossVec3(&matrix->Z, &matrix->X, &matrix->Y); norm3(&matrix->Y);
-//    }
-    top_triangle->tangent_to_world   = tetrahedron_tangent_to_world[0];
-    front_triangle->tangent_to_world = tetrahedron_tangent_to_world[1];
-    right_triangle->tangent_to_world = tetrahedron_tangent_to_world[2];
-    left_triangle->tangent_to_world  = tetrahedron_tangent_to_world[3];
+        norm3(&triangle->tangent_to_world.Z);
+        norm3(&triangle->tangent_to_world.Y);
 
-    transposeMat3(  &top_triangle->tangent_to_world,   &top_triangle->world_to_tangent);
-    transposeMat3(&front_triangle->tangent_to_world, &front_triangle->world_to_tangent);
-    transposeMat3(&right_triangle->tangent_to_world, &right_triangle->world_to_tangent);
-    transposeMat3( &left_triangle->tangent_to_world,  &left_triangle->world_to_tangent);
+        triangle->normal = &triangle->tangent_to_world.Z;
 
-    top_triangle->normal   = &top_triangle->tangent_to_world.Z;
-    front_triangle->normal = &front_triangle->tangent_to_world.Z;
-    right_triangle->normal = &right_triangle->tangent_to_world.Z;
-    left_triangle->normal  = &left_triangle->tangent_to_world.Z;
-
+        transposeMat3(&triangle->tangent_to_world,
+                      &triangle->world_to_tangent);
+    }
 
     setMat3ToIdentity(&tet->rotation_matrix);
 }

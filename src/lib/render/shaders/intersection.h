@@ -310,32 +310,37 @@ bool hitCubes(RayHit* closest_hit, Material** material_ptr) {
     bool found = false;
 
     // Loop over all tetrahedra and intersect the ray against them:
-    Triangle* last_triangle = scene.triangles + scene.triangle_count;
-    for (Triangle* triangle = scene.triangles; triangle != last_triangle; triangle++) {
-        if (hitPlane(triangle->p1, triangle->normal, Rd, Ro, &hit_distance) &&
-            hit_distance < closest_hit_distance) {
+    Cube* last_cube = scene.cubes + scene.cube_count;
+    for (Cube* cube = scene.cubes; cube != last_cube; cube++) {
+        Triangle* last_triangle = cube->triangles + 12;
+        for (Triangle* triangle = cube->triangles; triangle != last_triangle; triangle++) {
+            if (hitPlane(triangle->p1, triangle->normal, Rd, Ro, &hit_distance) && hit_distance < closest_hit_distance) {
 
-            vec3 p1p2; subVec3(triangle->p2, triangle->p1, &p1p2);
-            vec3 p2p3; subVec3(triangle->p3, triangle->p2, &p2p3);
-            vec3 p3p1; subVec3(triangle->p1, triangle->p3, &p3p1);
+                scaleVec3(Rd, hit_distance, &hit_position);
+                iaddVec3(&hit_position, Ro);
 
-            vec3 p1P; subVec3(&hit_position, triangle->p1, &p1P);
-            vec3 p2P; subVec3(&hit_position, triangle->p2, &p2P);
-            vec3 p3P; subVec3(&hit_position, triangle->p3, &p3P);
+                vec3 p1p2; subVec3(triangle->p2, triangle->p1, &p1p2);
+                vec3 p2p3; subVec3(triangle->p3, triangle->p2, &p2p3);
+                vec3 p3p1; subVec3(triangle->p1, triangle->p3, &p3p1);
 
-            vec3 c1; crossVec3(&p1P, &p1p2, &c1);
-            vec3 c2; crossVec3(&p2P, &p2p3, &c2);
-            vec3 c3; crossVec3(&p3P, &p3p1, &c3);
+                vec3 p1P; subVec3(&hit_position, triangle->p1, &p1P);
+                vec3 p2P; subVec3(&hit_position, triangle->p2, &p2P);
+                vec3 p3P; subVec3(&hit_position, triangle->p3, &p3P);
 
-            if (dotVec3(triangle->normal, &c1) > 0 &&
-                dotVec3(triangle->normal, &c2) > 0 &&
-                dotVec3(triangle->normal, &c3) > 0) {
-                closest_hit_distance = hit_distance;
-                closest_hit_position = hit_position;
-                closest_hit_normal   = *triangle->normal;
-//                closest_hit_material = tetrahedron->material;
+                vec3 c1; crossVec3(&p1P, &p1p2, &c1);
+                vec3 c2; crossVec3(&p2P, &p2p3, &c2);
+                vec3 c3; crossVec3(&p3P, &p3p1, &c3);
 
-                found = true;
+                if (dotVec3(triangle->normal, &c1) > 0 &&
+                    dotVec3(triangle->normal, &c2) > 0 &&
+                    dotVec3(triangle->normal, &c3) > 0) {
+                    closest_hit_distance = hit_distance;
+                    closest_hit_position = hit_position;
+                    closest_hit_normal   = *triangle->normal;
+                    closest_hit_material = cube->material;
+
+                    found = true;
+                }
             }
         }
     }
@@ -388,44 +393,28 @@ bool hitTetrahedra(RayHit* closest_hit, Material** material_ptr) {
     // Loop over all tetrahedra and intersect the ray against them:
     Tetrahedron* last_tetrahedron = scene.tetrahedra + scene.tetrahedron_count;
     for (Tetrahedron* tetrahedron = scene.tetrahedra; tetrahedron != last_tetrahedron; tetrahedron++) {
-        Triangle* triangle;
-        for (u8 i = 0; i < 4; i++) {
-            triangle = &tetrahedron->triangles[i];
+        Triangle* last_triangle = tetrahedron->triangles + 4;
+        for (Triangle* triangle = tetrahedron->triangles; triangle != last_triangle; triangle++) {
             if (hitPlane(triangle->p1, triangle->normal, Rd, Ro, &hit_distance) && hit_distance < closest_hit_distance) {
 
                 scaleVec3(Rd, hit_distance, &hit_position);
                 iaddVec3(&hit_position, Ro);
 
-                vec3 p1p2; subVec3(triangle->p2, triangle->p1, &p1p2);
-                vec3 p2p3; subVec3(triangle->p3, triangle->p2, &p2p3);
-                vec3 p3p1; subVec3(triangle->p1, triangle->p3, &p3p1);
-
-                vec3 p1P; subVec3(&hit_position, triangle->p1, &p1P);
-                vec3 p2P; subVec3(&hit_position, triangle->p2, &p2P);
-                vec3 p3P; subVec3(&hit_position, triangle->p3, &p3P);
-
-                vec3 c1; crossVec3(&p1P, &p1p2, &c1);
-                vec3 c2; crossVec3(&p2P, &p2p3, &c2);
-                vec3 c3; crossVec3(&p3P, &p3p1, &c3);
-
-                if (dotVec3(triangle->normal, &c1) > 0 &&
-                    dotVec3(triangle->normal, &c2) > 0 &&
-                    dotVec3(triangle->normal, &c3) > 0) {
-                    closest_hit_distance = hit_distance;
-                    closest_hit_position = hit_position;
-                    closest_hit_normal   = *triangle->normal;
-                    closest_hit_material = tetrahedron->material;
-
-                    found = true;
-                }
-
-//                subVec3(&hit_position, triangle->p1, &hit_position_tangent);
-//                imulVec3Mat3(&hit_position_tangent, &triangle->world_to_tangent);
+//                vec3 p1p2; subVec3(triangle->p2, triangle->p1, &p1p2);
+//                vec3 p2p3; subVec3(triangle->p3, triangle->p2, &p2p3);
+//                vec3 p3p1; subVec3(triangle->p1, triangle->p3, &p3p1);
 //
-//                if (hit_position_tangent.y > 0 &&
-//                    hit_position_tangent.y > SQRT_OF_THREE*hit_position_tangent.x &&
-//                    hit_position_tangent.y > SQRT_OF_THREE*(1 - hit_position_tangent.x)) {
+//                vec3 p1P; subVec3(&hit_position, triangle->p1, &p1P);
+//                vec3 p2P; subVec3(&hit_position, triangle->p2, &p2P);
+//                vec3 p3P; subVec3(&hit_position, triangle->p3, &p3P);
 //
+//                vec3 c1; crossVec3(&p1P, &p1p2, &c1);
+//                vec3 c2; crossVec3(&p2P, &p2p3, &c2);
+//                vec3 c3; crossVec3(&p3P, &p3p1, &c3);
+//
+//                if (dotVec3(triangle->normal, &c1) > 0 &&
+//                    dotVec3(triangle->normal, &c2) > 0 &&
+//                    dotVec3(triangle->normal, &c3) > 0) {
 //                    closest_hit_distance = hit_distance;
 //                    closest_hit_position = hit_position;
 //                    closest_hit_normal   = *triangle->normal;
@@ -433,6 +422,21 @@ bool hitTetrahedra(RayHit* closest_hit, Material** material_ptr) {
 //
 //                    found = true;
 //                }
+
+                subVec3(&hit_position, triangle->p1, &hit_position_tangent);
+                imulVec3Mat3(&hit_position_tangent, &triangle->world_to_tangent);
+
+                if (hit_position_tangent.y > 0 &&
+                    hit_position_tangent.y < SQRT_OF_THREE*hit_position_tangent.x &&
+                    hit_position_tangent.y < SQRT_OF_THREE*(1 - hit_position_tangent.x)) {
+
+                    closest_hit_distance = hit_distance;
+                    closest_hit_position = hit_position;
+                    closest_hit_normal   = *triangle->normal;
+                    closest_hit_material = tetrahedron->material;
+
+                    found = true;
+                }
             }
         }
     }

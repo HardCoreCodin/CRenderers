@@ -66,13 +66,36 @@ inline bool inShadow(vec3* Rd, vec3* Ro, f32 light_distance) {
     return hitSpheres(&shadow_ray_hit, &material, false, NULL) && shadow_ray_hit.distance < light_distance;
 }
 inline bool inShadowSimple(vec3 *Rd, vec3* Ro, f32 light_distance) {
-    Sphere* last_sphere = scene.spheres + scene.sphere_count;
-    Sphere* sphere;
+    vec3 hit_position, hit_position_tangent;
+    f32 hit_distance;
+
+    // Loop over all tetrahedra and intersect the ray against them:
+    Tetrahedron* last_tetrahedron = scene.tetrahedra + scene.tetrahedron_count;
+    for (Tetrahedron* tetrahedron = scene.tetrahedra; tetrahedron != last_tetrahedron; tetrahedron++) {
+        Triangle *last_triangle = tetrahedron->triangles + 4;
+        for (Triangle *triangle = tetrahedron->triangles; triangle != last_triangle; triangle++) {
+            if (hitPlane(triangle->p1, triangle->normal, Rd, Ro, &hit_distance) && hit_distance < light_distance) {
+
+                scaleVec3(Rd, hit_distance, &hit_position);
+                iaddVec3(&hit_position, Ro);
+
+                subVec3(&hit_position, triangle->p1, &hit_position_tangent);
+                imulVec3Mat3(&hit_position_tangent, &triangle->world_to_tangent);
+
+                if (hit_position_tangent.y > 0 &&
+                    hit_position_tangent.y < SQRT_OF_THREE * hit_position_tangent.x &&
+                    hit_position_tangent.y < SQRT_OF_THREE * (1 - hit_position_tangent.x))
+                    return true;
+            }
+        }
+    }
+
     f32 t, dt;
     vec3 _I, *I = &_I,
             _C, *C = &_C;
 
-    for (sphere = scene.spheres; sphere != last_sphere; sphere++) {
+    Sphere* last_sphere = scene.spheres + scene.sphere_count;
+    for (Sphere* sphere = scene.spheres; sphere != last_sphere; sphere++) {
         subVec3(&sphere->position, Ro, C);
         t = dotVec3(C, Rd);
         if (t > 0 && t < light_distance) {
@@ -103,7 +126,7 @@ inline void shadeLambert(RayHit* hit, vec3* color) {
         light_attenuation = 1.0f / light_distance;
         light_distance = sqrtf(light_distance);
         iscaleVec3(&L, 1.0f / light_distance);
-//        if (inShadowSimple(&L, P, light_distance)) continue;
+        if (inShadowSimple(&L, P, light_distance)) continue;
 
         NdotL = max(0.0f, min(dotVec3(N, &L), 1.0f));
         light_intensity = light->intensity * light_attenuation * NdotL;

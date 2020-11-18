@@ -32,19 +32,19 @@ void updateAndRender() {
     startFrameTimer(&update_timer);
 
     yawMat3(update_timer.delta_time * SPHERE_TURN_SPEED, &rotating_sphere->rotation_matrix);
-//    yawMat3(update_timer.delta_time * TETRAHEDRON_TURN_SPEED, &rotating_tetrahedron->rotation_matrix);
-//    vec3 *ref_vertex = ref_tetrahedron.vertices,
-//         *tet_vertex = rotating_tetrahedron->vertices,
-//         *position = &rotating_tetrahedron->position;
-//    mat3 *rotation = &rotating_tetrahedron->rotation_matrix;
-//    Triangle *ref_triangle = ref_tetrahedron.triangles,
-//             *tet_triangle = rotating_tetrahedron->triangles;
-//    for (u8 i = 0; i < 4; i++, ref_vertex++, tet_vertex++, ref_triangle++, tet_triangle++) {
-//        mulVec3Mat3(ref_vertex, rotation, tet_vertex);
-//        iaddVec3(tet_vertex, position);
-//        mulMat3(&ref_triangle->tangent_to_world, rotation, &tet_triangle->tangent_to_world);
-//        transposeMat3(&tet_triangle->tangent_to_world, &tet_triangle->world_to_tangent);
-//    }
+    yawMat3(update_timer.delta_time * TETRAHEDRON_TURN_SPEED, &rotating_tetrahedron->rotation_matrix);
+    vec3 *ref_vertex = ref_tetrahedron.vertices,
+         *tet_vertex = rotating_tetrahedron->vertices,
+         *position = &rotating_tetrahedron->position;
+    mat3 *rotation = &rotating_tetrahedron->rotation_matrix;
+    Triangle *ref_triangle = ref_tetrahedron.triangles,
+             *tet_triangle = rotating_tetrahedron->triangles;
+    for (u8 i = 0; i < 4; i++, ref_vertex++, tet_vertex++, ref_triangle++, tet_triangle++) {
+        mulVec3Mat3(ref_vertex, rotation, tet_vertex);
+        iaddVec3(tet_vertex, position);
+        mulMat3(&ref_triangle->tangent_to_world, rotation, &tet_triangle->tangent_to_world);
+        transposeMat3(&tet_triangle->tangent_to_world, &tet_triangle->world_to_tangent);
+    }
 
     if (mouse_wheel_scrolled) current_camera_controller->onMouseWheelScrolled();
     if (mouse_moved)          current_camera_controller->onMouseMoved();

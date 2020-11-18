@@ -43,20 +43,21 @@ void initScene() {
     initCubeData(scene.vertices, scene.triangles);
 
     Cube* cube = scene.cubes;
-    for (u8 i = 0; i < CUBE_COUNT; i++, cube++) initCube(cube);
-    scene.cubes->material = scene.materials;
-    scene.cubes->position.x = 0;
-    scene.cubes->position.y = 5;
-    scene.cubes->position.z = 0;
-//    for (u8 i = 0; i < 8; i++) iaddVec3(&scene.cubes->vertices[i], &scene.cubes->position);
+    initCube(cube);
+    cube = scene.cubes;
+    cube->material = scene.materials;
+    cube->position.x = 0;
+    cube->position.y = 5;
+    cube->position.z = 0;
+    for (u8 i = 0; i < 8; i++) iaddVec3(&cube->vertices[i], &cube->position);
 
     Tetrahedron* tetrahedron = scene.tetrahedra;
     for (u8 i = 0; i < TETRAHEDRON_COUNT; i++, tetrahedron++) initTetrahedron(tetrahedron);
 
     scene.tetrahedra->material = scene.materials;
-    scene.tetrahedra->position.x = 2;
-    scene.tetrahedra->position.y = 0;
-    scene.tetrahedra->position.z = 5;
+    scene.tetrahedra->position.x = 3;
+    scene.tetrahedra->position.y = 4;
+    scene.tetrahedra->position.z = 8.5;
 
     f32 radius = 1;
     Sphere* sphere;

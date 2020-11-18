@@ -59,8 +59,8 @@ void onRender() {
                 ray_tracer.closest_hit.n1_over_n2 = n1_over_n2_for_air_and_glass;
                 ray_tracer.closest_hit.ray_direction = *ray_direction;
                 hitPlanes(&ray_tracer.closest_hit, &material);
-                hitCubes(&ray_tracer.closest_hit, &material);
-//                if (hasSpheres(x, y)) hitSpheresSimple(&ray_tracer.closest_hit, &material, true, NULL);
+                hitTetrahedra(&ray_tracer.closest_hit, &material);
+                if (hasSpheres(x, y)) hitSpheresSimple(&ray_tracer.closest_hit, &material, true, NULL);
                 if (alt_is_pressed) shadeNormal(&ray_tracer.closest_hit.normal, ray_tracer.closest_hit.distance, &color);
                 else shadeLambert(&ray_tracer.closest_hit, &color);
 
