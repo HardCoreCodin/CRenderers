@@ -18,72 +18,102 @@ static char* RAY_TRACER_TITLE = "RayTrace";
 
 RayTracer ray_tracer;
 
-inline bool inRange(range2i range, u16 value) {
-    return value >= range.min &&
-           value <= range.max;
+inline u8 getSphereVisibilityMask(Sphere *spheres, u8 sphere_count, u16 x, u16 y) {
+    u8 mask = 0;
+
+    for (u8 i = 0; i < sphere_count; i++) mask |= ((1 << i) * (
+            spheres[i].in_view &&
+            x >= spheres[i].bounds.x_range.min &&
+            x <= spheres[i].bounds.x_range.max &&
+            y >= spheres[i].bounds.y_range.min &&
+            y <= spheres[i].bounds.y_range.max));
+
+    return mask;
 }
 
-inline bool inBounds(Bounds2Di *bounds, u16 x, u16 y) {
-    return inRange(bounds->x_range, x) &&
-           inRange(bounds->y_range, y);
-}
+inline u8 renderPixel(
+        Pixel* pixel,
 
-inline bool hasSpheres(u16 x, u16 y) {
-    Sphere* last_sphere = scene.spheres + scene.sphere_count;
-    for (Sphere* sphere = scene.spheres; sphere != last_sphere; sphere++)
-        if (inBounds(&sphere->bounds, x, y)) {
-            frame_buffer.active_pixel_count++;
-            return true;
-        }
-    return false;
+        u16 x,
+        u16 y,
+
+        vec3* ray_origin,
+        vec3 *ray_direction,
+
+        Material *materials,
+        Sphere* spheres,
+        u8 sphere_count,
+
+        bool shade_normals,
+        bool shade_visibility) {
+    u8 sphere_visibility_mask = getSphereVisibilityMask(spheres, sphere_count, x, y);
+    if (shade_visibility) {
+        pixel->color = sphere_visibility_mask ? WHITE : BLACK;
+        return sphere_visibility_mask;
+    }
+
+    RayHit hit = {
+            .ray_origin = *ray_origin,
+            .ray_direction = *ray_direction,
+            .hit_depth = 0,
+            .distance = MAX_DISTANCE,
+            .n1_over_n2 = n1_over_n2_for_air_and_glass,
+            .n2_over_n1 = IOR_GLASS
+    };
+    vec3 color = {
+            .x = 0,
+            .y = 0,
+            .z = 0
+    };
+    hitPlanes(&hit);
+//                hitCubes(&hit);
+
+//                perfStart(&aux_timer);
+//                if (alt_is_pressed)
+//                    hitImplicitTetrahedra(&hit);
+//                else
+//                    hitTetrahedra(&hit);
+//                perfEnd(&aux_timer, aux_timer.accumulated_ticks >= ticks_per_second, i == frame_buffer.size);
+    if (sphere_visibility_mask) {
+        frame_buffer.active_pixel_count++;
+        hitSpheresSimple(&hit,true, sphere_visibility_mask);
+    }
+    if (shade_normals)
+        shadeNormal(&hit.normal, hit.distance, &color);
+    else
+        shadeLambert(&hit, &color);
+//                if (materials[hit.material_id].uses & PHONG)
+//                    shadePhong(&hit, &color);
+//                else
+//                    shadeLambert(&hit, &color);
+
+    pixel->color.R = color.x > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.x;
+    pixel->color.G = color.y > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.y;
+    pixel->color.B = color.z > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.z;
+
+    return sphere_visibility_mask;
 }
 
 void onRender() {
     Pixel* pixel = frame_buffer.pixels;
-    vec3* ray_direction = ray_tracer.ray_directions;
-    vec3 color;
+    vec3 *Rd = ray_tracer.ray_directions;
+    vec3 *Ro = &scene.camera->transform.position;
 
-    ray_tracer.closest_hit.ray_origin = scene.camera->transform.position;
-    Material* material;
     frame_buffer.active_pixel_count = 0;
-    u32 i = 0;
     for (u16 y = 0; y < frame_buffer.height; y++)
-        for (u16 x = 0; x < frame_buffer.width; x++) {
-            i++;
-            if (ctrl_is_pressed) {
-                pixel->value = 0;
-                if (hasSpheres(x, y)) pixel->color = WHITE;
-            } else {
-                fillVec3(&color, 0);
-                ray_tracer.closest_hit.hit_depth = 0;
-                ray_tracer.closest_hit.distance = MAX_DISTANCE;
-                ray_tracer.closest_hit.n2_over_n1 = IOR_GLASS;
-                ray_tracer.closest_hit.n1_over_n2 = n1_over_n2_for_air_and_glass;
-                ray_tracer.closest_hit.ray_direction = *ray_direction;
-                hitPlanes(&ray_tracer.closest_hit, &material);
-//                hitCubes(&ray_tracer.closest_hit, &material);
+        for (u16 x = 0; x < frame_buffer.width; x++, pixel++, Rd++)
+            if (renderPixel(pixel,
+                            x, y,
 
-                perfStart(&aux_timer);
-                if (alt_is_pressed)
-                    hitImplicitTetrahedra(&ray_tracer.closest_hit, &material);
-                else
-                    hitTetrahedra(&ray_tracer.closest_hit, &material);
-                perfEnd(&aux_timer, aux_timer.accumulated_ticks >= ticks_per_second, i == frame_buffer.size);
-//                if (hasSpheres(x, y)) hitSpheresSimple(&ray_tracer.closest_hit, &material, true, NULL);
-//                if (alt_is_pressed) shadeNormal(&ray_tracer.closest_hit.normal, ray_tracer.closest_hit.distance, &color);
-//                else shadeLambert(&ray_tracer.closest_hit, &color);
-                if (material->uses & PHONG)
-                    shadePhong(&ray_tracer.closest_hit, &color);
-                else
-                    shadeLambert(&ray_tracer.closest_hit, &color);
+                            Ro, Rd,
 
-                pixel->color.R = color.x > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.x;
-                pixel->color.G = color.y > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.y;
-                pixel->color.B = color.z > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.z;
-            }
-            pixel++;
-            ray_direction++;
-        }
+                            scene.materials,
+                            scene.spheres,
+                            scene.sphere_count,
+
+                            ctrl_is_pressed,
+                            alt_is_pressed))
+                frame_buffer.active_pixel_count++;
 }
 
 void generateRays() {
@@ -170,13 +200,13 @@ vec3 origin;
 
 void initRayTracer() {
     ray_tracer.rays_per_pixel = 1;
-    ray_tracer.ray_count = ray_tracer.rays_per_pixel * frame_buffer.size;
+    ray_tracer.ray_count = ray_tracer.rays_per_pixel * MAX_WIDTH * MAX_HEIGHT;
     ray_tracer.ray_directions = AllocN(vec3, ray_tracer.ray_count);
     setMat3ToIdentity(&ray_tracer.inverted_camera_rotation);
-    fillVec3(&ray_tracer.closest_hit.position, 0);
-    fillVec3(&ray_tracer.closest_hit.normal, 0);
-    ray_tracer.closest_hit.distance = 0;
-    ray_tracer.closest_hit.ray_origin = scene.camera->transform.position;
     fillVec3(&origin, 0);
     initShaders();
+
+//    ray_tracer.pixel_shapes_mask = AllocN(u8, ray_tracer.ray_count);
+//    INV_SPHERE_MASK = 0;
+//    for (u8 i = scene.sphere_count; i < 8; i++) INV_SPHERE_MASK |= 1 << i;
 }

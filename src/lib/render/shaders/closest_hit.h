@@ -57,13 +57,13 @@ inline void shadeDirection(vec3* direction, vec3* out_color) {
     scaleVec3(&normal_color, 0.5f * MAX_COLOR_VALUE, out_color);
 }
 
-RayHit shadow_ray_hit;
-inline bool inShadow(vec3* Rd, vec3* Ro, f32 light_distance) {
-    Material* material;
-    shadow_ray_hit.ray_origin = *Ro;
-    shadow_ray_hit.ray_direction = *Rd;
-    shadow_ray_hit.distance = light_distance;
-    return hitSpheres(&shadow_ray_hit, &material, false, NULL) && shadow_ray_hit.distance < light_distance;
+inline bool inShadow(Sphere* spheres, u8 sphere_count, Material *materials, vec3* Rd, vec3* Ro, f32 light_distance) {
+    RayHit shadow_ray_hit = {
+        .ray_origin = *Ro,
+        .ray_direction = *Rd,
+        .distance = light_distance
+    };
+    return hitSpheres(spheres, sphere_count, materials, &shadow_ray_hit, false, 0) && shadow_ray_hit.distance < light_distance;
 }
 inline bool inShadowSimple(vec3 *Rd, vec3* Ro, f32 light_distance) {
     vec3 hit_position;
@@ -240,7 +240,7 @@ inline void shadePhong(RayHit* hit, vec3* color) {
     }
 }
 
-inline void shade(RayHit *hit, Material* material, vec3 *out_color) {
+inline void shade(RayHit *hit, Sphere* spheres, u8 sphere_count, Material *materials, vec3 *out_color) {
     f32 li, NdotV,
         light_distance_squared,
         light_distance,
@@ -251,6 +251,7 @@ inline void shade(RayHit *hit, Material* material, vec3 *out_color) {
          *V = &hit->ray_direction,
          *P = &hit->position;
 
+    Material *material = &materials[hit->material_id];
     u8 uses = material->uses;
     bool using_phong = uses & PHONG;
     bool using_blinn = uses & BLINN;
@@ -285,7 +286,6 @@ inline void shade(RayHit *hit, Material* material, vec3 *out_color) {
             fillVec3(&reflected_color, 0);
             fillVec3(&refracted_color, 0);
 
-            Material* secondary_hit_material;
             RayHit secondary_hit;
             secondary_hit.hit_depth = new_hit_depth;
             secondary_hit.ray_origin = *P;
@@ -293,17 +293,17 @@ inline void shade(RayHit *hit, Material* material, vec3 *out_color) {
             if (has_reflection) {
                 secondary_hit.distance = MAX_DISTANCE;
                 secondary_hit.ray_direction = R;
-                hitPlanes(&secondary_hit, &secondary_hit_material);
-                hitSpheres(&secondary_hit, &secondary_hit_material, false, NULL);
-                shade(&secondary_hit, secondary_hit_material, &reflected_color);
+                hitPlanes(&secondary_hit);
+                hitSpheres(spheres, sphere_count, materials, &secondary_hit, false, 0);
+                shade(&secondary_hit, spheres, sphere_count, materials, &reflected_color);
             }
 
             if (has_refraction) {
                 secondary_hit.distance = MAX_DISTANCE;
                 refract(&hit->ray_direction, N, NdotV, from_behind ? IOR_GLASS : n1_over_n2_for_air_and_glass, &secondary_hit.ray_direction);
-                hitPlanes(&secondary_hit, &secondary_hit_material);
-                hitSpheres(&secondary_hit, &secondary_hit_material, false, NULL);
-                shade(&secondary_hit, secondary_hit_material, &refracted_color);
+                hitPlanes(&secondary_hit);
+                hitSpheres(spheres, sphere_count, materials, &secondary_hit, false, 0);
+                shade(&secondary_hit, spheres, sphere_count, materials, &refracted_color);
             }
 
             if (has_reflection && has_refraction) {
@@ -324,7 +324,7 @@ inline void shade(RayHit *hit, Material* material, vec3 *out_color) {
         light_distance_squared = squaredLengthVec3(&L);
         light_distance = sqrtf(light_distance_squared);
         iscaleVec3(&L, 1.0f / light_distance);
-        if (inShadow(&L, P, light_distance)) continue;
+        if (inShadow(spheres, sphere_count, materials, &L, P, light_distance)) continue;
 
         if (using_blinn) {
             subVec3(&L, V, &H);

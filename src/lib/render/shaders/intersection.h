@@ -53,7 +53,7 @@ inline void getSphereHitUV(vec3 *normal, vec2 *uv) {
     }
 }
 
-bool hitSpheresSimple(RayHit* closest_hit, Material** material_ptr, bool skip_out_of_view, Sphere *skip_sphere) {
+bool hitSpheresSimple(RayHit* closest_hit, bool skip_out_of_view, u8 mask) {
     f32 t, dt, r, closest_distance = closest_hit->distance;
     vec3 _I, *I = &_I, _C, *C = &_C;
     bool found = false;
@@ -67,10 +67,9 @@ bool hitSpheresSimple(RayHit* closest_hit, Material** material_ptr, bool skip_ou
     // Loop over all the spheres and intersect the ray against them:
     Sphere* hit_sphere = scene.spheres;
     Sphere* last_sphere = scene.spheres + scene.sphere_count;
-    for (Sphere* sphere = scene.spheres; sphere != last_sphere; sphere++) {
-        if (skip_sphere == sphere ||
-            (skip_out_of_view &&
-             !sphere->in_view))
+    u8 sphere_id = 1;
+    for (Sphere* sphere = scene.spheres; sphere != last_sphere; sphere++, sphere_id <<= 1) {
+        if (skip_out_of_view && !(sphere_id & mask))
             continue;
 
         subVec3(&sphere->position, Ro, C);
@@ -101,37 +100,35 @@ bool hitSpheresSimple(RayHit* closest_hit, Material** material_ptr, bool skip_ou
         subVec3(P, C, N);
         if (r != 1) iscaleVec3(N, 1/r);
 
-        *material_ptr = hit_sphere->material;
+        closest_hit->material_id = hit_sphere->material_id;
     }
 
     return found;
 }
 
-inline void populateHit(RayHit *hit, Sphere *sphere, f32 distance, bool get_uv) {
+inline void populateHit(RayHit *hit, Sphere *sphere, Material *materials, f32 distance, bool get_uv) {
     getSphereHitPosition(&hit->ray_origin, &hit->ray_direction, distance, &hit->position);
     getSphereHitNormal(&hit->position, &sphere->position, &hit->normal);
-    if (get_uv && sphere->material->uses & TRANSPARENCY) {
+    if (get_uv && materials[sphere->material_id].uses & TRANSPARENCY) {
         vec3 rotated_normal;
         mulVec3Mat3(&hit->normal, &sphere->rotation_matrix, &rotated_normal);
         getSphereHitUV(&rotated_normal, &hit->uv);
     }
     hit->distance = distance;
 }
-bool hitSpheres(RayHit* closest_hit, Material** material_ptr, bool skip_out_of_view, Sphere *skip_sphere) {
+bool hitSpheres(Sphere* spheres, u8 sphere_count, Material *materials, RayHit* closest_hit, bool skip_out_of_view, u8 mask) {
     f32 t, dt, r, d, closest_distance = closest_hit->distance;
     vec3 _I, *I = &_I, _C, *C = &_C;
     bool found = false;
     u8 sphere_id;
-    Sphere *sphere = scene.spheres;
+    Sphere *sphere = spheres;
     SphereHit *sphere_hit = sphere_hits;
 
     // Loop over all the spheres and intersect the ray against them:
-    for (sphere_id = 0; sphere_id != SPHERE_COUNT; sphere_id++, sphere++, sphere_hit++) {
+    for (sphere_id = 0; sphere_id != sphere_count; sphere_id++, sphere++, sphere_hit++) {
         sphere_hit->hit = false;
 
-        if (skip_sphere == sphere ||
-           (skip_out_of_view &&
-            !sphere->in_view))
+        if (skip_out_of_view && !(sphere_id & mask))
             continue;
 
         subVec3(&sphere->position, &closest_hit->ray_origin, C);
@@ -164,20 +161,20 @@ bool hitSpheres(RayHit* closest_hit, Material** material_ptr, bool skip_out_of_v
             if (inner || outer) {
                 populate_hit = true;
 
-                    if (sphere->material->uses & TRANSPARENCY) {
+                    if (materials[sphere->material_id].uses & TRANSPARENCY) {
                         if (outer) {
-                            populateHit(closest_hit, sphere, sphere_hit->outer_hit_distance, true);
+                            populateHit(closest_hit, sphere, materials, sphere_hit->outer_hit_distance, true);
                             if (((u8)(closest_hit->uv.x * 8) % 2) &&
                                 (((u8)((closest_hit->uv.y + 0.125) * 8)) % 2)) {
                                 if (inner) {
-                                    populateHit(closest_hit, sphere, sphere_hit->inner_hit_distance, true);
+                                    populateHit(closest_hit, sphere, materials, sphere_hit->inner_hit_distance, true);
                                     if (((u8)(closest_hit->uv.x * 8) % 2) &&
                                         (((u8)((closest_hit->uv.y + 0.125) * 8)) % 2))
                                         continue;
                                 }
                             }
                         } else {
-                            populateHit(closest_hit, sphere, sphere_hit->inner_hit_distance, true);
+                            populateHit(closest_hit, sphere, materials, sphere_hit->inner_hit_distance, true);
                             if (((u8)(closest_hit->uv.x * 8) % 2) &&
                                 (((u8)((closest_hit->uv.y + 0.125) * 8)) % 2))
                                 continue;
@@ -192,9 +189,9 @@ bool hitSpheres(RayHit* closest_hit, Material** material_ptr, bool skip_out_of_v
         }
 
         if (populate_hit)
-            populateHit(closest_hit, hit_sphere, closest_distance, true);
+            populateHit(closest_hit, hit_sphere, materials, closest_distance, true);
 
-        *material_ptr = hit_sphere->material;
+        closest_hit->material_id = hit_sphere->material_id;
     }
 
     return found;
@@ -216,7 +213,7 @@ inline bool hitPlane(vec3 *position, vec3 *normal, vec3 *ray_direction, vec3 *ra
     *hit_distance = p_dot_n / Rd_dot_n;
     return true;
 }
-bool hitPlanes(RayHit* closest_hit, Material** material_ptr) {
+bool hitPlanes(RayHit* closest_hit) {
     vec3 *Rd = &closest_hit->ray_direction;
     vec3 *Ro = &closest_hit->ray_origin;
     f32 closest_distance = closest_hit->distance;
@@ -243,19 +240,18 @@ bool hitPlanes(RayHit* closest_hit, Material** material_ptr) {
         closest_hit->normal = hit_plane->normal;
         closest_hit->distance = closest_distance;
         closest_hit->inner = false;
-
-        *material_ptr = hit_plane->material;
+        closest_hit->material_id = hit_plane->material_id;
     }
 
     return found;
 }
 
-bool hitCubes(RayHit* closest_hit, Material** material_ptr) {
+bool hitCubes(RayHit* closest_hit) {
     vec3 *Rd = &closest_hit->ray_direction;
     vec3 *Ro = &closest_hit->ray_origin;
     vec3 hit_position, closest_hit_position, closest_hit_normal;
     f32 hit_distance, closest_hit_distance = closest_hit->distance;
-    Material *closest_hit_material = NULL;
+    u8 closest_hit_material = 0;
     bool found = false;
 
     // Loop over all tetrahedra and intersect the ray against them:
@@ -286,7 +282,7 @@ bool hitCubes(RayHit* closest_hit, Material** material_ptr) {
                     closest_hit_distance = hit_distance;
                     closest_hit_position = hit_position;
                     closest_hit_normal   = *triangle->normal;
-                    closest_hit_material = cube->material;
+                    closest_hit_material = cube->material_id;
 
                     found = true;
                 }
@@ -298,7 +294,7 @@ bool hitCubes(RayHit* closest_hit, Material** material_ptr) {
         closest_hit->normal = closest_hit_normal;
         closest_hit->position = closest_hit_position;
         closest_hit->distance = closest_hit_distance;
-        *material_ptr = closest_hit_material;
+        closest_hit->material_id = closest_hit_material;
     }
 
     return found;
@@ -331,12 +327,12 @@ bool hitCubes(RayHit* closest_hit, Material** material_ptr) {
 // -1*(1 - P.x)s3 > -1*P.y
 // (1 - P.x)s3 < P.y
 
-bool hitImplicitTetrahedra(RayHit* closest_hit, Material** material_ptr) {
+bool hitImplicitTetrahedra(RayHit* closest_hit) {
     vec3 *Rd = &closest_hit->ray_direction;
     vec3 *Ro = &closest_hit->ray_origin;
     vec3 hit_position, closest_hit_position, hit_position_tangent, closest_hit_normal;
     f32 x, y, hit_distance, closest_hit_distance = closest_hit->distance;
-    Material *closest_hit_material = NULL;
+    u8 closest_hit_material = 0;
     bool found = false;
 
     // Loop over all tetrahedra and intersect the ray against them:
@@ -381,7 +377,7 @@ bool hitImplicitTetrahedra(RayHit* closest_hit, Material** material_ptr) {
                     closest_hit_distance = hit_distance;
                     closest_hit_position = hit_position;
                     closest_hit_normal   = *triangle->normal;
-                    closest_hit_material = tetrahedron->material;
+                    closest_hit_material = tetrahedron->material_id;
 
                     found = true;
                 }
@@ -393,18 +389,18 @@ bool hitImplicitTetrahedra(RayHit* closest_hit, Material** material_ptr) {
         closest_hit->normal = closest_hit_normal;
         closest_hit->position = closest_hit_position;
         closest_hit->distance = closest_hit_distance;
-        *material_ptr = closest_hit_material;
+        closest_hit->material_id = closest_hit_material;
     }
 
     return found;
 }
 
-bool hitTetrahedra(RayHit* closest_hit, Material** material_ptr) {
+bool hitTetrahedra(RayHit* closest_hit) {
     vec3 *Rd = &closest_hit->ray_direction;
     vec3 *Ro = &closest_hit->ray_origin;
     vec3 hit_position, closest_hit_position, closest_hit_normal;
     f32 hit_distance, closest_hit_distance = closest_hit->distance;
-    Material *closest_hit_material = NULL;
+    u8 closest_hit_material = 0;
     bool found = false;
 
     // Loop over all tetrahedra and intersect the ray against them:
@@ -435,7 +431,7 @@ bool hitTetrahedra(RayHit* closest_hit, Material** material_ptr) {
                     closest_hit_distance = hit_distance;
                     closest_hit_position = hit_position;
                     closest_hit_normal   = *triangle->normal;
-                    closest_hit_material = tetrahedron->material;
+                    closest_hit_material = tetrahedron->material_id;
 
                     found = true;
                 }
@@ -447,7 +443,7 @@ bool hitTetrahedra(RayHit* closest_hit, Material** material_ptr) {
         closest_hit->normal = closest_hit_normal;
         closest_hit->position = closest_hit_position;
         closest_hit->distance = closest_hit_distance;
-        *material_ptr = closest_hit_material;
+        closest_hit->material_id = closest_hit_material;
     }
 
     return found;

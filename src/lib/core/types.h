@@ -6,6 +6,7 @@
 #define true 1
 typedef unsigned char      bool;
 #endif
+
 #define EPS 0.0001f
 
 #define SQRT3 1.73205080757f
@@ -118,7 +119,8 @@ typedef struct {
     f32 distance,
          n1_over_n2,
          n2_over_n1;
-    u8 hit_depth;
+    u8 hit_depth,
+       material_id;
     bool inner;
 } RayHit;
 
@@ -129,9 +131,8 @@ typedef struct {
 } Material;
 
 typedef struct {
-    Material* material;
-    vec3 position,
-         normal;
+    vec3 position, normal;
+    u8 material_id;
 } Plane;
 
 typedef struct {
@@ -143,24 +144,24 @@ typedef struct {
 } Triangle;
 typedef struct {
     Triangle triangles[12];
-    Material* material;
     mat3 rotation_matrix;
     vec3 position, vertices[8];
+    u8 material_id;
 } Cube;
 typedef struct {
     Triangle triangles[4];
-    Material* material;
     vec3 vertices[4];
     xform3 xform;
+    u8 material_id;
 } Tetrahedron;
 
 typedef struct {
-    Material* material;
     vec3 position;
     mat3 rotation_matrix;
     Bounds2Di bounds;
     f32 radius;
     bool in_view, cast_shadows;
+    u8 material_id;
 } Sphere;
 
 typedef struct {
@@ -227,12 +228,8 @@ typedef struct {
     Sphere *spheres;
     Plane *planes;
     Cube *cubes;
-//    vec3 *vertices;
-//    Triangle *triangles;
     Tetrahedron *tetrahedra;
     u8 tetrahedron_count,
-//            triangle_count,
-//            vertex_count,
        sphere_count,
        cube_count,
        plane_count,
@@ -243,7 +240,6 @@ typedef struct {
 typedef struct {
     u32 ray_count;
     u8 rays_per_pixel;
-    RayHit closest_hit;
     vec3 *ray_directions;
     mat3 inverted_camera_rotation;
 } RayTracer;
@@ -261,3 +257,15 @@ typedef struct FrameBuffer {
         width_over_height;
     Pixel* pixels;
 } FrameBuffer;
+
+
+#define TETRAHEDRON_COUNT 1
+#define CUBE_COUNT 1
+#define SPHERE_COUNT 4
+#define POINT_LIGHT_COUNT 3
+#define PLANE_COUNT 6
+#define MATERIAL_COUNT 7
+#define MAX_DISTANCE 10000
+
+#define MAX_WIDTH 3840
+#define MAX_HEIGHT 2160

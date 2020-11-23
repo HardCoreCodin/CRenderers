@@ -7,23 +7,13 @@
 #include "cube.h"
 #include "tetrahedron.h"
 
-#define TETRAHEDRON_COUNT 1
-#define CUBE_COUNT 1
-#define SPHERE_COUNT 4
-//#define VERTEX_COUNT 8
-//#define TRIANGLE_COUNT 12
-#define LIGHT_COUNT 3
-#define PLANE_COUNT 6
-#define MATERIAL_COUNT 7
-#define MAX_DISTANCE 10000
-
 Scene scene;
 
 void initScene() {
     scene.camera = createCamera();
     scene.active_sphere_count = 0;
     scene.plane_count = PLANE_COUNT;
-    scene.light_count = LIGHT_COUNT;
+    scene.light_count = POINT_LIGHT_COUNT;
     scene.sphere_count = SPHERE_COUNT;
     scene.cube_count = CUBE_COUNT;
     scene.tetrahedron_count = TETRAHEDRON_COUNT;
@@ -32,41 +22,36 @@ void initScene() {
     scene.planes = AllocN(Plane, scene.plane_count);
     scene.cubes = AllocN(Cube, scene.cube_count);
 
-//    scene.vertex_count = VERTEX_COUNT;
-//    scene.triangle_count = TRIANGLE_COUNT;
-//    scene.vertices = AllocN(vec3, scene.vertex_count);
-//    scene.triangles = AllocN(Triangle, scene.triangle_count);
-
     scene.point_lights = AllocN(PointLight, scene.light_count);
     scene.materials = AllocN(Material, MATERIAL_COUNT);
 
     for (u8 i = 0; i < CUBE_COUNT; i++) initCube(scene.cubes + i);
     for (u8 i = 0; i < TETRAHEDRON_COUNT; i++) initTetrahedron(scene.tetrahedra + i);
 
-    scene.cubes->material = scene.materials;
+    scene.cubes->material_id = 0;
     scene.cubes->position.x = 0;
     scene.cubes->position.y = 9;
     scene.cubes->position.z = 0;
     for (u8 i = 0; i < 8; i++) iaddVec3(&scene.cubes->vertices[i], &scene.cubes->position);
 
-    scene.tetrahedra->material = scene.materials + 2;
+    scene.tetrahedra->material_id = 2;
     scene.tetrahedra->xform.position.x = 3;
     scene.tetrahedra->xform.position.y = 4;
     scene.tetrahedra->xform.position.z = 8.5;
 
     f32 radius = 1;
     Sphere* sphere;
-    Material* material = scene.materials + 1;
+    u8 material = 1;
     Sphere* last_sphere = scene.spheres + scene.sphere_count;
     for (sphere = scene.spheres; sphere != last_sphere; sphere++, radius++, material++) {
         sphere->radius = radius;
         sphere->position.y = radius;
-        sphere->material = material;
+        sphere->material_id = material;
         sphere->cast_shadows = true;
         setMat3ToIdentity(&sphere->rotation_matrix);
     }
-    scene.spheres[2].material = &scene.materials[4];
-    scene.spheres[3].material = &scene.materials[5];
+    scene.spheres[2].material_id = 4;
+    scene.spheres[3].material_id = 5;
     scene.spheres[3].cast_shadows = false;
 
     // Back-left sphere position:
@@ -95,7 +80,7 @@ void initScene() {
 
     Plane* last_plane = scene.planes + scene.plane_count;
     for (Plane* plane = scene.planes; plane != last_plane; plane++) {
-        plane->material = scene.materials;
+        plane->material_id = 0;
         fillVec3(&plane->position, 0);
         fillVec3(&plane->normal, 0);
     }
