@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lib/core/types.h"
-#include "lib/core/string.h"
+#include "lib/core/str.h"
 #include "lib/memory/allocators.h"
 
 GetTicks getTicks;
@@ -13,7 +13,8 @@ f64 seconds_per_tick,
     nanoseconds_per_tick;
 
 Timer render_timer,
-      update_timer;
+      update_timer,
+      aux_timer;
 
 void initTimer(Timer *timer) {
     timer->delta_time = 0;
@@ -35,10 +36,10 @@ void initTimer(Timer *timer) {
     timer->average_nanoseconds_per_frame = 0;
 }
 
-void accumulateTimer(Timer* timer) {
+void accumulateTimer(Timer* timer, bool increment_frame_count) {
     timer->ticks_diff = timer->ticks_after - timer->ticks_before;
     timer->accumulated_ticks += timer->ticks_diff;
-    timer->accumulated_frame_count++;
+    if (increment_frame_count) timer->accumulated_frame_count++;
 
     timer->seconds      = (u64)(seconds_per_tick      * (f64)(timer->ticks_diff));
     timer->milliseconds = (u64)(milliseconds_per_tick * (f64)(timer->ticks_diff));
@@ -67,15 +68,16 @@ void initTimers(GetTicks platformGetTicks, u64 platformTicksPerSecond) {
 
     initTimer(&update_timer);
     initTimer(&render_timer);
+    initTimer(&aux_timer);
 
     update_timer.ticks_before = update_timer.ticks_of_last_report = getTicks();
 }
 
 inline void perfStart(Timer* timer) {timer->ticks_before = getTicks();}
-inline void perfEnd(Timer* timer) {
+inline void perfEnd(Timer* timer, bool average, bool increment_frame_count) {
     timer->ticks_after = getTicks();
-    accumulateTimer(timer);
-    averageTimer(timer);
+    accumulateTimer(timer, increment_frame_count);
+    if (average) averageTimer(timer);
 }
 
 inline void startFrameTimer(Timer *timer) {
@@ -85,8 +87,8 @@ inline void startFrameTimer(Timer *timer) {
     timer->delta_time = (f32)(timer->ticks_diff * seconds_per_tick);
 }
 
-inline void endFrameTimer(Timer *timer) {
+inline void endFrameTimer(Timer *timer, bool increment_frame_count) {
     timer->ticks_after = getTicks();
-    accumulateTimer(timer);
+    accumulateTimer(timer, increment_frame_count);
     if (timer->accumulated_ticks >= ticks_per_second) averageTimer(timer);
 }

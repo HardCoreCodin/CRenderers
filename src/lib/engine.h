@@ -29,14 +29,16 @@ Sphere *rotating_sphere;
 Tetrahedron *rotating_tetrahedron, ref_tetrahedron;
 
 void updateAndRender() {
+    setAltModeInHUD(alt_is_pressed);
     startFrameTimer(&update_timer);
 
     yawMat3(update_timer.delta_time * SPHERE_TURN_SPEED, &rotating_sphere->rotation_matrix);
-    yawMat3(update_timer.delta_time * TETRAHEDRON_TURN_SPEED, &rotating_tetrahedron->rotation_matrix);
+    f32 amount = update_timer.delta_time * TETRAHEDRON_TURN_SPEED;
+    rotateXform3(&rotating_tetrahedron->xform, amount, amount, amount);
     vec3 *ref_vertex = ref_tetrahedron.vertices,
          *tet_vertex = rotating_tetrahedron->vertices,
-         *position = &rotating_tetrahedron->position;
-    mat3 *rotation = &rotating_tetrahedron->rotation_matrix;
+         *position = &rotating_tetrahedron->xform.position;
+    mat3 *rotation = &rotating_tetrahedron->xform.rotation_matrix;
     Triangle *ref_triangle = ref_tetrahedron.triangles,
              *tet_triangle = rotating_tetrahedron->triangles;
     for (u8 i = 0; i < 4; i++, ref_vertex++, tet_vertex++, ref_triangle++, tet_triangle++) {
@@ -56,9 +58,9 @@ void updateAndRender() {
 
     onRender();
 
-    endFrameTimer(&update_timer);
+    endFrameTimer(&update_timer, true);
     if (hud.is_visible) {
-        if (!update_timer.accumulated_frame_count) updateHUDCounters(&update_timer);
+        if (!update_timer.accumulated_frame_count) updateHUDCounters(&update_timer, &aux_timer);
         drawText(&frame_buffer, hud.text, HUD_COLOR, frame_buffer.width - HUD_RIGHT - HUD_WIDTH, HUD_TOP);
     }
 

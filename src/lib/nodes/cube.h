@@ -3,24 +3,25 @@
 #include "lib/core/types.h"
 #include "lib/math/math3D.h"
 
-void initCubeData(vec3 *vertices, Triangle *triangles) {
-    vec3* front_top_left_vertex = vertices++;
-    vec3* front_top_right_vertex = vertices++;
-    vec3* front_bottom_left_vertex = vertices++;
-    vec3* front_bottom_right_vertex = vertices++;
-    vec3* back_top_left_vertex = vertices++;
-    vec3* back_top_right_vertex = vertices++;
-    vec3* back_bottom_left_vertex = vertices++;
-    vec3* back_bottom_right_vertex = vertices;
+void initCube(Cube* cube) {
+    vec3* vertex = cube->vertices;
+    vec3* front_top_left_vertex = vertex++;
+    vec3* front_top_right_vertex = vertex++;
+    vec3* front_bottom_left_vertex = vertex++;
+    vec3* front_bottom_right_vertex = vertex++;
+    vec3* back_top_left_vertex = vertex++;
+    vec3* back_top_right_vertex = vertex++;
+    vec3* back_bottom_left_vertex = vertex++;
+    vec3* back_bottom_right_vertex = vertex;
 
-    front_top_left_vertex->x = front_bottom_left_vertex->x = back_top_left_vertex->x = back_bottom_left_vertex->x = -1;
-    front_top_right_vertex->x = front_bottom_right_vertex->x = back_top_right_vertex->x = back_bottom_right_vertex->x = 1;
+    front_top_left_vertex->x = front_bottom_left_vertex->x = back_top_left_vertex->x = back_bottom_left_vertex->x = -0.5f;
+    front_top_right_vertex->x = front_bottom_right_vertex->x = back_top_right_vertex->x = back_bottom_right_vertex->x = 0.5f;
 
-    front_top_left_vertex->y = front_top_right_vertex->y = back_top_left_vertex->y = back_top_right_vertex->y = 2;
-    front_bottom_left_vertex->y = front_bottom_left_vertex->y = back_bottom_left_vertex->y = back_bottom_right_vertex->y = 0;
+    front_top_left_vertex->y = front_top_right_vertex->y = back_top_left_vertex->y = back_top_right_vertex->y = 0.5f;
+    front_bottom_left_vertex->y = front_bottom_left_vertex->y = back_bottom_left_vertex->y = back_bottom_right_vertex->y = -0.5f;
 
-    front_top_left_vertex->z = front_top_right_vertex->z = front_bottom_left_vertex->z = front_bottom_right_vertex->z = -1;
-    back_top_left_vertex->z = back_top_right_vertex->z = back_bottom_left_vertex->z = back_bottom_right_vertex->z = 1;
+    front_top_left_vertex->z = front_top_right_vertex->z = front_bottom_left_vertex->z = front_bottom_right_vertex->z = -0.5f;
+    back_top_left_vertex->z = back_top_right_vertex->z = back_bottom_left_vertex->z = back_bottom_right_vertex->z = 0.5f;
 
     vec3 up = {0, 1, 0};
     vec3 down = {0, -1, 0};
@@ -29,18 +30,19 @@ void initCubeData(vec3 *vertices, Triangle *triangles) {
     vec3 forward = {0, 0, 1};
     vec3 backward = {0, 0, -1};
 
-    Triangle* front_top_left_triangle = triangles++;
-    Triangle* front_bottom_right_triangle = triangles++;
-    Triangle* right_top_left_triangle = triangles++;
-    Triangle* right_bottom_right_triangle = triangles++;
-    Triangle* back_top_left_triangle = triangles++;
-    Triangle* back_bottom_right_triangle = triangles++;
-    Triangle* left_top_left_triangle = triangles++;
-    Triangle* left_bottom_right_triangle = triangles++;
-    Triangle* top_top_left_triangle = triangles++;
-    Triangle* top_bottom_right_triangle = triangles++;
-    Triangle* bottom_top_left_triangle = triangles++;
-    Triangle* bottom_bottom_right_triangle = triangles;
+    Triangle* triangle = cube->triangles;
+    Triangle* front_top_left_triangle = triangle++;
+    Triangle* front_bottom_right_triangle = triangle++;
+    Triangle* right_top_left_triangle = triangle++;
+    Triangle* right_bottom_right_triangle = triangle++;
+    Triangle* back_top_left_triangle = triangle++;
+    Triangle* back_bottom_right_triangle = triangle++;
+    Triangle* left_top_left_triangle = triangle++;
+    Triangle* left_bottom_right_triangle = triangle++;
+    Triangle* top_top_left_triangle = triangle++;
+    Triangle* top_bottom_right_triangle = triangle++;
+    Triangle* bottom_top_left_triangle = triangle++;
+    Triangle* bottom_bottom_right_triangle = triangle;
 
     // Front quad:
     front_top_left_triangle->p1 = front_top_left_vertex;
@@ -167,12 +169,6 @@ void initCubeData(vec3 *vertices, Triangle *triangles) {
     bottom_bottom_right_triangle->normal = &bottom_bottom_right_triangle->tangent_to_world.Z;
     transposeMat3(&bottom_bottom_right_triangle->tangent_to_world,
                   &bottom_bottom_right_triangle->world_to_tangent);
-}
 
-void initCube(Cube *cube) {
-    cube->vertices = AllocN(vec3, 8);
-    cube->triangles = AllocN(Triangle, 12);
-
-    initCubeData(cube->vertices, cube->triangles);
     setMat3ToIdentity(&cube->rotation_matrix);
 }

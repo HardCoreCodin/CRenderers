@@ -4,16 +4,14 @@
 #ifndef __cplusplus
 #define false 0
 #define true 1
+typedef unsigned char      bool;
+#endif
 #define EPS 0.0001f
 
-#define SQRT_OF_THREE 1.73205080757f
-#define HALF_OF_SQRT_OF_THREE 0.86602540378f
+#define SQRT3 1.73205080757f
 #define SQRT_OF_TWO_THIRDS 0.81649658092f
 #define SQRT_OF_THREE_OVER_SIX 0.28867513459f
 #define SQRT_OF_THREE_OVER_THREE 0.57735026919f
-
-typedef unsigned char      bool;
-#endif
 
 typedef unsigned char      u8;
 typedef unsigned short     u16;
@@ -61,14 +59,14 @@ typedef struct {
         average_nanoseconds_per_frame;
 } Timer;
 
-#define HUD_LENGTH 120
+#define HUD_LENGTH 140
 typedef struct HUD {
     bool is_visible;
     char text[HUD_LENGTH];
     char *width,
          *height,
-         *fps,
-         *msf,
+         *fps, *aux_alt,
+         *msf, *aux_msf,
          *spr,
          *pixels,
          *shading,
@@ -86,6 +84,30 @@ typedef struct { vec3 X, Y, Z; } mat3;
 
 typedef struct { u16 min, max; } range2i;
 typedef struct { range2i x_range, y_range; } Bounds2Di;
+
+typedef struct {
+    mat2 matrix,
+         rotation_matrix,
+         rotation_matrix_inverted;
+    vec2 position,
+         *right_direction,
+         *forward_direction;
+} xform2;
+
+typedef struct {
+    mat3 matrix,
+         yaw_matrix,
+         pitch_matrix,
+         roll_matrix,
+         rotation_matrix,
+         rotation_matrix_inverted;
+
+    vec3 position,
+         *up_direction,
+         *right_direction,
+         *forward_direction;
+} xform3;
+
 
 typedef struct {
     vec2 uv;
@@ -120,16 +142,16 @@ typedef struct {
     mat3 tangent_to_world, world_to_tangent;
 } Triangle;
 typedef struct {
-    Triangle* triangles;
+    Triangle triangles[12];
     Material* material;
     mat3 rotation_matrix;
-    vec3 position, *vertices;
+    vec3 position, vertices[8];
 } Cube;
 typedef struct {
     Triangle triangles[4];
     Material* material;
-    mat3 rotation_matrix;
-    vec3 position, vertices[4];
+    vec3 vertices[4];
+    xform3 xform;
 } Tetrahedron;
 
 typedef struct {
@@ -155,28 +177,6 @@ typedef struct {
           up_pos;
 } MouseButton;
 
-typedef struct {
-    mat2 matrix,
-         rotation_matrix,
-         rotation_matrix_inverted;
-    vec2 position,
-         *right_direction,
-         *forward_direction;
-} xform2;
-
-typedef struct {
-    mat3 matrix,
-         yaw_matrix,
-         pitch_matrix,
-         roll_matrix,
-         rotation_matrix,
-         rotation_matrix_inverted;
-
-    vec3 position,
-         *up_direction,
-         *right_direction,
-         *forward_direction;
-} xform3;
 
 typedef struct {
     f32 focal_length, one_over_focal_length;
@@ -227,12 +227,12 @@ typedef struct {
     Sphere *spheres;
     Plane *planes;
     Cube *cubes;
-    vec3 *vertices;
-    Triangle *triangles;
+//    vec3 *vertices;
+//    Triangle *triangles;
     Tetrahedron *tetrahedra;
     u8 tetrahedron_count,
-            triangle_count,
-            vertex_count,
+//            triangle_count,
+//            vertex_count,
        sphere_count,
        cube_count,
        plane_count,

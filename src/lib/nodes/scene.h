@@ -10,8 +10,8 @@
 #define TETRAHEDRON_COUNT 1
 #define CUBE_COUNT 1
 #define SPHERE_COUNT 4
-#define VERTEX_COUNT 8
-#define TRIANGLE_COUNT 12
+//#define VERTEX_COUNT 8
+//#define TRIANGLE_COUNT 12
 #define LIGHT_COUNT 3
 #define PLANE_COUNT 6
 #define MATERIAL_COUNT 7
@@ -32,32 +32,27 @@ void initScene() {
     scene.planes = AllocN(Plane, scene.plane_count);
     scene.cubes = AllocN(Cube, scene.cube_count);
 
-    scene.vertex_count = VERTEX_COUNT;
-    scene.triangle_count = TRIANGLE_COUNT;
-    scene.vertices = AllocN(vec3, scene.vertex_count);
-    scene.triangles = AllocN(Triangle, scene.triangle_count);
+//    scene.vertex_count = VERTEX_COUNT;
+//    scene.triangle_count = TRIANGLE_COUNT;
+//    scene.vertices = AllocN(vec3, scene.vertex_count);
+//    scene.triangles = AllocN(Triangle, scene.triangle_count);
 
     scene.point_lights = AllocN(PointLight, scene.light_count);
     scene.materials = AllocN(Material, MATERIAL_COUNT);
 
-    initCubeData(scene.vertices, scene.triangles);
+    for (u8 i = 0; i < CUBE_COUNT; i++) initCube(scene.cubes + i);
+    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++) initTetrahedron(scene.tetrahedra + i);
 
-    Cube* cube = scene.cubes;
-    initCube(cube);
-    cube = scene.cubes;
-    cube->material = scene.materials;
-    cube->position.x = 0;
-    cube->position.y = 5;
-    cube->position.z = 0;
-    for (u8 i = 0; i < 8; i++) iaddVec3(&cube->vertices[i], &cube->position);
+    scene.cubes->material = scene.materials;
+    scene.cubes->position.x = 0;
+    scene.cubes->position.y = 9;
+    scene.cubes->position.z = 0;
+    for (u8 i = 0; i < 8; i++) iaddVec3(&scene.cubes->vertices[i], &scene.cubes->position);
 
-    Tetrahedron* tetrahedron = scene.tetrahedra;
-    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++, tetrahedron++) initTetrahedron(tetrahedron);
-
-    scene.tetrahedra->material = scene.materials;
-    scene.tetrahedra->position.x = 3;
-    scene.tetrahedra->position.y = 4;
-    scene.tetrahedra->position.z = 8.5;
+    scene.tetrahedra->material = scene.materials + 2;
+    scene.tetrahedra->xform.position.x = 3;
+    scene.tetrahedra->xform.position.y = 4;
+    scene.tetrahedra->xform.position.z = 8.5;
 
     f32 radius = 1;
     Sphere* sphere;

@@ -46,8 +46,10 @@ void onRender() {
     ray_tracer.closest_hit.ray_origin = scene.camera->transform.position;
     Material* material;
     frame_buffer.active_pixel_count = 0;
+    u32 i = 0;
     for (u16 y = 0; y < frame_buffer.height; y++)
         for (u16 x = 0; x < frame_buffer.width; x++) {
+            i++;
             if (ctrl_is_pressed) {
                 pixel->value = 0;
                 if (hasSpheres(x, y)) pixel->color = WHITE;
@@ -59,10 +61,21 @@ void onRender() {
                 ray_tracer.closest_hit.n1_over_n2 = n1_over_n2_for_air_and_glass;
                 ray_tracer.closest_hit.ray_direction = *ray_direction;
                 hitPlanes(&ray_tracer.closest_hit, &material);
-                hitTetrahedra(&ray_tracer.closest_hit, &material);
-                if (hasSpheres(x, y)) hitSpheresSimple(&ray_tracer.closest_hit, &material, true, NULL);
-                if (alt_is_pressed) shadeNormal(&ray_tracer.closest_hit.normal, ray_tracer.closest_hit.distance, &color);
-                else shadeLambert(&ray_tracer.closest_hit, &color);
+//                hitCubes(&ray_tracer.closest_hit, &material);
+
+                perfStart(&aux_timer);
+                if (alt_is_pressed)
+                    hitImplicitTetrahedra(&ray_tracer.closest_hit, &material);
+                else
+                    hitTetrahedra(&ray_tracer.closest_hit, &material);
+                perfEnd(&aux_timer, aux_timer.accumulated_ticks >= ticks_per_second, i == frame_buffer.size);
+//                if (hasSpheres(x, y)) hitSpheresSimple(&ray_tracer.closest_hit, &material, true, NULL);
+//                if (alt_is_pressed) shadeNormal(&ray_tracer.closest_hit.normal, ray_tracer.closest_hit.distance, &color);
+//                else shadeLambert(&ray_tracer.closest_hit, &color);
+                if (material->uses & PHONG)
+                    shadePhong(&ray_tracer.closest_hit, &color);
+                else
+                    shadeLambert(&ray_tracer.closest_hit, &color);
 
                 pixel->color.R = color.x > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.x;
                 pixel->color.G = color.y > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.y;

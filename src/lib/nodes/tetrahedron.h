@@ -4,6 +4,8 @@
 #include "lib/math/math3D.h"
 
 void initTetrahedron(Tetrahedron *tet) {
+    initXform3(&tet->xform);
+
     Triangle *top_triangle   = &tet->triangles[0];
     Triangle *front_triangle = &tet->triangles[1];
     Triangle *right_triangle = &tet->triangles[2];
@@ -72,6 +74,4 @@ void initTetrahedron(Tetrahedron *tet) {
         transposeMat3(&triangle->tangent_to_world,
                       &triangle->world_to_tangent);
     }
-
-    setMat3ToIdentity(&tet->rotation_matrix);
 }

@@ -66,8 +66,89 @@ inline bool inShadow(vec3* Rd, vec3* Ro, f32 light_distance) {
     return hitSpheres(&shadow_ray_hit, &material, false, NULL) && shadow_ray_hit.distance < light_distance;
 }
 inline bool inShadowSimple(vec3 *Rd, vec3* Ro, f32 light_distance) {
-    vec3 hit_position, hit_position_tangent;
+    vec3 hit_position;
     f32 hit_distance;
+
+    // Loop over all tetrahedra and intersect the ray against them:
+    Tetrahedron* last_tetrahedron = scene.tetrahedra + scene.tetrahedron_count;
+    for (Tetrahedron* tetrahedron = scene.tetrahedra; tetrahedron != last_tetrahedron; tetrahedron++) {
+        Triangle *last_triangle = tetrahedron->triangles + 4;
+        for (Triangle *triangle = tetrahedron->triangles; triangle != last_triangle; triangle++) {
+            if (hitPlane(triangle->p1, triangle->normal, Rd, Ro, &hit_distance) && hit_distance < light_distance) {
+
+                scaleVec3(Rd, hit_distance, &hit_position);
+                iaddVec3(&hit_position, Ro);
+
+                vec3 p1p2; subVec3(triangle->p2, triangle->p1, &p1p2);
+                vec3 p2p3; subVec3(triangle->p3, triangle->p2, &p2p3);
+                vec3 p3p1; subVec3(triangle->p1, triangle->p3, &p3p1);
+
+                vec3 p1P; subVec3(&hit_position, triangle->p1, &p1P);
+                vec3 p2P; subVec3(&hit_position, triangle->p2, &p2P);
+                vec3 p3P; subVec3(&hit_position, triangle->p3, &p3P);
+
+                vec3 c1; crossVec3(&p1P, &p1p2, &c1);
+                vec3 c2; crossVec3(&p2P, &p2p3, &c2);
+                vec3 c3; crossVec3(&p3P, &p3p1, &c3);
+
+                if (dotVec3(triangle->normal, &c1) > 0 &&
+                    dotVec3(triangle->normal, &c2) > 0 &&
+                    dotVec3(triangle->normal, &c3) > 0)
+                    return true;
+            }
+        }
+    }
+
+//    Cube* last_cube = scene.cubes + scene.cube_count;
+//    for (Cube* cube = scene.cubes; cube != last_cube; cube++) {
+//        Triangle* last_triangle = cube->triangles + 12;
+//        for (Triangle* triangle = cube->triangles; triangle != last_triangle; triangle++) {
+//            if (hitPlane(triangle->p1, triangle->normal, Rd, Ro, &hit_distance) && hit_distance < light_distance) {
+//
+//                scaleVec3(Rd, hit_distance, &hit_position);
+//                iaddVec3(&hit_position, Ro);
+//
+//                vec3 p1p2; subVec3(triangle->p2, triangle->p1, &p1p2);
+//                vec3 p2p3; subVec3(triangle->p3, triangle->p2, &p2p3);
+//                vec3 p3p1; subVec3(triangle->p1, triangle->p3, &p3p1);
+//
+//                vec3 p1P; subVec3(&hit_position, triangle->p1, &p1P);
+//                vec3 p2P; subVec3(&hit_position, triangle->p2, &p2P);
+//                vec3 p3P; subVec3(&hit_position, triangle->p3, &p3P);
+//
+//                vec3 c1; crossVec3(&p1P, &p1p2, &c1);
+//                vec3 c2; crossVec3(&p2P, &p2p3, &c2);
+//                vec3 c3; crossVec3(&p3P, &p3p1, &c3);
+//
+//                if (dotVec3(triangle->normal, &c1) > 0 &&
+//                    dotVec3(triangle->normal, &c2) > 0 &&
+//                    dotVec3(triangle->normal, &c3) > 0)
+//                    return true;
+//            }
+//        }
+//    }
+
+//    f32 t, dt;
+//    vec3 _I, *I = &_I,
+//         _C, *C = &_C;
+//
+//    Sphere* last_sphere = scene.spheres + scene.sphere_count;
+//    for (Sphere* sphere = scene.spheres; sphere != last_sphere; sphere++) {
+//        subVec3(&sphere->position, Ro, C);
+//        t = dotVec3(C, Rd);
+//        if (t > 0 && t < light_distance) {
+//            scaleVec3(Rd, t, I);
+//            isubVec3(I, C);
+//            dt = sphere->radius*sphere->radius - squaredLengthVec3(I);
+//            if (dt > 0 && t > sqrt(dt)) return true;
+//        }
+//    }
+
+    return false;
+}
+inline bool inShadowSimpleImplicit(vec3 *Rd, vec3* Ro, f32 light_distance) {
+    vec3 hit_position, hit_position_tangent;
+    f32 x, y, hit_distance;
 
     // Loop over all tetrahedra and intersect the ray against them:
     Tetrahedron* last_tetrahedron = scene.tetrahedra + scene.tetrahedron_count;
@@ -82,27 +163,11 @@ inline bool inShadowSimple(vec3 *Rd, vec3* Ro, f32 light_distance) {
                 subVec3(&hit_position, triangle->p1, &hit_position_tangent);
                 imulVec3Mat3(&hit_position_tangent, &triangle->world_to_tangent);
 
-                if (hit_position_tangent.y > 0 &&
-                    hit_position_tangent.y < SQRT_OF_THREE * hit_position_tangent.x &&
-                    hit_position_tangent.y < SQRT_OF_THREE * (1 - hit_position_tangent.x))
-                    return true;
+                x = hit_position_tangent.x;
+                y = hit_position_tangent.y;
+
+                if (y > 0 && y < x*SQRT3 && y < (1 - x)*SQRT3) return true;
             }
-        }
-    }
-
-    f32 t, dt;
-    vec3 _I, *I = &_I,
-            _C, *C = &_C;
-
-    Sphere* last_sphere = scene.spheres + scene.sphere_count;
-    for (Sphere* sphere = scene.spheres; sphere != last_sphere; sphere++) {
-        subVec3(&sphere->position, Ro, C);
-        t = dotVec3(C, Rd);
-        if (t > 0 && t < light_distance) {
-            scaleVec3(Rd, t, I);
-            isubVec3(I, C);
-            dt = sphere->radius*sphere->radius - squaredLengthVec3(I);
-            if (dt > 0 && t > sqrt(dt)) return true;
         }
     }
 
@@ -118,7 +183,7 @@ inline void shadeLambert(RayHit* hit, vec3* color) {
     vec3 *P = &hit->position;
 
     *color = ambient_color;
-
+    bool in_shadow;
     PointLight *last_light = scene.point_lights + scene.light_count;
     for (PointLight* light = scene.point_lights; light != last_light; light++) {
         subVec3(&light->position, P, &L);
@@ -126,11 +191,50 @@ inline void shadeLambert(RayHit* hit, vec3* color) {
         light_attenuation = 1.0f / light_distance;
         light_distance = sqrtf(light_distance);
         iscaleVec3(&L, 1.0f / light_distance);
-        if (inShadowSimple(&L, P, light_distance)) continue;
+
+//        perfStart(&aux_timer);
+//        in_shadow = alt_is_pressed ? inShadowSimpleImplicit(&L, P, light_distance) : inShadowSimple(&L, P, light_distance);
+//        perfEnd(&aux_timer, false, false);
+//        if (in_shadow) continue;
 
         NdotL = max(0.0f, min(dotVec3(N, &L), 1.0f));
         light_intensity = light->intensity * light_attenuation * NdotL;
 
+        scaleVec3(&light->color, light_intensity, &scaled_light_color);
+        iaddVec3(color, &scaled_light_color);
+    }
+}
+
+inline void shadePhong(RayHit* hit, vec3* color) {
+    f32 light_intensity,
+            light_attenuation,
+            light_distance;
+    vec3 L, R, scaled_light_color, *V = &hit->ray_direction;
+    vec3 *N = &hit->normal;
+    vec3 *P = &hit->position;
+
+    *color = ambient_color;
+
+    f32 NdotV = dotVec3(N, V);
+    bool from_behind = NdotV > 0;
+    NdotV = -saturate(from_behind ? NdotV : -NdotV);
+    if (from_behind) iscaleVec3(N, -1);
+    reflect(V, N, NdotV, &R);
+
+    bool in_shadow;
+    PointLight *last_light = scene.point_lights + scene.light_count;
+    for (PointLight* light = scene.point_lights; light != last_light; light++) {
+        subVec3(&light->position, P, &L);
+        light_distance = squaredLengthVec3(&L);
+        light_attenuation = 1.0f / light_distance;
+        light_distance = sqrtf(light_distance);
+        iscaleVec3(&L, 1.0f / light_distance);
+//        perfStart(&aux_timer);
+//        in_shadow = alt_is_pressed ? inShadowSimpleImplicit(&L, P, light_distance) : inShadowSimple(&L, P, light_distance);
+//        perfEnd(&aux_timer, false, false);
+//        if (in_shadow) continue;
+
+        light_intensity = light->intensity * light_attenuation * (sdot(N, &L) + powf(sdot(&R, &L), 4));
         scaleVec3(&light->color, light_intensity, &scaled_light_color);
         iaddVec3(color, &scaled_light_color);
     }
