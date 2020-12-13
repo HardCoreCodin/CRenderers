@@ -7,13 +7,6 @@
 typedef unsigned char      bool;
 #endif
 
-#define EPS 0.0001f
-
-#define SQRT3 1.73205080757f
-#define SQRT_OF_TWO_THIRDS 0.81649658092f
-#define SQRT_OF_THREE_OVER_SIX 0.28867513459f
-#define SQRT_OF_THREE_OVER_THREE 0.57735026919f
-
 typedef unsigned char      u8;
 typedef unsigned short     u16;
 typedef unsigned int       u32;
@@ -27,64 +20,38 @@ typedef double f64;
 
 typedef unsigned char byte;
 
-typedef void (*UpdateWindowTitle)();
-typedef void (*PrintDebugString)(char* str);
-typedef u64 (*GetTicks)();
 typedef void (*CallBack)();
 
-u8 LAMBERT      = 1 << 0;
-u8 PHONG        = 1 << 1;
-u8 BLINN        = 1 << 2;
-u8 REFLECTION   = 1 << 3;
-u8 REFRACTION   = 1 << 4;
-u8 TRANSPARENCY = 1 << 5;
-
-typedef struct {
-    f32 delta_time;
-    u64 ticks_before,
-        ticks_after,
-        ticks_diff,
-        accumulated_ticks,
-        accumulated_frame_count,
-        ticks_of_last_report,
-        seconds,
-        milliseconds,
-        microseconds,
-        nanoseconds;
-
-    f64 average_frames_per_tick,
-        average_ticks_per_frame;
-    u16 average_frames_per_second,
-        average_milliseconds_per_frame,
-        average_microseconds_per_frame,
-        average_nanoseconds_per_frame;
-} Timer;
-
-#define HUD_LENGTH 140
-typedef struct HUD {
-    bool is_visible;
-    char text[HUD_LENGTH];
-    char *width,
-         *height,
-         *fps, *aux_alt,
-         *msf, *aux_msf,
-         *spr,
-         *pixels,
-         *shading,
-         *mode;
-} HUD;
-
-typedef struct { u8 B, G, R, A; } Color;
+// Math:
+// ====
+#define EPS 0.0001f
+#define SQRT3 1.73205080757f
+#define SQRT_OF_TWO_THIRDS 0.81649658092f
+#define SQRT_OF_THREE_OVER_SIX 0.28867513459f
+#define SQRT_OF_THREE_OVER_THREE 0.57735026919f
 
 typedef struct { i32 x, y;    } vec2i;
 typedef struct { f32 x, y;    } vec2;
 typedef struct { f32 x, y, z; } vec3;
-
 typedef struct { vec2 X, Y;    } mat2;
 typedef struct { vec3 X, Y, Z; } mat3;
 
+// Core:
+// ====
+#define MAX_COLOR_VALUE 0xFF
+typedef struct { u8 B, G, R, A; } Color;
 typedef struct { u16 min, max; } range2i;
+typedef struct { vec3 min, max; } AABB;
 typedef struct { range2i x_range, y_range; } Bounds2Di;
+
+typedef union {
+    Color color;
+    u32 value;
+} Pixel;
+#define setPixelColor(pixel, color) \
+        pixel->color.R = color.x > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.x; \
+        pixel->color.G = color.y > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.y; \
+        pixel->color.B = color.z > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.z
 
 typedef struct {
     mat2 matrix,
@@ -109,163 +76,34 @@ typedef struct {
          *forward_direction;
 } xform3;
 
+#ifdef __CUDACC__
+    #define initKernel(count, width) \
+        u32 i = blockDim.x * blockIdx.x + threadIdx.x; \
+        if (i >= count) return; \
+        f32 x = i % width; \
+        f32 y = i / width
 
-typedef struct {
-    vec2 uv;
-    vec3 position,
-         normal,
-         ray_origin,
-         ray_direction;
-    f32 distance,
-         n1_over_n2,
-         n2_over_n1;
-    u8 hit_depth,
-       material_id;
-    bool inner;
-} RayHit;
+    #define setupKernel(count) \
+        u16 threads = CUDA_MAX_THREADS; \
+        u16 blocks  = count / CUDA_MAX_THREADS; \
+        if (count < CUDA_MAX_THREADS) { \
+            threads = count; \
+            blocks = 1; \
+        }
 
-typedef struct {
-    vec3 diffuse_color;
-    f32 specular_intensity, diffuse_intensity;
-    u8 specular_exponent, uses;
-} Material;
+    #ifndef NDEBUG
+        #define gpuErrchk(ans) ans
+    #else
+        #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
-typedef struct {
-    vec3 position, normal;
-    u8 material_id;
-} Plane;
+        #include <stdio.h>
+        #include <stdlib.h>
 
-typedef struct {
-    vec3 *p1,
-         *p2,
-         *p3,
-         *normal;
-    mat3 tangent_to_world, world_to_tangent;
-} Triangle;
-typedef struct {
-    Triangle triangles[12];
-    mat3 rotation_matrix;
-    vec3 position, vertices[8];
-    u8 material_id;
-} Cube;
-typedef struct {
-    Triangle triangles[4];
-    vec3 vertices[4];
-    xform3 xform;
-    u8 material_id;
-} Tetrahedron;
-
-typedef struct {
-    vec3 position;
-    mat3 rotation_matrix;
-    Bounds2Di bounds;
-    f32 radius;
-    bool in_view, cast_shadows;
-    u8 material_id;
-} Sphere;
-
-typedef struct {
-    vec3 color;
-    vec3 position;
-    f32 intensity;
-} PointLight;
-
-typedef struct {
-    bool is_pressed,
-         is_released;
-
-    vec2i down_pos,
-          up_pos;
-} MouseButton;
-
-
-typedef struct {
-    f32 focal_length, one_over_focal_length;
-    xform3 transform;
-} Camera;
-
-enum ControllerType {
-    CONTROLLER_ORB,
-    CONTROLLER_FPS
-};
-
-typedef struct {
-    enum ControllerType type;
-
-    bool moved,
-         turned,
-         zoomed;
-
-    CallBack onUpdate,
-             onMouseMoved,
-             onMouseWheelScrolled;
-
-    Camera *camera;
-} CameraController;
-
-typedef struct { CameraController controller;
-    f32 zoom_amount;
-    vec3 movement,
-         old_position,
-         target_velocity,
-         current_velocity;
-} FpsCameraController;
-
-typedef struct { CameraController controller;
-    f32 dolly_amount,
-        target_distance;
-
-    vec3 movement,
-         target_position,
-         scaled_right,
-         scaled_up;
-} OrbCameraController;
-
-typedef struct {
-    PointLight *point_lights;
-    Material *materials;
-    Camera *camera;
-    Sphere *spheres;
-    Plane *planes;
-    Cube *cubes;
-    Tetrahedron *tetrahedra;
-    u8 tetrahedron_count,
-       sphere_count,
-       cube_count,
-       plane_count,
-       light_count,
-       active_sphere_count;
-} Scene;
-
-typedef struct {
-    u32 ray_count;
-    u8 rays_per_pixel;
-    vec3 *ray_directions;
-    mat3 inverted_camera_rotation;
-} RayTracer;
-
-
-typedef union {
-    Color color;
-    u32 value;
-} Pixel;
-
-typedef struct FrameBuffer {
-    u16 width, height;
-    u32 size, active_pixel_count;
-    f32 height_over_width,
-        width_over_height;
-    Pixel* pixels;
-} FrameBuffer;
-
-
-#define TETRAHEDRON_COUNT 1
-#define CUBE_COUNT 1
-#define SPHERE_COUNT 4
-#define POINT_LIGHT_COUNT 3
-#define PLANE_COUNT 6
-#define MATERIAL_COUNT 7
-#define MAX_DISTANCE 10000
-
-#define MAX_WIDTH 3840
-#define MAX_HEIGHT 2160
+        inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
+            if (code != cudaSuccess) {
+                fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+                if (abort) exit(code);
+            }
+        }
+    #endif
+#endif

@@ -1,22 +1,16 @@
 #pragma once
 
 #include "lib/core/types.h"
+#include "lib/globals/app.h"
+#include "lib/globals/camera.h"
 #include "lib/math/math3D.h"
 #include "lib/nodes/transform.h"
 #include "lib/controllers/camera_controller.h"
 
-#define ZOOM_SPEED 0.002f
-#define MAX_VELOCITY 4.0f
-#define MAX_ACCELERATION 20.0f
-#define MOUSE_TURN_SPEED 0.0005f
-#define KEYBOARD_TURN_SPEED 1.0f
-
-FpsCameraController fps_camera_controller;
 
 void onMouseScrolledFps() {
     f32 zoom = fps_camera_controller.zoom_amount + mouse_wheel_scroll_amount * ZOOM_SPEED;
     fps_camera_controller.controller.camera->focal_length = zoom > 1 ? zoom : (zoom < -1 ? (-1/zoom) : 1);
-    fps_camera_controller.controller.camera->one_over_focal_length = 1.0f / fps_camera_controller.controller.camera->focal_length;
     fps_camera_controller.zoom_amount = zoom;
     fps_camera_controller.controller.zoomed = true;
     mouse_wheel_scrolled = false;

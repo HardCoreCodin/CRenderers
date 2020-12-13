@@ -2,18 +2,23 @@
 
 #include "lib/core/types.h"
 #include "lib/math/math3D.h"
+#include "lib/globals/scene.h"
+
 
 void initTetrahedron(Tetrahedron *tet) {
     initXform3(&tet->xform);
 
-    Triangle *top_triangle   = &tet->triangles[0];
-    Triangle *front_triangle = &tet->triangles[1];
-    Triangle *right_triangle = &tet->triangles[2];
-    Triangle *left_triangle  = &tet->triangles[3];
-    vec3 *bottom_vertex    = &tet->vertices[0];
-    vec3 *top_left_vertex  = &tet->vertices[1];
-    vec3 *top_right_vertex = &tet->vertices[2];
-    vec3 *top_back_vertex  = &tet->vertices[3];
+    Triangle *triangle = tet->triangles;
+    Triangle *top_triangle   = triangle++;
+    Triangle *front_triangle = triangle++;
+    Triangle *right_triangle = triangle++;
+    Triangle *left_triangle  = triangle++;
+
+    vec3 *vertex = tet->vertices;
+    vec3 *bottom_vertex    = vertex++;
+    vec3 *top_left_vertex  = vertex++;
+    vec3 *top_right_vertex = vertex++;
+    vec3 *top_back_vertex  = vertex++;
 
     bottom_vertex->x = 0;
     bottom_vertex->y = 0;
@@ -31,29 +36,29 @@ void initTetrahedron(Tetrahedron *tet) {
     top_back_vertex->y = SQRT_OF_TWO_THIRDS;
     top_back_vertex->z = SQRT_OF_THREE_OVER_THREE;
 
-    top_triangle->p1 = top_left_vertex;
-    top_triangle->p2 = top_right_vertex;
-    top_triangle->p3 = top_back_vertex;
+    top_triangle->p1 = top_left_vertex - tet->vertices;
+    top_triangle->p2 = top_right_vertex - tet->vertices;
+    top_triangle->p3 = top_back_vertex - tet->vertices;
 
-    front_triangle->p1 = bottom_vertex;
-    front_triangle->p2 = top_right_vertex;
-    front_triangle->p3 = top_left_vertex;
+    front_triangle->p1 = bottom_vertex - tet->vertices;
+    front_triangle->p2 = top_right_vertex - tet->vertices;
+    front_triangle->p3 = top_left_vertex - tet->vertices;
 
-    right_triangle->p1 = bottom_vertex;
-    right_triangle->p2 = top_back_vertex;
-    right_triangle->p3 = top_right_vertex;
+    right_triangle->p1 = bottom_vertex - tet->vertices;
+    right_triangle->p2 = top_back_vertex - tet->vertices;
+    right_triangle->p3 = top_right_vertex - tet->vertices;
 
-    left_triangle->p1 = bottom_vertex;
-    left_triangle->p2 = top_left_vertex;
-    left_triangle->p3 = top_back_vertex;
+    left_triangle->p1 = bottom_vertex - tet->vertices;
+    left_triangle->p2 = top_left_vertex - tet->vertices;
+    left_triangle->p3 = top_back_vertex - tet->vertices;
 
-    Triangle *triangle = &tet->triangles[0];
+    triangle = tet->triangles;
     for (u8 i = 0; i < 4; i++, triangle++) {
-        subVec3(triangle->p3,
-                triangle->p1,
+        subVec3(&tet->vertices[triangle->p3],
+                &tet->vertices[triangle->p1],
                 &triangle->tangent_to_world.X);
-        subVec3(triangle->p2,
-                triangle->p1,
+        subVec3(&tet->vertices[triangle->p2],
+                &tet->vertices[triangle->p1],
                 &triangle->tangent_to_world.Y);
 
         norm3(&triangle->tangent_to_world.X);
@@ -68,8 +73,6 @@ void initTetrahedron(Tetrahedron *tet) {
 
         norm3(&triangle->tangent_to_world.Z);
         norm3(&triangle->tangent_to_world.Y);
-
-        triangle->normal = &triangle->tangent_to_world.Z;
 
         transposeMat3(&triangle->tangent_to_world,
                       &triangle->world_to_tangent);

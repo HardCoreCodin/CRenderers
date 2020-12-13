@@ -1,8 +1,7 @@
 #pragma once
 
 #include "lib/core/types.h"
-
-CameraController *current_camera_controller;
+#include "lib/globals/camera.h"
 
 void initCameraController(
         Camera *camera,

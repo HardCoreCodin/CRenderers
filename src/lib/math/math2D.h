@@ -4,7 +4,14 @@
 #include "lib/core/types.h"
 #include "lib/memory/allocators.h"
 
-inline void setMat2ToIdentity(mat2 *m) {
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void setMat2ToIdentity(mat2 *m) {
     m->X.x = 1; m->X.y = 0;
     m->Y.x = 0; m->Y.y = 1;
 }
@@ -15,6 +22,13 @@ mat2* createMat2() {
     return matrix;
 }
 
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
 vec2 getPointOnUnitCircle(f32 t) {
     f32 t_squared = t * t;
     f32 factor = 1 / (1 + t_squared);
@@ -22,64 +36,164 @@ vec2 getPointOnUnitCircle(f32 t) {
     return xy;
 }
 
-inline void fillVec2(vec2* v, f32 value) {
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void fillVec2(vec2* v, f32 value) {
     v->x = v->y = value;
 }
 
-inline bool nonZeroVec2(vec2 *v) {
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+bool nonZeroVec2(vec2 *v) {
     return v->x != 0 ||
            v->y != 0;
 }
 
-inline void subVec2(vec2* p1, vec2* p2, vec2* out) {
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void subVec2(vec2* p1, vec2* p2, vec2* out) {
     out->x = p1->x - p2->x;
     out->y = p1->y - p2->y;
 }
-inline void isubVec2(vec2* p1, vec2* p2) {
+
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void isubVec2(vec2* p1, vec2* p2) {
     p1->x -= p2->x;
     p1->y -= p2->y;
 }
-inline void addVec2(vec2* p1, vec2* p2, vec2* out) {
+
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void addVec2(vec2* p1, vec2* p2, vec2* out) {
     out->x = p1->x + p2->x;
     out->y = p1->y + p2->y;
 }
-inline void iaddVec2(vec2* p1, vec2* p2) {
+
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void iaddVec2(vec2* p1, vec2* p2) {
     p1->x += p2->x;
     p1->y += p2->y;
 }
-inline void scaleVec2(vec2* p1, f32 factor, vec2* out) {
+
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void scaleVec2(vec2* p1, f32 factor, vec2* out) {
     out->x = p1->x * factor;
     out->y = p1->y * factor;
 }
-inline void iscaleVec2(vec2* v, f32 factor) {
+
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void iscaleVec2(vec2* v, f32 factor) {
     v->x *= factor;
     v->y *= factor;
 }
-inline void mulVec2Mat2(vec2* in, mat2* matrix, vec2* out) {
+
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void mulVec2Mat2(vec2* in, mat2* matrix, vec2* out) {
     out->x = in->x*matrix->X.x + in->y*matrix->Y.x;
     out->y = in->x*matrix->X.y + in->y*matrix->Y.y;
 }
-inline void imulVec2Mat2(vec2* v, mat2* matrix) {
+
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void imulVec2Mat2(vec2* v, mat2* matrix) {
     f32 x = v->x;
     f32 y = v->y;
 
     v->x = x*matrix->X.x + y*matrix->Y.x;
     v->y = x*matrix->X.y + y*matrix->Y.y;
 }
-inline f32 dotVec2(vec2* p1, vec2* p2) {
+
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+f32 dotVec2(vec2* p1, vec2* p2) {
     return (
         (p1->x * p2->x) +
         (p1->y * p2->y)
     );
 }
-inline f32 squaredLengthVec2(vec2* v) {
+
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+f32 squaredLengthVec2(vec2* v) {
     return (
         (v->x * v->x) +
         (v->y * v->y)
     );
 }
 
-inline void mulMat2(mat2* a, mat2* b, mat2* out) {
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void mulMat2(mat2* a, mat2* b, mat2* out) {
     out->X.x = a->X.x*b->X.x + a->X.y*b->Y.x; // Row 1 | Column 1
     out->X.y = a->X.x*b->X.y + a->X.y*b->Y.y; // Row 1 | Column 2
     
@@ -87,7 +201,14 @@ inline void mulMat2(mat2* a, mat2* b, mat2* out) {
     out->Y.y = a->Y.x*b->X.y + a->Y.y*b->Y.y; // Row 2 | Column 2
 }
 
-inline void imulMat2(mat2* a, mat2* b) {
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void imulMat2(mat2* a, mat2* b) {
     f32 m11 = a->X.x; f32 m21 = a->Y.x;
     f32 m12 = a->X.y; f32 m22 = a->Y.y;
 
@@ -98,7 +219,14 @@ inline void imulMat2(mat2* a, mat2* b) {
     a->Y.y = m21*b->X.y + m22*b->Y.y; // Row 2 | Column 2
 }
 
-inline void rotateMat2(mat2* matrix, f32 amount) {
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void rotateMat2(mat2* matrix, f32 amount) {
     vec2 xy = getPointOnUnitCircle(amount);
     vec2 X = matrix->X;
     vec2 Y = matrix->Y;
@@ -110,7 +238,14 @@ inline void rotateMat2(mat2* matrix, f32 amount) {
     matrix->Y.y = Y.y*xy.x - Y.x*xy.y;
 }
 
-inline void setRotationMat2(f32 amount, mat2* matrix) {
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void setRotationMat2(f32 amount, mat2* matrix) {
     vec2 xy = getPointOnUnitCircle(amount);
 
     matrix->X.x = matrix->Y.y = xy.x;

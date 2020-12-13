@@ -2,6 +2,7 @@
 
 #include "lib/core/types.h"
 #include "lib/math/math3D.h"
+#include "lib/globals/scene.h"
 
 void initCube(Cube* cube) {
     vec3* vertex = cube->vertices;
@@ -45,128 +46,116 @@ void initCube(Cube* cube) {
     Triangle* bottom_bottom_right_triangle = triangle;
 
     // Front quad:
-    front_top_left_triangle->p1 = front_top_left_vertex;
-    front_top_left_triangle->p2 = front_bottom_left_vertex;
-    front_top_left_triangle->p3 = front_top_right_vertex;
+    front_top_left_triangle->p1 = front_top_left_vertex - cube->vertices;
+    front_top_left_triangle->p2 = front_bottom_left_vertex - cube->vertices;
+    front_top_left_triangle->p3 = front_top_right_vertex - cube->vertices;
     front_top_left_triangle->tangent_to_world.X = right;
     front_top_left_triangle->tangent_to_world.Y = down;
     front_top_left_triangle->tangent_to_world.Z = backward;
-    front_top_left_triangle->normal = &front_top_left_triangle->tangent_to_world.Z;
     transposeMat3(&front_top_left_triangle->tangent_to_world,
                   &front_top_left_triangle->world_to_tangent);
 
-    front_bottom_right_triangle->p1 = front_bottom_right_vertex;
-    front_bottom_right_triangle->p2 = front_top_right_vertex;
-    front_bottom_right_triangle->p3 = front_bottom_left_vertex;
+    front_bottom_right_triangle->p1 = front_bottom_right_vertex - cube->vertices;
+    front_bottom_right_triangle->p2 = front_top_right_vertex - cube->vertices;
+    front_bottom_right_triangle->p3 = front_bottom_left_vertex - cube->vertices;
     front_bottom_right_triangle->tangent_to_world.X = left;
     front_bottom_right_triangle->tangent_to_world.Y = up;
     front_bottom_right_triangle->tangent_to_world.Z = backward;
-    front_bottom_right_triangle->normal = &front_bottom_right_triangle->tangent_to_world.Z;
     transposeMat3(&front_bottom_right_triangle->tangent_to_world,
                   &front_bottom_right_triangle->world_to_tangent);
 
     // Right quad:
-    right_top_left_triangle->p1 = front_top_right_vertex;
-    right_top_left_triangle->p2 = front_bottom_right_vertex;
-    right_top_left_triangle->p3 = back_top_right_vertex;
+    right_top_left_triangle->p1 = front_top_right_vertex - cube->vertices;
+    right_top_left_triangle->p2 = front_bottom_right_vertex - cube->vertices;
+    right_top_left_triangle->p3 = back_top_right_vertex - cube->vertices;
     right_top_left_triangle->tangent_to_world.X = forward;
     right_top_left_triangle->tangent_to_world.Y = down;
     right_top_left_triangle->tangent_to_world.Z = right;
-    right_top_left_triangle->normal = &right_top_left_triangle->tangent_to_world.Z;
     transposeMat3(&right_top_left_triangle->tangent_to_world,
                   &right_top_left_triangle->world_to_tangent);
 
-    right_bottom_right_triangle->p1 = back_bottom_right_vertex;
-    right_bottom_right_triangle->p2 = back_top_right_vertex;
-    right_bottom_right_triangle->p3 = front_bottom_right_vertex;
+    right_bottom_right_triangle->p1 = back_bottom_right_vertex - cube->vertices;
+    right_bottom_right_triangle->p2 = back_top_right_vertex - cube->vertices;
+    right_bottom_right_triangle->p3 = front_bottom_right_vertex - cube->vertices;
     right_bottom_right_triangle->tangent_to_world.X = backward;
     right_bottom_right_triangle->tangent_to_world.Y = up;
     right_bottom_right_triangle->tangent_to_world.Z = right;
-    right_bottom_right_triangle->normal = &right_bottom_right_triangle->tangent_to_world.Z;
     transposeMat3(&right_bottom_right_triangle->tangent_to_world,
                   &right_bottom_right_triangle->world_to_tangent);
 
     // Back quad:
-    back_top_left_triangle->p1 = back_top_right_vertex;
-    back_top_left_triangle->p2 = back_bottom_right_vertex;
-    back_top_left_triangle->p3 = back_top_left_vertex;
+    back_top_left_triangle->p1 = back_top_right_vertex - cube->vertices;
+    back_top_left_triangle->p2 = back_bottom_right_vertex - cube->vertices;
+    back_top_left_triangle->p3 = back_top_left_vertex - cube->vertices;
     back_top_left_triangle->tangent_to_world.X = left;
     back_top_left_triangle->tangent_to_world.Y = down;
     back_top_left_triangle->tangent_to_world.Z = forward;
-    back_top_left_triangle->normal = &back_top_left_triangle->tangent_to_world.Z;
     transposeMat3(&back_top_left_triangle->tangent_to_world,
                   &back_top_left_triangle->world_to_tangent);
 
-    back_bottom_right_triangle->p1 = back_bottom_left_vertex;
-    back_bottom_right_triangle->p2 = back_top_left_vertex;
-    back_bottom_right_triangle->p3 = back_bottom_right_vertex;
+    back_bottom_right_triangle->p1 = back_bottom_left_vertex - cube->vertices;
+    back_bottom_right_triangle->p2 = back_top_left_vertex - cube->vertices;
+    back_bottom_right_triangle->p3 = back_bottom_right_vertex - cube->vertices;
     back_bottom_right_triangle->tangent_to_world.X = right;
     back_bottom_right_triangle->tangent_to_world.Y = up;
     back_bottom_right_triangle->tangent_to_world.Z = forward;
-    back_bottom_right_triangle->normal = &back_bottom_right_triangle->tangent_to_world.Z;
     transposeMat3(&back_bottom_right_triangle->tangent_to_world,
                   &back_bottom_right_triangle->world_to_tangent);
 
     // Left quad:
-    left_top_left_triangle->p1 = back_top_left_vertex;
-    left_top_left_triangle->p2 = back_bottom_left_vertex;
-    left_top_left_triangle->p3 = front_top_left_vertex;
+    left_top_left_triangle->p1 = back_top_left_vertex - cube->vertices;
+    left_top_left_triangle->p2 = back_bottom_left_vertex - cube->vertices;
+    left_top_left_triangle->p3 = front_top_left_vertex - cube->vertices;
     left_top_left_triangle->tangent_to_world.X = backward;
     left_top_left_triangle->tangent_to_world.Y = down;
     left_top_left_triangle->tangent_to_world.Z = left;
-    left_top_left_triangle->normal = &left_top_left_triangle->tangent_to_world.Z;
     transposeMat3(&left_top_left_triangle->tangent_to_world,
                   &left_top_left_triangle->world_to_tangent);
 
-    left_bottom_right_triangle->p1 = front_bottom_left_vertex;
-    left_bottom_right_triangle->p2 = front_top_left_vertex;
-    left_bottom_right_triangle->p3 = back_bottom_left_vertex;
+    left_bottom_right_triangle->p1 = front_bottom_left_vertex - cube->vertices;
+    left_bottom_right_triangle->p2 = front_top_left_vertex - cube->vertices;
+    left_bottom_right_triangle->p3 = back_bottom_left_vertex - cube->vertices;
     left_bottom_right_triangle->tangent_to_world.X = forward;
     left_bottom_right_triangle->tangent_to_world.Y = up;
     left_bottom_right_triangle->tangent_to_world.Z = left;
-    left_bottom_right_triangle->normal = &left_bottom_right_triangle->tangent_to_world.Z;
     transposeMat3(&left_bottom_right_triangle->tangent_to_world,
                   &left_bottom_right_triangle->world_to_tangent);
 
     // Top quad:
-    top_top_left_triangle->p1 = back_top_left_vertex;
-    top_top_left_triangle->p2 = front_top_left_vertex;
-    top_top_left_triangle->p3 = back_top_right_vertex;
+    top_top_left_triangle->p1 = back_top_left_vertex - cube->vertices;
+    top_top_left_triangle->p2 = front_top_left_vertex - cube->vertices;
+    top_top_left_triangle->p3 = back_top_right_vertex - cube->vertices;
     top_top_left_triangle->tangent_to_world.X = right;
     top_top_left_triangle->tangent_to_world.Y = backward;
     top_top_left_triangle->tangent_to_world.Z = up;
-    top_top_left_triangle->normal = &top_top_left_triangle->tangent_to_world.Z;
     transposeMat3(&top_top_left_triangle->tangent_to_world,
                   &top_top_left_triangle->world_to_tangent);
 
-    top_bottom_right_triangle->p1 = front_top_right_vertex;
-    top_bottom_right_triangle->p2 = back_top_right_vertex;
-    top_bottom_right_triangle->p3 = front_top_left_vertex;
+    top_bottom_right_triangle->p1 = front_top_right_vertex - cube->vertices;
+    top_bottom_right_triangle->p2 = back_top_right_vertex - cube->vertices;
+    top_bottom_right_triangle->p3 = front_top_left_vertex - cube->vertices;
     top_bottom_right_triangle->tangent_to_world.X = left;
     top_bottom_right_triangle->tangent_to_world.Y = forward;
     top_bottom_right_triangle->tangent_to_world.Z = up;
-    top_bottom_right_triangle->normal = &top_bottom_right_triangle->tangent_to_world.Z;
     transposeMat3(&top_bottom_right_triangle->tangent_to_world,
                   &top_bottom_right_triangle->world_to_tangent);
 
     // Bottom quad:
-    bottom_top_left_triangle->p1 = front_bottom_left_vertex;
-    bottom_top_left_triangle->p2 = back_bottom_left_vertex;
-    bottom_top_left_triangle->p3 = front_bottom_right_vertex;
+    bottom_top_left_triangle->p1 = front_bottom_left_vertex - cube->vertices;
+    bottom_top_left_triangle->p2 = back_bottom_left_vertex - cube->vertices;
+    bottom_top_left_triangle->p3 = front_bottom_right_vertex - cube->vertices;
     bottom_top_left_triangle->tangent_to_world.X = right;
     bottom_top_left_triangle->tangent_to_world.Y = forward;
     bottom_top_left_triangle->tangent_to_world.Z = down;
-    bottom_top_left_triangle->normal = &bottom_top_left_triangle->tangent_to_world.Z;
     transposeMat3(&bottom_top_left_triangle->tangent_to_world,
                   &bottom_top_left_triangle->world_to_tangent);
 
-    bottom_bottom_right_triangle->p1 = back_bottom_right_vertex;
-    bottom_bottom_right_triangle->p2 = front_bottom_right_vertex;
-    bottom_bottom_right_triangle->p3 = back_bottom_left_vertex;
+    bottom_bottom_right_triangle->p1 = back_bottom_right_vertex - cube->vertices;
+    bottom_bottom_right_triangle->p2 = front_bottom_right_vertex - cube->vertices;
+    bottom_bottom_right_triangle->p3 = back_bottom_left_vertex - cube->vertices;
     bottom_bottom_right_triangle->tangent_to_world.X = left;
     bottom_bottom_right_triangle->tangent_to_world.Y = backward;
     bottom_bottom_right_triangle->tangent_to_world.Z = down;
-    bottom_bottom_right_triangle->normal = &bottom_bottom_right_triangle->tangent_to_world.Z;
     transposeMat3(&bottom_bottom_right_triangle->tangent_to_world,
                   &bottom_bottom_right_triangle->world_to_tangent);
 

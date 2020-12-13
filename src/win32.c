@@ -169,9 +169,13 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     right_key    = 'D';
     turn_right_key = 'E';
     turn_left_key  = 'Q';
+    space_key      = VK_SPACE;
+    shift_key      = VK_SHIFT;
     ctrl_key       = VK_CONTROL;
     alt_key        = VK_MENU;
-    toggle_hud_key = VK_TAB;
+    toggle_HUD_key = VK_TAB;
+    toggle_BVH_key = '1';
+    toggle_SSB_key = '2';
 
     info.bmiHeader.biSize        = sizeof(info.bmiHeader);
     info.bmiHeader.biCompression = BI_RGB;

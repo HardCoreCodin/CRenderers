@@ -4,19 +4,29 @@
 #include "lib/core/hud.h"
 #include "lib/core/perf.h"
 #include "lib/core/text.h"
+
+#include "lib/globals/app.h"
+#include "lib/globals/timers.h"
+#include "lib/globals/inputs.h"
+#include "lib/globals/camera.h"
+#include "lib/globals/scene.h"
+#include "lib/globals/display.h"
+
 #include "lib/input/mouse.h"
 #include "lib/input/keyboard.h"
+
 #include "lib/controllers/fps.h"
 #include "lib/controllers/orb.h"
 #include "lib/controllers/camera_controller.h"
+
 #include "lib/nodes/scene.h"
 #include "lib/nodes/camera.h"
-#include "lib/memory/buffers.h"
-#include "lib/memory/allocators.h"
-#include "lib/render/raytracer.h"
 
-UpdateWindowTitle updateWindowTitle;
-PrintDebugString printDebugString;
+#include "lib/shapes/helix.h"
+
+#include "lib/memory/allocators.h"
+
+#include "lib/render/raytracer.h"
 
 char* getTitle() {
     return RAY_TRACER_TITLE;
@@ -28,11 +38,26 @@ char* getTitle() {
 Sphere *rotating_sphere;
 Tetrahedron *rotating_tetrahedron, ref_tetrahedron;
 
+bool use_old_SSB_before = false;
+
 void updateAndRender() {
-    setAltModeInHUD(alt_is_pressed);
+    use_GPU = shift_is_pressed;
+    use_BVH = space_is_pressed;
+//    use_old_SSB = space_is_pressed;
+    render_mode = alt_is_pressed ? UVs : (ctrl_is_pressed ? Normal : Beauty);
+//    render_mode = Beauty;
+
+    setUseBVH(use_BVH);
+//    setUseOld(use_old_SSB);
+    setRunOnInHUD(use_GPU);
+//    setAltModeInHUD(alt_is_pressed);
     startFrameTimer(&update_timer);
 
-    yawMat3(update_timer.delta_time * SPHERE_TURN_SPEED, &rotating_sphere->rotation_matrix);
+    yawMat3(update_timer.delta_time * SPHERE_TURN_SPEED, &main_scene.spheres[1].rotation);
+#ifdef __CUDACC__
+    gpuErrchk(cudaMemcpyToSymbol(d_sphere_rotations, main_scene.sphere_rotations, sizeof(mat3) * SPHERE_COUNT, 0, cudaMemcpyHostToDevice));
+#endif
+
     f32 amount = update_timer.delta_time * TETRAHEDRON_TURN_SPEED;
     rotateXform3(&rotating_tetrahedron->xform, amount, amount, amount);
     vec3 *ref_vertex = ref_tetrahedron.vertices,
@@ -48,19 +73,58 @@ void updateAndRender() {
         transposeMat3(&tet_triangle->tangent_to_world, &tet_triangle->world_to_tangent);
     }
 
-    if (mouse_wheel_scrolled) current_camera_controller->onMouseWheelScrolled();
+    if (mouse_wheel_scrolled) {
+//        if (ctrl_is_pressed) {
+//            my_helix.radius += mouse_wheel_scroll_amount / 1000;
+//            mouse_wheel_scroll_amount = 0;
+//            mouse_wheel_scrolled = false;
+//        } else if (alt_is_pressed) {
+//            my_helix.thickness_radius += mouse_wheel_scroll_amount / 1000;
+//            mouse_wheel_scroll_amount = 0;
+//            mouse_wheel_scrolled = false;
+//        } else if (shift_is_pressed) {
+//            my_helix.revolution_count += (u32)((f32)mouse_wheel_scroll_amount / 50.0f);
+//            mouse_wheel_scroll_amount = 0;
+//            mouse_wheel_scrolled = false;
+//        } else
+            current_camera_controller->onMouseWheelScrolled();
+    }
+
+//    if (mouse_wheel_scrolled) {
+//        if (ctrl_is_pressed) {
+//            my_coil.height += mouse_wheel_scroll_amount / 1000;
+//            mouse_wheel_scroll_amount = 0;
+//            mouse_wheel_scrolled = false;
+//        } else if (alt_is_pressed) {
+//            my_coil.radius += mouse_wheel_scroll_amount / 1000;
+//            mouse_wheel_scroll_amount = 0;
+//            mouse_wheel_scrolled = false;
+//        } else if (shift_is_pressed) {
+//            my_coil.revolution_count += (u32)((f32)mouse_wheel_scroll_amount / 50.0f);
+//            mouse_wheel_scroll_amount = 0;
+//            mouse_wheel_scrolled = false;
+//        } else
+//            current_camera_controller->onMouseWheelScrolled();
+//    }
+
     if (mouse_moved)          current_camera_controller->onMouseMoved();
     current_camera_controller->onUpdate();
 
+    if (use_old_SSB_before != use_old_SSB) {
+        current_camera_controller->moved = true;
+        use_old_SSB_before = use_old_SSB;
+    }
+
     if (current_camera_controller->zoomed) onZoom();
     if (current_camera_controller->turned) onTurn();
-    if (current_camera_controller->moved)  onMove();
+    if (current_camera_controller->moved)  onMove(&main_scene);
 
-    onRender();
+    onRender(&main_scene, &main_camera);
 
     endFrameTimer(&update_timer, true);
     if (hud.is_visible) {
-        if (!update_timer.accumulated_frame_count) updateHUDCounters(&update_timer, &aux_timer);
+        if (!update_timer.accumulated_frame_count)
+            updateHUDCounters(&update_timer, ray_tracer.stats.visible_nodes[GEO_TYPE__SPHERE-1], ray_tracer.stats.active_pixels);
         drawText(&frame_buffer, hud.text, HUD_COLOR, frame_buffer.width - HUD_RIGHT - HUD_WIDTH, HUD_TOP);
     }
 
@@ -75,13 +139,8 @@ void updateAndRender() {
 }
 
 void resize(u16 width, u16 height) {
-    frame_buffer.width = width;
-    frame_buffer.height = height;
-    frame_buffer.size = frame_buffer.width * frame_buffer.height;
-    frame_buffer.width_over_height = (f32)frame_buffer.width / (f32)frame_buffer.height;
-    frame_buffer.height_over_width = (f32)frame_buffer.height / (f32)frame_buffer.width;
-
-    onResize();
+    updateFrameBufferDimensions(width, height);
+    onResize(&main_scene);
     updateHUDDimensions();
     updateAndRender();
 }
@@ -94,20 +153,23 @@ void initEngine(
 ) {
     updateWindowTitle = platformUpdateWindowTitle;
     printDebugString  = platformPrintDebugString;
+    initAppGlobals();
+    initMouse();
     initTimers(platformGetTicks, platformTicksPerSecond);
     initHUD();
     initFrameBuffer();
-    initScene();
-    initFpsController(scene.camera);
-    initOrbController(scene.camera);
-    initRayTracer();
+    initScene(&main_scene);
+    initCamera(&main_camera);
+    initFpsController(&main_camera);
+    initOrbController(&main_camera);
+    initRayTracer(&main_scene);
     initTetrahedron(&ref_tetrahedron);
-    rotating_tetrahedron = scene.tetrahedra;
-    rotating_sphere = scene.spheres + 1;
+    rotating_tetrahedron = main_scene.tetrahedra;
+    rotating_sphere = main_scene.spheres + 1;
 
-    scene.camera->transform.position.x = 5;
-    scene.camera->transform.position.y = 5;
-    scene.camera->transform.position.z = -10;
+    main_camera.transform.position.x = 5;
+    main_camera.transform.position.y = 5;
+    main_camera.transform.position.z = -12;
     current_camera_controller = &orb_camera_controller.controller;
     current_camera_controller->turned = true;
 }

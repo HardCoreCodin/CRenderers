@@ -1,20 +1,10 @@
 #pragma once
 
 #include "lib/core/types.h"
+#include "lib/globals/timers.h"
 #include "lib/core/str.h"
 #include "lib/memory/allocators.h"
 
-GetTicks getTicks;
-
-u64 ticks_per_second;
-f64 seconds_per_tick,
-    milliseconds_per_tick,
-    microseconds_per_tick,
-    nanoseconds_per_tick;
-
-Timer render_timer,
-      update_timer,
-      aux_timer;
 
 void initTimer(Timer *timer) {
     timer->delta_time = 0;
@@ -73,12 +63,12 @@ void initTimers(GetTicks platformGetTicks, u64 platformTicksPerSecond) {
     update_timer.ticks_before = update_timer.ticks_of_last_report = getTicks();
 }
 
-inline void perfStart(Timer* timer) {timer->ticks_before = getTicks();}
-inline void perfEnd(Timer* timer, bool average, bool increment_frame_count) {
-    timer->ticks_after = getTicks();
-    accumulateTimer(timer, increment_frame_count);
-    if (average) averageTimer(timer);
-}
+//inline void perfStart(Timer* timer) {timer->ticks_before = getTicks();}
+//inline void perfEnd(Timer* timer, bool average, bool increment_frame_count) {
+//    timer->ticks_after = getTicks();
+//    accumulateTimer(timer, increment_frame_count);
+//    if (average) averageTimer(timer);
+//}
 
 inline void startFrameTimer(Timer *timer) {
     timer->ticks_after = timer->ticks_before;

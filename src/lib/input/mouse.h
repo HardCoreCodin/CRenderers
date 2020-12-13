@@ -1,19 +1,7 @@
 #pragma once
 
 #include "lib/core/types.h"
-
-MouseButton middle_mouse_button,
-            right_mouse_button,
-            left_mouse_button;
-
-vec2i mouse_pos,
-      mouse_pos_diff;
-
-bool mouse_moved,
-     mouse_is_captured,
-     mouse_double_clicked,
-     mouse_wheel_scrolled;
-f32 mouse_wheel_scroll_amount;
+#include "lib/globals/inputs.h"
 
 void initMouse() {
     mouse_moved = false;

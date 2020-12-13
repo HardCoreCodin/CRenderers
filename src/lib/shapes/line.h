@@ -1,5 +1,177 @@
-//#pragma once
-//
+#pragma once
+
+#include <math.h>
+
+#include "lib/core/types.h"
+#include "lib/globals/display.h"
+
+inline void swap(i32 *a, i32 *b) {
+    i32 t = *a;
+    *a = *b;
+    *b = t;
+}
+
+inline bool inRange(i32 value, i32 end, i32 start) { return value >= start && value < end; }
+inline void subRange(i32 from, i32 to, i32 end, i32 start, i32 *first, i32 *last) {
+    *first = from;
+    *last  = to;
+    if (to < from) swap(first, last);
+    *first = max(*first, start);
+    *last = min(*last, end) - 1;
+}
+
+inline void drawHLine2D(i32 from, i32 to, i32 at, Pixel *pixel) {
+	if (!inRange(at, frame_buffer.height, 0)) return;
+
+	i32 offset = at * (i32)frame_buffer.width;
+    i32 first, last;
+    subRange(from, to, frame_buffer.width, 0, &first, &last);
+	first += offset;
+	last += offset;
+	for (i32 i = first; i <= last; i++) frame_buffer.pixels[i] = *pixel;
+}
+
+inline void drawVLine2D(i32 from, i32 to, i32 at, Pixel *pixel) {
+    if (!inRange(at, frame_buffer.width, 0)) return;
+    i32 first, last;
+
+    subRange(from, to, frame_buffer.height, 0, &first, &last);
+	first *= frame_buffer.width; first += at;
+	last  *= frame_buffer.width; last  += at;
+	for (i32 i = first; i <= last; i += frame_buffer.width) frame_buffer.pixels[i] = *pixel;
+}
+
+inline void drawLine2D(i32 x0, i32 y0, i32 x1, i32 y1, Pixel *pixel) {
+    if (x0 < 0 &&
+        y0 < 0 &&
+        x1 < 0 &&
+        y1 < 0)
+        return;
+
+    if (x0 == x1) {
+	    drawVLine2D(y0, y1, x1, pixel);
+	    return;
+	}
+
+    if (y0 == y1) {
+	    drawHLine2D(x0, x1, y1, pixel);
+	    return;
+	}
+
+	i32 width = (i32)frame_buffer.width;
+	i32 height = (i32)frame_buffer.height;
+
+    i32 pitch = width;
+	i32 index = x0 + y0 * pitch;
+
+    i32 run  = x1 - x0;
+    i32 rise = y1 - y0;
+
+    i32 dx = 1;
+    i32 dy = 1;
+    if (run < 0) {
+        dx = -dx;
+        run = -run;
+    }
+    if (rise < 0) {
+        dy = -dy;
+        rise = -rise;
+        pitch = -pitch;
+    }
+
+    // Configure for a shallow line:
+    i32 end = x1 + dx;
+    i32 start1 = x0;  i32 inc1 = dx;  i32 index_inc1 = dx;
+    i32 start2 = y0;  i32 inc2 = dy;  i32 index_inc2 = pitch;
+    i32 rise_twice = rise + rise;
+    i32 run_twice = run + run;
+    i32 threshold = run;
+    i32 error_dec = run_twice;
+    i32 error_inc = rise_twice;
+    bool is_steap = rise > run;
+    if (is_steap) { // Reconfigure for a steep line:
+        swap(&inc1, &inc2);
+        swap(&start1, &start2);
+        swap(&index_inc1, &index_inc2);
+        swap(&error_dec, &error_inc);
+        end = y1 + dy;
+        threshold = rise;
+    }
+
+    i32 error = 0;
+    i32 current1 = start1;
+    i32 current2 = start2;
+    while (current1 != end) {
+        current1 += inc1;
+
+        if (inRange(index, frame_buffer.size, 0)) {
+            if (is_steap) {
+                if (inRange(current1, height, 0) &&
+                    inRange(current2, width, 0))
+                    frame_buffer.pixels[index] = *pixel;
+            } else {
+                if (inRange(current2, height, 0) &&
+                    inRange(current1, width, 0))
+                    frame_buffer.pixels[index] = *pixel;
+            }
+        }
+
+        index += index_inc1;
+        error += error_inc;
+        if (error > threshold) {
+            error -= error_dec;
+            index += index_inc2;
+            current2 += inc2;
+        }
+    }
+}
+
+inline void projectEdge(vec3 *v1, vec3 *v2, f32 x_factor, f32 y_factor) {
+    bool v1_is_out = v1->z < NEAR_CLIPPING_PLANE_DISTANCE;
+    bool v2_is_out = v2->z < NEAR_CLIPPING_PLANE_DISTANCE;
+
+    // Cull:
+    if (v1_is_out &&
+        v2_is_out) {
+        fillVec3(v1, -1);
+        fillVec3(v2, -1);
+        return;
+    }
+
+    // Clip:
+    if (v1_is_out ||
+        v2_is_out) {
+        vec3 v;
+        if (v1_is_out) {
+            subVec3(v1, v2, &v);
+            iscaleVec3(&v, (v2->z - NEAR_CLIPPING_PLANE_DISTANCE) / (v2->z - v1->z));
+            addVec3(v2, &v, v1);
+        } else {
+            subVec3(v2, v1, &v);
+            iscaleVec3(&v, (v1->z - NEAR_CLIPPING_PLANE_DISTANCE) / (v1->z - v2->z));
+            addVec3(v1, &v, v2);
+        }
+    }
+
+    // Project:
+    f32 v1_one_over_z = 1.0f / v1->z;
+    f32 v2_one_over_z = 1.0f / v2->z;
+    v1->x *= x_factor * v1_one_over_z;
+    v1->y *= y_factor * v1_one_over_z;
+    v2->x *= x_factor * v2_one_over_z;
+    v2->y *= y_factor * v2_one_over_z;
+
+    // NDC->screen:
+    v1->x += 1; v1->x *= frame_buffer.h_width;
+    v2->x += 1; v2->x *= frame_buffer.h_width;
+    v1->y += 1; v1->y *= frame_buffer.h_height;
+    v2->y += 1; v2->y *= frame_buffer.h_height;
+
+    // Flip Y:
+    v1->y = frame_buffer.f_height - v1->y;
+    v2->y = frame_buffer.f_height - v2->y;
+}
+
 //#include "lib/memory/buffers.h"
 //
 //typedef struct {

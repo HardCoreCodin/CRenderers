@@ -2,13 +2,9 @@
 
 #include "lib/core/types.h"
 #include "lib/math/math3D.h"
+#include "lib/globals/timers.h"
+#include "lib/globals/camera.h"
 
-#define PAN_SPEED 0.01f
-#define DOLLY_SPEED 1.0f
-#define ORBIT_SPEED 0.0005f
-#define ORBIT_TARGET_DISTANCE 10.0f
-
-OrbCameraController orb_camera_controller;
 
 void onMouseScrolledOrb() { // Dolly
     xform3 *xform = &orb_camera_controller.controller.camera->transform;
