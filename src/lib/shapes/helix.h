@@ -36,15 +36,15 @@ void drawHelix(Camera *camera, Helix *helix, Pixel *pixel) {
     vec3 orbit_to_helix_in_world_space;
 
     mat3 orbit_rotation;
-    orbit_rotation.X.x = orbit_rotation.Z.z = cos(orbit_angle_step);
-    orbit_rotation.X.z = sin(orbit_angle_step);
+    orbit_rotation.X.x = orbit_rotation.Z.z = cosf(orbit_angle_step);
+    orbit_rotation.X.z = sinf(orbit_angle_step);
     orbit_rotation.Z.x = -orbit_rotation.X.z;
     orbit_rotation.X.y = orbit_rotation.Z.y = orbit_rotation.Y.x = orbit_rotation.Y.z =  0;
     orbit_rotation.Y.y = 1;
 
     mat3 helix_rotation;
-    helix_rotation.X.x = helix_rotation.Y.y = cos(helix_angle_step);
-    helix_rotation.X.y = sin(helix_angle_step);
+    helix_rotation.X.x = helix_rotation.Y.y = cosf(helix_angle_step);
+    helix_rotation.X.y = sinf(helix_angle_step);
     helix_rotation.Y.x = -helix_rotation.X.y;
     helix_rotation.X.z = helix_rotation.Y.z = helix_rotation.Z.x = helix_rotation.Z.y =  0;
     helix_rotation.Z.z = 1;
@@ -82,10 +82,10 @@ void drawHelix(Camera *camera, Helix *helix, Pixel *pixel) {
                         x_factor,
                         y_factor);
 
-            drawLine2D(projected_previous_position.x,
-                       projected_previous_position.y,
-                       projected_current_position.x,
-                       projected_current_position.y,
+            drawLine2D((i32)projected_previous_position.x,
+                       (i32)projected_previous_position.y,
+                       (i32)projected_current_position.x,
+                       (i32)projected_current_position.y,
                        pixel);
         }
 
@@ -113,8 +113,8 @@ void drawCoil(Camera *camera, Coil *coil, Pixel *pixel) {
     center_to_coil.y = center_to_coil.z = 0;
 
     mat3 rotation;
-    rotation.X.x = rotation.Z.z = cos(angle_step);
-    rotation.X.z = sin(angle_step);
+    rotation.X.x = rotation.Z.z = cosf(angle_step);
+    rotation.X.z = sinf(angle_step);
     rotation.Z.x = -rotation.X.z;
     rotation.X.y = rotation.Z.y = rotation.Y.x = rotation.Y.z =  0;
     rotation.Y.y = 1;
@@ -146,10 +146,10 @@ void drawCoil(Camera *camera, Coil *coil, Pixel *pixel) {
                         x_factor,
                         y_factor);
 
-            drawLine2D(projected_previous_position.x,
-                       projected_previous_position.y,
-                       projected_current_position.x,
-                       projected_current_position.y,
+            drawLine2D((i32)projected_previous_position.x,
+                       (i32)projected_previous_position.y,
+                       (i32)projected_current_position.x,
+                       (i32)projected_current_position.y,
                        pixel);
         }
 

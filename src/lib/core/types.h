@@ -25,10 +25,8 @@ typedef void (*CallBack)();
 // Math:
 // ====
 #define EPS 0.0001f
+#define SQRT2 1.41421356237f
 #define SQRT3 1.73205080757f
-#define SQRT_OF_TWO_THIRDS 0.81649658092f
-#define SQRT_OF_THREE_OVER_SIX 0.28867513459f
-#define SQRT_OF_THREE_OVER_THREE 0.57735026919f
 
 typedef struct { i32 x, y;    } vec2i;
 typedef struct { f32 x, y;    } vec2;

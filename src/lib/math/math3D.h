@@ -324,6 +324,62 @@ __forceinline__
 #else
 inline
 #endif
+bool invMat3(mat3* m, mat3* out) {
+    f32 m11 = m->X.x,  m12 = m->X.y,  m13 = m->X.z,
+        m21 = m->Y.x,  m22 = m->Y.y,  m23 = m->Y.z,
+        m31 = m->Z.x,  m32 = m->Z.y,  m33 = m->Z.z,
+
+        c11 = m22*m33 -
+              m23*m32,
+
+        c12 = m13*m32 -
+              m12*m33,
+
+        c13 = m12*m23 -
+              m13*m22,
+
+
+        c21 = m23*m31 -
+              m21*m33,
+
+        c22 = m11*m33 -
+              m13*m31,
+
+        c23 = m13*m21 -
+              m11*m23,
+
+
+        c31 = m21*m32 -
+              m22*m31,
+
+        c32 = m12*m31 -
+              m11*m32,
+
+        c33 = m11*m22 -
+              m12*m21,
+
+        d = c11 + c12 + c13 +
+            c21 + c22 + c23 +
+            c31 + c32 + c33;
+
+    if (!d) return false;
+
+    d = 1 / d;
+
+    out->X.x = d * c11;  out->X.y = d * c12;  out->X.z = d * c13;
+    out->Y.x = d * c21;  out->Y.y = d * c22;  out->Y.z = d * c23;
+    out->Z.x = d * c31;  out->Z.y = d * c32;  out->Z.z = d * c33;
+
+    return true;
+}
+
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
 void imulMat3(mat3* a, mat3* b) {
     vec3 X = a->X;
     vec3 Y = a->Y;

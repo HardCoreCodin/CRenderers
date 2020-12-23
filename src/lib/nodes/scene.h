@@ -53,7 +53,7 @@ void initScene(Scene *scene) {
     diffuse_ball_material->diffuse_color.z = 0.7f;
 
     for (u8 i = 0; i < CUBE_COUNT; i++) initCube(scene->cubes + i);
-    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++) initTetrahedron(scene->tetrahedra + i);
+    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++) initTetrahedron(scene->tetrahedra + i, 1);
 
     scene->cubes->material_id = 0;
     scene->cubes->position.x = 0;
@@ -61,10 +61,9 @@ void initScene(Scene *scene) {
     scene->cubes->position.z = 0;
     for (u8 i = 0; i < 8; i++) iaddVec3(&scene->cubes->vertices[i], &scene->cubes->position);
 
+    vec3 tet_pos = {3, 4, 8};
     scene->tetrahedra->material_id = 2;
-    scene->tetrahedra->xform.position.x = 3;
-    scene->tetrahedra->xform.position.y = 4;
-    scene->tetrahedra->xform.position.z = 10;
+    updateTetrahedronPosition(scene->tetrahedra, &tet_pos);
 
     f32 radius = 1;
     Sphere* sphere;

@@ -35,8 +35,7 @@ char* getTitle() {
 #define SPHERE_TURN_SPEED 0.3f
 #define TETRAHEDRON_TURN_SPEED 0.3f
 
-Sphere *rotating_sphere;
-Tetrahedron *rotating_tetrahedron, ref_tetrahedron;
+Tetrahedron *rotating_tetrahedron;
 
 bool use_old_SSB_before = false;
 
@@ -58,22 +57,15 @@ void updateAndRender() {
     gpuErrchk(cudaMemcpyToSymbol(d_sphere_rotations, main_scene.sphere_rotations, sizeof(mat3) * SPHERE_COUNT, 0, cudaMemcpyHostToDevice));
 #endif
 
-    f32 amount = update_timer.delta_time * TETRAHEDRON_TURN_SPEED;
-    rotateXform3(&rotating_tetrahedron->xform, amount, amount, amount);
-    vec3 *ref_vertex = ref_tetrahedron.vertices,
-         *tet_vertex = rotating_tetrahedron->vertices,
-         *position = &rotating_tetrahedron->xform.position;
-    mat3 *rotation = &rotating_tetrahedron->xform.rotation_matrix;
-    Triangle *ref_triangle = ref_tetrahedron.triangles,
-             *tet_triangle = rotating_tetrahedron->triangles;
-    for (u8 i = 0; i < 4; i++, ref_vertex++, tet_vertex++, ref_triangle++, tet_triangle++) {
-        mulVec3Mat3(ref_vertex, rotation, tet_vertex);
-        iaddVec3(tet_vertex, position);
-        mulMat3(&ref_triangle->tangent_to_world, rotation, &tet_triangle->tangent_to_world);
-        transposeMat3(&tet_triangle->tangent_to_world, &tet_triangle->world_to_tangent);
-    }
-
     if (mouse_wheel_scrolled) {
+       if (shift_is_pressed) {
+           updateTetrahedronRadius(rotating_tetrahedron, rotating_tetrahedron->radius + mouse_wheel_scroll_amount / 1000);
+           mouse_wheel_scroll_amount = 0;
+           mouse_wheel_scrolled = false;
+           vec3* p = ray_tracer.ssb.view_positions.tetrahedra;
+           Bounds2Di *b = ray_tracer.ssb.bounds.tetrahedra;
+           computeSSB(b, p->x, p->y, p->z, rotating_tetrahedron->radius, main_camera.focal_length);
+       } else
 //        if (ctrl_is_pressed) {
 //            my_helix.radius += mouse_wheel_scroll_amount / 1000;
 //            mouse_wheel_scroll_amount = 0;
@@ -106,6 +98,26 @@ void updateAndRender() {
 //        } else
 //            current_camera_controller->onMouseWheelScrolled();
 //    }
+
+    f32 amount = update_timer.delta_time * TETRAHEDRON_TURN_SPEED;
+    xform3 local_xform;
+    initXform3(&local_xform);
+    rotateXform3(&local_xform, amount, amount/2, amount/3);
+
+    rotateXform3(&rotating_tetrahedron->xform, amount, amount, amount);
+    vec3 *tet_vertex = rotating_tetrahedron->vertices,
+            *position = &rotating_tetrahedron->xform.position;
+    Triangle *tet_triangle = rotating_tetrahedron->triangles;
+    imulMat3(&rotating_tetrahedron->xform.rotation_matrix, &local_xform.rotation_matrix);
+    transposeMat3(&rotating_tetrahedron->xform.rotation_matrix, &rotating_tetrahedron->xform.rotation_matrix_inverted);
+    for (u8 i = 0; i < 4; i++, tet_vertex++, tet_triangle++) {
+        isubVec3(tet_vertex, position);
+        imulVec3Mat3(tet_vertex, &local_xform.rotation_matrix);
+        iaddVec3(tet_vertex, position);
+
+        imulMat3(&tet_triangle->tangent_to_world, &local_xform.rotation_matrix);
+    }
+    updateTetrahedronMatrices(rotating_tetrahedron);
 
     if (mouse_moved)          current_camera_controller->onMouseMoved();
     current_camera_controller->onUpdate();
@@ -163,9 +175,7 @@ void initEngine(
     initFpsController(&main_camera);
     initOrbController(&main_camera);
     initRayTracer(&main_scene);
-    initTetrahedron(&ref_tetrahedron);
     rotating_tetrahedron = main_scene.tetrahedra;
-    rotating_sphere = main_scene.spheres + 1;
 
     main_camera.transform.position.x = 5;
     main_camera.transform.position.y = 5;
@@ -174,78 +184,6 @@ void initEngine(
     current_camera_controller->turned = true;
 }
 
-//void draw_line(int x0, int y0, int x1, int y1, u32 color) {
-//    int index = x0 + y0 * window_width;
-//    if (x0 == x1 && y0 == y1) { // Draw single pixel:
-//        DRAW_PIXEL(index, color);
-//        return;
-//    }
-//
-//    int dx = 1;
-//    int dy = 1;
-//    int run  = x1 - x0;
-//    int rise = y1 - y0;
-//    if (x0 > x1) {
-//        dx = -1;
-//        run  = x0 - x1;
-//    }
-//
-//    int index_inc_per_line = window_width;
-//    if (y0 > y1) {
-//        dy = -1;
-//        rise = y0 - y1;
-//        index_inc_per_line = -window_width;
-//    }
-//
-//    // Configure for a trivial line (horizontal, vertical or diagonal, default to a shallow line):
-//    int inc = dx;
-//    int start = x0;
-//    int end = x1 + inc;
-//    int index_inc = dx;
-//    if (rise > run) { // Reconfigure for a steep line:
-//        inc = dy;
-//        start = y0;
-//        end = y1 + inc;
-//        index_inc = index_inc_per_line;
-//    }
-//
-//    if (rise == run || !rise || !run) { // Draw a trivial line:
-//        if (rise && run) // Reconfigure for a diagonal line:
-//            index_inc = index_inc_per_line + dx;
-//
-//        for (int i = start; i != end; i += inc, index += index_inc)
-//            DRAW_PIXEL(index, color);
-//
-//        return;
-//    }
-//
-//    // Configure for a non-trivial line (default to a shallow line):
-//    int rise_twice = rise + rise;
-//    int run_twice  = run + run;
-//    int threshold = run;
-//    int error_dec = run_twice;
-//    int error_inc = rise_twice;
-//    int secondary_inc = index_inc_per_line;
-//    if (rise > run) { // Reconfigure for a steep line:
-//        secondary_inc = dx;
-//        threshold = rise;
-//        error_dec = rise_twice;
-//        error_inc = run_twice;
-//    }
-//
-//    int error = 0;
-//    for (int i = start; i != end; i += inc) {
-//        DRAW_PIXEL(index, color);
-//        index += index_inc;
-//        error += error_inc;
-//        if (error > threshold) {
-//            error -= error_dec;
-//            index += secondary_inc;
-//        }
-//    }
-//}
-//
-//
 //void drawTriangle(float* X, float* Y, int pitch, u32 color, u32* pixels) {
 //    float dx1, x1, y1, xs,
 //          dx2, x2, y2, xe,

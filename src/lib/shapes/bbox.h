@@ -138,9 +138,9 @@ inline void projectBBox(BBox *bbox, Camera *camera) {
 
 inline void drawBBox(BBox *bbox, Pixel *pixel) {
     for (u8 i = 0; i < BBOX_EDGE_COUNT; i++)
-        drawLine2D(bbox->edge.buffer[i].from.x,
-                   bbox->edge.buffer[i].from.y,
-                   bbox->edge.buffer[i].to.x,
-                   bbox->edge.buffer[i].to.y,
+        drawLine2D((i32)bbox->edge.buffer[i].from.x,
+                   (i32)bbox->edge.buffer[i].from.y,
+                   (i32)bbox->edge.buffer[i].to.x,
+                   (i32)bbox->edge.buffer[i].to.y,
                    pixel);
 }

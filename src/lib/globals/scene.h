@@ -25,12 +25,26 @@
 #define IOR_AIR 1
 #define IOR_GLASS 1.5f
 
+typedef struct {
+    u8 spheres, cubes, tetrahedra;
+} GeometeryMasks;
 
 typedef struct {
-    u8 visibility[GEO_TYPE_COUNT],
-       transparency[GEO_TYPE_COUNT],
-       shadowing[GEO_TYPE_COUNT];
+    GeometeryMasks visibility, transparency, shadowing;
 } Masks;
+
+typedef struct {
+    u8 tetrahedron[4][3];
+//       cube[6][4];
+} IndexBuffers;
+IndexBuffers index_buffers = {
+        .tetrahedron = {
+                { 0, 1, 2 },
+                { 0, 2, 3 },
+                { 0, 3, 1 },
+                { 3, 2, 1 }
+        }
+};
 
 // Primitives:
 // ==========
@@ -41,14 +55,20 @@ typedef struct {
 } Plane;
 
 typedef struct {
-    u8 p1,
-       p2,
-       p3;
+    u8 v1,
+       v2,
+       v3;
     mat3 tangent_to_world,
          world_to_tangent;
 } Triangle;
-#define expandTriangle(t, vs, p1, p2, p3, n) p1 = &vs[t->p1]; p2 = &vs[t->p2]; p3 = &vs[t->p3]; n = &t->tangent_to_world.Z
-#define expandTrianglePN(t, vs, p1, n) p1 = &vs[t->p1]; n = &t->tangent_to_world.Z
+#define expandTriangle(i, vs, v1, v2, v3, n) \
+    v1 = &vs[triangle->v1];                         \
+    v2 = &vs[triangle->v2];                         \
+    v3 = &vs[triangle->v3];                         \
+    n = &triangle->tangent_to_world.Z
+#define expandTrianglePN(triangle, vs, v1, n) \
+    v1 = &vs[triangle->v1];                   \
+    n = &triangle->tangent_to_world.Z
 
 typedef struct {
     Triangle triangles[12];
@@ -60,6 +80,7 @@ typedef struct {
 typedef struct {
     Triangle triangles[4];
     vec3 vertices[4];
+    f32 radius;
     xform3 xform;
     u8 material_id;
 } Tetrahedron;

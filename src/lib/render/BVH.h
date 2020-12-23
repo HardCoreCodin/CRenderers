@@ -104,8 +104,15 @@ __forceinline__
 inline
 #endif
 void setRayMasksFromBVH(Ray *ray, BVH *bvh) {
-    for (u8 i = 0; i < GEO_TYPE_COUNT; i++) ray->masks.visibility[i] = 0;
-    if (bvh->nodes->geo_type) ray->masks.visibility[bvh->nodes->geo_type - 1] |= bvh->nodes->geo_ids;
+    ray->masks.visibility.spheres = 0;
+    ray->masks.visibility.cubes = 0;
+    ray->masks.visibility.tetrahedra = 0;
+
+    if (bvh->nodes->geo_type) switch (bvh->nodes->geo_type) {
+        case GEO_TYPE__SPHERE     : ray->masks.visibility.spheres    |= bvh->nodes->geo_ids; break;
+        case GEO_TYPE__CUBE       : ray->masks.visibility.cubes      |= bvh->nodes->geo_ids; break;
+        case GEO_TYPE__TETRAHEDRON: ray->masks.visibility.tetrahedra |= bvh->nodes->geo_ids; break;
+    }
     if (bvh->nodes->children) {
         BVHNode *node = bvh->nodes;
         u8 i, child, next_children, children = node->children;
@@ -119,7 +126,11 @@ void setRayMasksFromBVH(Ray *ray, BVH *bvh) {
                     node = &bvh->nodes[i+1];
                     if (hitAABB(&node->aabb, ray)) {
                         next_children |= node->children;
-                        if (node->geo_type) ray->masks.visibility[node->geo_type - 1] |= node->geo_ids;
+                        if (node->geo_type) switch (bvh->nodes->geo_type) {
+                            case GEO_TYPE__SPHERE     : ray->masks.visibility.spheres    |= node->geo_ids; break;
+                            case GEO_TYPE__CUBE       : ray->masks.visibility.cubes      |= node->geo_ids; break;
+                            case GEO_TYPE__TETRAHEDRON: ray->masks.visibility.tetrahedra |= node->geo_ids; break;
+                        }
                     }
                 }
 

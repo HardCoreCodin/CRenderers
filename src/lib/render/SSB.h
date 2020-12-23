@@ -8,6 +8,7 @@
 #include "lib/globals/display.h"
 #include "lib/globals/raytracing.h"
 
+
 #ifdef __CUDACC__
 __device__
 __host__
@@ -15,39 +16,39 @@ __forceinline__
 #else
 inline
 #endif
-void setRayMasksFromSSB(Ray *ray, Masks *masks, SSB *ssb, u16 x, u16 y) {
-    ray->masks = *masks;
-    u8 visibility = masks->visibility[GEO_TYPE__SPHERE - 1];
-
-    Bounds2Di *bounds = ssb->bounds;
+u8 getVisibilityMasksFromBounds(Bounds2Di *bounds, u8 node_count, u8 node_visibility, u16 x, u16 y) {
     u8 ray_visibility_mask = 0;
     u8 node_id = 1;
-    for (u8 i = 0; i < SPHERE_COUNT; i++, node_id <<= 1, bounds++)
-        if (visibility & node_id &&
+
+    for (u8 i = 0; i < node_count; i++, node_id <<= 1, bounds++)
+        if (node_visibility & node_id &&
             x >= bounds->x_range.min &&
             x <= bounds->x_range.max &&
             y >= bounds->y_range.min &&
             y <= bounds->y_range.max)
             ray_visibility_mask |= node_id;
 
-    ray->masks.visibility[GEO_TYPE__SPHERE - 1] = ray_visibility_mask;
-
-    bounds = ssb->bounds + SPHERE_COUNT;
-    ray_visibility_mask = 0;
-    visibility = masks->visibility[TETRAHEDRON_COUNT - 1];
-    node_id = 1;
-    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++, node_id <<= 1, bounds++)
-        if (visibility & node_id &&
-            x >= bounds->x_range.min &&
-            x <= bounds->x_range.max &&
-            y >= bounds->y_range.min &&
-            y <= bounds->y_range.max)
-            ray_visibility_mask |= node_id;
-
-    ray->masks.visibility[GEO_TYPE__TETRAHEDRON - 1] = ray_visibility_mask;
+    return ray_visibility_mask;
 }
 
-bool computeSSB(Bounds2Di *bounds, vec3 *view_position, f32 r, f32 focal_length, u8 node_id, u8 transparency_mask, u8 *visibility_mask) {
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void setRayVisibilityMasksFromBounds(
+        GeometeryMasks *ray_visibility_mask,
+        GeometeryMasks *scene_visibility_mask,
+        GeometryBounds *scene_geometry_bounds,
+        u16 x,
+        u16 y) {
+    ray_visibility_mask->spheres    = getVisibilityMasksFromBounds(scene_geometry_bounds->spheres,    SPHERE_COUNT,      scene_visibility_mask->spheres,    x, y);
+    ray_visibility_mask->tetrahedra = getVisibilityMasksFromBounds(scene_geometry_bounds->tetrahedra, TETRAHEDRON_COUNT, scene_visibility_mask->tetrahedra, x, y);
+}
+
+bool computeSSB(Bounds2Di *bounds, f32 x, f32 y, f32 z, f32 r, f32 focal_length) {
 /*
  h = y - t
  HH = zz + tt
@@ -101,80 +102,88 @@ bool computeSSB(Bounds2Di *bounds, vec3 *view_position, f32 r, f32 focal_length,
     bounds->y_range.max = frame_buffer.height + 1;
     bounds->y_range.min = frame_buffer.height + 1;
 
-    f32 x = view_position->x;
-    f32 y = view_position->y;
-    f32 z = view_position->z;
+    f32 den = z*z - r*r;
+    f32 factor = focal_length / den;
 
-    bool inbound = false;
-    if (transparency_mask & node_id ? (z > -r) : (z > r)) {
-        f32 den = z*z - r*r;
-        f32 factor = focal_length / den;
+    f32 xz = x * z;
+    f32 sqr = r * sqrtf(x*x + den);
+    f32 left  = factor*(xz - sqr);
+    f32 right = factor*(xz + sqr);
+    if (left < 1 && right > -1) {
+        factor *= frame_buffer.width_over_height;
 
-        f32 xz = x * z;
-        f32 sqr = r * sqrtf(x*x + den);
-        f32 left  = factor*(xz - sqr);
-        f32 right = factor*(xz + sqr);
-        if (left < 1 && right > -1) {
-            factor *= frame_buffer.width_over_height;
+        f32 yz = y * z;
+        sqr = r * sqrtf(y*y + den);
+        f32 bottom = factor*(yz - sqr);
+        f32 top    = factor*(yz + sqr);
+        if (bottom < 1 && top > -1) {
+            bottom = max(bottom, -1); bottom += 1;
+            top    = min(top,    +1); top    += 1;
+            left   = max(left,   -1); left   += 1;
+            right  = min(right,  +1); right  += 1;
 
-            f32 yz = y * z;
-            sqr = r * sqrtf(y*y + den);
-            f32 bottom = factor*(yz - sqr);
-            f32 top    = factor*(yz + sqr);
-            if (bottom < 1 && top > -1) {
-                bottom = max(bottom, -1); bottom += 1;
-                top    = min(top,    +1); top    += 1;
-                left   = max(left,   -1); left   += 1;
-                right  = min(right,  +1); right  += 1;
+            top    = 2 - top;
+            bottom = 2 - bottom;
 
-                top    = 2 - top;
-                bottom = 2 - bottom;
-
-                *visibility_mask |= node_id;
-                bounds->x_range.min = frame_buffer.h_width * left;
-                bounds->x_range.max = frame_buffer.h_width * right;
-                bounds->y_range.max = frame_buffer.h_height * bottom;
-                bounds->y_range.min = frame_buffer.h_height * top;
-                inbound = true;
-            }
+            bounds->x_range.min = (u16)(frame_buffer.h_width * left);
+            bounds->x_range.max = (u16)(frame_buffer.h_width * right);
+            bounds->y_range.max = (u16)(frame_buffer.h_height * bottom);
+            bounds->y_range.min = (u16)(frame_buffer.h_height * top);
+            return true;
         }
     }
 
-    return inbound;
+    return false;
 }
 
 void updateSceneMasks(Scene* scene, SSB* ssb, Masks *masks, f32 focal_length) {
     u8 visible_nodes = 0;
     u8 visibility_mask = 0;
-    u8 transparency_mask = masks->transparency[GEO_TYPE__SPHERE-1];
+    u8 transparency_mask = masks->transparency.spheres;
     u8 node_id = 1;
-    for (u8 i = 0; i < SPHERE_COUNT; i++, node_id <<= 1)
-        if (computeSSB(&ssb->bounds[i],
-                       &ssb->view_positions[i],
-                       scene->spheres[i].radius,
-                       focal_length, node_id,
-                       transparency_mask,
-                       &visibility_mask))
+
+    Sphere *s = scene->spheres;
+    vec3 *p = ssb->view_positions.spheres;
+    Bounds2Di *b = ssb->bounds.spheres;
+
+    f32 r, x, y, z;
+    for (u8 i = 0; i < SPHERE_COUNT; i++, node_id <<= 1, s++, p++, b++) {
+        r = s->radius;
+        x = p->x;
+        y = p->y;
+        z = p->z;
+
+        if ((transparency_mask & node_id ? (z > -r) : (z > r)) &&
+            computeSSB(b, x, y, z, r, focal_length)) {
+
+            visibility_mask |= node_id;
             visible_nodes++;
-
-
-    masks->visibility[GEO_TYPE__SPHERE-1] =  visibility_mask;
+        }
+    }
+    masks->visibility.spheres =  visibility_mask;
     ray_tracer.stats.visible_nodes[GEO_TYPE__SPHERE-1] = visible_nodes;
 
     visible_nodes = 0;
     visibility_mask = 0;
-    transparency_mask = masks->transparency[GEO_TYPE__TETRAHEDRON-1];
     node_id = 1;
-    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++, node_id <<= 1)
-        if (computeSSB(&ssb->bounds[SPHERE_COUNT+i],
-                       &ssb->view_positions[SPHERE_COUNT+i],
-                       1,
-                       focal_length, node_id,
-                       transparency_mask,
-                       &visibility_mask))
-            visible_nodes++;
 
-    masks->visibility[GEO_TYPE__TETRAHEDRON-1] =  visibility_mask;
+    Tetrahedron *t = scene->tetrahedra;
+    p = ssb->view_positions.tetrahedra;
+    b = ssb->bounds.tetrahedra;
+
+    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++, t++, b++, p++, node_id <<= 1) {
+        r = t->radius;
+        x = p->x;
+        y = p->y;
+        z = p->z;
+
+        if (computeSSB(b, x, y, z, r, focal_length)) {
+            visibility_mask |= node_id;
+            visible_nodes++;
+        }
+    }
+
+    masks->visibility.tetrahedra = visibility_mask;
     ray_tracer.stats.visible_nodes[GEO_TYPE__TETRAHEDRON-1] = visible_nodes;
 
 #ifdef __CUDACC__
@@ -243,10 +252,15 @@ void updateSceneMasks(Scene* scene, SSB* ssb, Masks *masks, f32 focal_length) {
 //}
 
 void drawSSB(SSB* ssb, Pixel *pixel) {
-    Bounds2Di *bounds;
-    u8 sphere_id = 1;
-    for (u8 i = 0; i < SPHERE_COUNT + TETRAHEDRON_COUNT; i++, sphere_id <<= (u8)1) {
-        bounds = &ssb->bounds[i];
+    Bounds2Di *bounds = ssb->bounds.spheres;
+    for (u8 i = 0; i < SPHERE_COUNT; i++, bounds++) {
+        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.min, pixel);
+        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.max, pixel);
+        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.min, pixel);
+        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.max, pixel);
+    }
+    bounds = ssb->bounds.tetrahedra;
+    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++, bounds++) {
         drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.min, pixel);
         drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.max, pixel);
         drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.min, pixel);

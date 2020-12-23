@@ -40,7 +40,7 @@ bool hitSpheresSimple(Sphere *spheres, Ray *ray) {
     vec3 _i, *I = &_i, _c, *C = &_c;
     bool found = false;
 
-    u8 visibility_mask = ray->masks.visibility[GEO_TYPE__SPHERE-1];
+    u8 visibility_mask = ray->masks.visibility.spheres;
     f32 distance;
     u8 sphere_id = 1;
     Sphere *sphere;
@@ -103,8 +103,8 @@ bool hitSpheres(Sphere *spheres, Ray *ray, bool check_any) {
          *Ro = ray->origin,
          *Rd = ray->direction;
 
-    u8 transparency_mask = ray->masks.transparency[GEO_TYPE__SPHERE-1];
-    u8 visibility_mask   = ray->masks.visibility[GEO_TYPE__SPHERE-1];
+    u8 transparency_mask = ray->masks.transparency.spheres;
+    u8 visibility_mask   = ray->masks.visibility.spheres;
 
     f32 t, dt, r, d, closest_distance_squared = ray->hit.distance * ray->hit.distance;
     vec3 _i, *I = &_i, _c, *C = &_c;

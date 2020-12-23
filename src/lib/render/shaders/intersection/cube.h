@@ -23,28 +23,28 @@ bool hitCubes(Cube *cubes, vec3 *Ro, vec3 *Rd, vec3 *P, vec3 *N, u8 *o_mat, f32 
     // Loop over all tetrahedra and intersect the ray against them:
     Cube *cube;
     Triangle* triangle;
-    vec3 *p1, *p2, *p3, *n;
+    vec3 *v1, *v2, *v3, *n;
     for (u8 i = 0; i < CUBE_COUNT; i++) {
         cube = &cubes[i];
         for (u8 t = 0; t < 12; t++) {
             triangle = &cube->triangles[t];
-            expandTriangle(triangle, cube->vertices, p1, p2, p3, n);
+            expandTriangle(triangle, cube->vertices, v1, v2, v3, n);
 
-            if (hitPlane(p1, n, Rd, Ro, &hit_distance) && hit_distance < closest_hit_distance) {
+            if (hitPlane(v1, n, Rd, Ro, &hit_distance) && hit_distance < closest_hit_distance) {
                 scaleVec3(Rd, hit_distance, &hit_position);
                 iaddVec3(&hit_position, Ro);
 
-                vec3 p1p2; subVec3(p2, p1, &p1p2);
-                vec3 p2p3; subVec3(p3, p2, &p2p3);
-                vec3 p3p1; subVec3(p1, p3, &p3p1);
+                vec3 v12; subVec3(v2, v1, &v12);
+                vec3 v23; subVec3(v3, v2, &v23);
+                vec3 v31; subVec3(v1, v3, &v31);
 
-                vec3 p1P; subVec3(&hit_position, p1, &p1P);
-                vec3 p2P; subVec3(&hit_position, p2, &p2P);
-                vec3 p3P; subVec3(&hit_position, p3, &p3P);
+                vec3 v1P; subVec3(&hit_position, v1, &v1P);
+                vec3 v2P; subVec3(&hit_position, v2, &v2P);
+                vec3 v3P; subVec3(&hit_position, v3, &v3P);
 
-                vec3 c1; crossVec3(&p1P, &p1p2, &c1);
-                vec3 c2; crossVec3(&p2P, &p2p3, &c2);
-                vec3 c3; crossVec3(&p3P, &p3p1, &c3);
+                vec3 c1; crossVec3(&v1P, &v12, &c1);
+                vec3 c2; crossVec3(&v2P, &v23, &c2);
+                vec3 c3; crossVec3(&v3P, &v31, &c3);
 
                 if (dotVec3(n, &c1) > 0 &&
                     dotVec3(n, &c2) > 0 &&

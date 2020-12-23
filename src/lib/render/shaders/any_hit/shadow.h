@@ -33,21 +33,18 @@ bool inShadow(Scene *scene, vec3* Rd, vec3* Ro, f32 light_distance) {
         ray.direction_rcp = &Rd_rcp;
 
         setRayMasksFromBVH(&ray, &ray_tracer.bvh);
-        ray.masks.visibility[0] &= ray_tracer.masks.shadowing[0];
-        if (!ray.masks.visibility[0]) return false;
+        ray.masks.visibility.spheres &= ray_tracer.masks.shadowing.spheres;
+        if (!ray.masks.visibility.spheres) return false;
 
 //        bool hit;
 //        hitAABB_init();
 //        hitAABB_macro(hit, ray_tracer.bvh.nodes->aabb, ray);
 //        if (!hit) return false;
 //        if (!hitAABB(&ray_tracer.bvh.nodes->aabb, &ray)) return false;
-    } else {
-        for (u8 i = 0; i < GEO_TYPE_COUNT; i++) ray.masks.visibility[i] = ray_tracer.masks.shadowing[i];
-    }
+    } else ray.masks.visibility = ray_tracer.masks.shadowing;
+    ray.masks.transparency = ray_tracer.masks.transparency;
 
-    for (u8 i = 0; i < GEO_TYPE_COUNT; i++) ray.masks.transparency[i] = ray_tracer.masks.transparency[i];
-
-    return hitSpheres(scene->spheres, &ray, true) || hitTetrahedraSimple(scene->tetrahedra, &ray);
+    return hitSpheres(scene->spheres, &ray, true) || hitTetrahedra(scene->tetrahedra, &ray, true);
 }
 
 #ifdef __CUDACC__
@@ -64,29 +61,29 @@ bool inShadowSimple(Tetrahedron *tetrahedra, vec3 *Rd, vec3* Ro, f32 light_dista
     // Loop over all tetrahedra and intersect the ray against them:
     Tetrahedron* tetrahedron;
     Triangle *triangle;
-    vec3 *p1, *p2, *p3, *n;
+    vec3 *v1, *v2, *v3, *n;
 
     for (u8 i = 0; i < TETRAHEDRON_COUNT; i++) {
         tetrahedron = &tetrahedra[i];
         for (u8 t = 0; t < 4; t++) {
             triangle = &tetrahedron->triangles[t];
-            expandTriangle(triangle, tetrahedron->vertices, p1, p2, p3, n);
-            if (hitPlane(p1, n, Rd, Ro, &hit_distance) && hit_distance < light_distance) {
+            expandTriangle(triangle, tetrahedron->vertices, v1, v2, v3, n);
+            if (hitPlane(v1, n, Rd, Ro, &hit_distance) && hit_distance < light_distance) {
 
                 scaleVec3(Rd, hit_distance, &hit_position);
                 iaddVec3(&hit_position, Ro);
 
-                vec3 p1p2; subVec3(p2, p1, &p1p2);
-                vec3 p2p3; subVec3(p3, p2, &p2p3);
-                vec3 p3p1; subVec3(p1, p3, &p3p1);
+                vec3 v12; subVec3(v2, v1, &v12);
+                vec3 v23; subVec3(v3, v2, &v23);
+                vec3 v31; subVec3(v1, v3, &v31);
 
-                vec3 p1P; subVec3(&hit_position, p1, &p1P);
-                vec3 p2P; subVec3(&hit_position, p2, &p2P);
-                vec3 p3P; subVec3(&hit_position, p3, &p3P);
+                vec3 v1P; subVec3(&hit_position, v1, &v1P);
+                vec3 v2P; subVec3(&hit_position, v2, &v2P);
+                vec3 v3P; subVec3(&hit_position, v3, &v3P);
 
-                vec3 c1; crossVec3(&p1P, &p1p2, &c1);
-                vec3 c2; crossVec3(&p2P, &p2p3, &c2);
-                vec3 c3; crossVec3(&p3P, &p3p1, &c3);
+                vec3 c1; crossVec3(&v1P, &v12, &c1);
+                vec3 c2; crossVec3(&v2P, &v23, &c2);
+                vec3 c3; crossVec3(&v3P, &v31, &c3);
 
                 if (dotVec3(n, &c1) > 0 &&
                     dotVec3(n, &c2) > 0 &&
@@ -159,19 +156,19 @@ bool inShadowSimpleImplicit(Tetrahedron *tetrahedra, vec3 *Rd, vec3* Ro, f32 lig
     // Loop over all tetrahedra and intersect the ray against them:
     Tetrahedron* tetrahedron;
     Triangle *triangle;
-    vec3 *p1, *n;
+    vec3 *v1, *n;
 
     for (u8 i = 0; i < TETRAHEDRON_COUNT; i++) {
         tetrahedron = &tetrahedra[i];
         for (u8 t = 0; t < 4; t++) {
             triangle = &tetrahedron->triangles[t];
-            expandTrianglePN(triangle, tetrahedron->vertices, p1, n);
-            if (hitPlane(p1, n, Rd, Ro, &hit_distance) && hit_distance < light_distance) {
+            expandTrianglePN(triangle, tetrahedron->vertices, v1, n);
+            if (hitPlane(v1, n, Rd, Ro, &hit_distance) && hit_distance < light_distance) {
 
                 scaleVec3(Rd, hit_distance, &hit_position);
                 iaddVec3(&hit_position, Ro);
 
-                subVec3(&hit_position, p1, &hit_position_tangent);
+                subVec3(&hit_position, v1, &hit_position_tangent);
                 imulVec3Mat3(&hit_position_tangent, &triangle->world_to_tangent);
 
                 x = hit_position_tangent.x;

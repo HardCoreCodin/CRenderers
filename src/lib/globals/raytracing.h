@@ -27,9 +27,18 @@ typedef struct {
     Masks masks;
 } Ray;
 
+
 typedef struct {
-    Bounds2Di bounds[GEO_TYPE_COUNT * SPHERE_COUNT];
-    vec3 view_positions[GEO_TYPE_COUNT * SPHERE_COUNT];
+    Bounds2Di spheres[SPHERE_COUNT], cubes[CUBE_COUNT], tetrahedra[TETRAHEDRON_COUNT];
+} GeometryBounds;
+
+typedef struct {
+    vec3 spheres[SPHERE_COUNT], cubes[CUBE_COUNT], tetrahedra[TETRAHEDRON_COUNT];
+} GeometryViewPositions;
+
+typedef struct {
+    GeometryBounds bounds;
+    GeometryViewPositions view_positions;
 } SSB;
 
 typedef struct {
