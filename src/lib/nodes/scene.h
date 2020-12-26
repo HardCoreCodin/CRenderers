@@ -20,6 +20,23 @@ void initScene(Scene *scene) {
     scene->ambient_light->color.x = 20;
     scene->ambient_light->color.y = 20;
     scene->ambient_light->color.z = 40;
+    scene->index_buffers = Alloc(IndexBuffers);
+
+    scene->index_buffers->tetrahedron[0][0] = 0;
+    scene->index_buffers->tetrahedron[0][1] = 1;
+    scene->index_buffers->tetrahedron[0][2] = 2;
+
+    scene->index_buffers->tetrahedron[1][0] = 0;
+    scene->index_buffers->tetrahedron[1][1] = 2;
+    scene->index_buffers->tetrahedron[1][2] = 3;
+
+    scene->index_buffers->tetrahedron[2][0] = 0;
+    scene->index_buffers->tetrahedron[2][1] = 3;
+    scene->index_buffers->tetrahedron[2][2] = 1;
+
+    scene->index_buffers->tetrahedron[3][0] = 3;
+    scene->index_buffers->tetrahedron[3][1] = 2;
+    scene->index_buffers->tetrahedron[3][2] = 1;
 
     Material *walls_material = scene->materials,
             *diffuse_ball_material = scene->materials + 1,
@@ -53,7 +70,7 @@ void initScene(Scene *scene) {
     diffuse_ball_material->diffuse_color.z = 0.7f;
 
     for (u8 i = 0; i < CUBE_COUNT; i++) initCube(scene->cubes + i);
-    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++) initTetrahedron(scene->tetrahedra + i, 1);
+    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++) initTetrahedron(scene->tetrahedra + i, scene->index_buffers, (f32)(i + 1));
 
     scene->cubes->material_id = 0;
     scene->cubes->position.x = 0;
@@ -61,9 +78,7 @@ void initScene(Scene *scene) {
     scene->cubes->position.z = 0;
     for (u8 i = 0; i < 8; i++) iaddVec3(&scene->cubes->vertices[i], &scene->cubes->position);
 
-    vec3 tet_pos = {3, 4, 8};
     scene->tetrahedra->material_id = 2;
-    updateTetrahedronPosition(scene->tetrahedra, &tet_pos);
 
     f32 radius = 1;
     Sphere* sphere;
@@ -79,9 +94,52 @@ void initScene(Scene *scene) {
     scene->spheres[2].material_id = 4;
     scene->spheres[3].material_id = 5;
 
+    // Back-right tet position:
+    Tetrahedron *tet = scene->tetrahedra;
+    vec3 *pos = &tet->xform.position;
+    pos->y = 3;
+    pos->x = 4;
+    pos->z = 8;
+
+    // Back-left tet position:
+    tet++;
+    pos = &tet->xform.position;
+    pos->y = tet->radius;
+    pos->x = -1;
+    pos->z = 5;
+
+    // Front-left tet position:
+    tet++;
+    pos = &tet->xform.position;
+    pos->y = tet->radius;
+    pos->x = -3;
+    pos->z = 0;
+
+    // Front-right tet position:
+    tet++;
+    pos = &tet->xform.position;
+    pos->y = tet->radius;
+    pos->x = 4;
+    pos->z = -3;
+
+    tet = scene->tetrahedra;
+    xform3 xf;
+    initXform3(&xf);
+    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++, tet++) {
+        for (u8 t = 0; t < 4; t++) {
+            imulVec3Mat3(&tet->vertices[t], &xf.rotation_matrix);
+            iaddVec3(&tet->vertices[t], &tet->xform.position);
+
+            imulMat3(&tet->triangles[t].tangent_to_world, &xf.rotation_matrix);
+        }
+        updateTetrahedronMatrices(tet);
+
+        rotateXform3(&xf, 0.3f, 0.4f, 0.5f);
+    }
+
     // Back-left sphere position:
     sphere = scene->spheres;
-    vec3 *pos = &sphere->position;
+    pos = &sphere->position;
     pos->x = -1;
     pos->z = 5;
 
@@ -167,11 +225,7 @@ void initScene(Scene *scene) {
     gpuErrchk(cudaMemcpyToSymbol(d_spheres, scene->spheres, sizeof(Sphere) * SPHERE_COUNT, 0, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpyToSymbol(d_planes, scene->planes, sizeof(Plane) * PLANE_COUNT, 0, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpyToSymbol(d_cubes, scene->cubes, sizeof(Cube) * CUBE_COUNT, 0, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpyToSymbol(d_masks, scene->masks, sizeof(Masks), 0, cudaMemcpyHostToDevice));
-
-    gpuErrchk(cudaMemcpyToSymbol(d_sphere_rotations, scene->sphere_rotations, sizeof(mat3) * SPHERE_COUNT, 0, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpyToSymbol(d_sphere_view_bounds, scene->sphere_view_bounds, sizeof(Bounds2Di) * SPHERE_COUNT, 0, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpyToSymbol(d_sphere_view_positions, scene->sphere_view_positions, sizeof(vec3) * SPHERE_COUNT, 0, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpyToSymbol(d_index_buffers, scene->index_buffers, sizeof(IndexBuffers), 0, cudaMemcpyHostToDevice));
 
 //
 //    Scene *d_scene_mirrored = Alloc(Scene);

@@ -117,10 +117,10 @@ bool computeSSB(Bounds2Di *bounds, f32 x, f32 y, f32 z, f32 r, f32 focal_length)
         f32 bottom = factor*(yz - sqr);
         f32 top    = factor*(yz + sqr);
         if (bottom < 1 && top > -1) {
-            bottom = max(bottom, -1); bottom += 1;
-            top    = min(top,    +1); top    += 1;
-            left   = max(left,   -1); left   += 1;
-            right  = min(right,  +1); right  += 1;
+            bottom = bottom > -1 ? bottom : -1; bottom += 1;
+            top    = top < 1 ? top : 1; top    += 1;
+            left   = left > -1 ? left : -1; left   += 1;
+            right  = right < 1 ? right : 1; right  += 1;
 
             top    = 2 - top;
             bottom = 2 - bottom;
@@ -160,7 +160,7 @@ void updateSceneMasks(Scene* scene, SSB* ssb, Masks *masks, f32 focal_length) {
             visible_nodes++;
         }
     }
-    masks->visibility.spheres =  visibility_mask;
+    masks->visibility.spheres =  0;
     ray_tracer.stats.visible_nodes[GEO_TYPE__SPHERE-1] = visible_nodes;
 
     visible_nodes = 0;
@@ -183,12 +183,13 @@ void updateSceneMasks(Scene* scene, SSB* ssb, Masks *masks, f32 focal_length) {
         }
     }
 
-    masks->visibility.tetrahedra = visibility_mask;
+    masks->shadowing.tetrahedra = FULL_MASK;
+    masks->visibility.tetrahedra = FULL_MASK;
     ray_tracer.stats.visible_nodes[GEO_TYPE__TETRAHEDRON-1] = visible_nodes;
 
 #ifdef __CUDACC__
-    gpuErrchk(cudaMemcpyToSymbol(d_sphere_view_bounds, scene->sphere_view_bounds, sizeof(Bounds2Di) * SPHERE_COUNT, 0, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpyToSymbol(d_masks, scene->masks, sizeof(Masks), 0, cudaMemcpyHostToDevice));
+    copySSBBoundsFromCPUtoGPU(&ray_tracer.ssb.bounds);
+    copyMasksFromCPUtoGPU(&ray_tracer.masks);
 #endif
 }
 
@@ -253,12 +254,12 @@ void updateSceneMasks(Scene* scene, SSB* ssb, Masks *masks, f32 focal_length) {
 
 void drawSSB(SSB* ssb, Pixel *pixel) {
     Bounds2Di *bounds = ssb->bounds.spheres;
-    for (u8 i = 0; i < SPHERE_COUNT; i++, bounds++) {
-        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.min, pixel);
-        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.max, pixel);
-        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.min, pixel);
-        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.max, pixel);
-    }
+//    for (u8 i = 0; i < SPHERE_COUNT; i++, bounds++) {
+//        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.min, pixel);
+//        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.max, pixel);
+//        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.min, pixel);
+//        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.max, pixel);
+//    }
     bounds = ssb->bounds.tetrahedra;
     for (u8 i = 0; i < TETRAHEDRON_COUNT; i++, bounds++) {
         drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.min, pixel);

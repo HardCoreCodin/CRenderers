@@ -53,9 +53,6 @@ void updateAndRender() {
     startFrameTimer(&update_timer);
 
     yawMat3(update_timer.delta_time * SPHERE_TURN_SPEED, &main_scene.spheres[1].rotation);
-#ifdef __CUDACC__
-    gpuErrchk(cudaMemcpyToSymbol(d_sphere_rotations, main_scene.sphere_rotations, sizeof(mat3) * SPHERE_COUNT, 0, cudaMemcpyHostToDevice));
-#endif
 
     if (mouse_wheel_scrolled) {
        if (shift_is_pressed) {
@@ -65,6 +62,11 @@ void updateAndRender() {
            vec3* p = ray_tracer.ssb.view_positions.tetrahedra;
            Bounds2Di *b = ray_tracer.ssb.bounds.tetrahedra;
            computeSSB(b, p->x, p->y, p->z, rotating_tetrahedron->radius, main_camera.focal_length);
+
+#ifdef __CUDACC__
+           copySSBBoundsFromCPUtoGPU(&ray_tracer.ssb.bounds);
+           copyBVHNodesFromCPUtoGPU(ray_tracer.bvh.nodes);
+#endif
        } else
 //        if (ctrl_is_pressed) {
 //            my_helix.radius += mouse_wheel_scroll_amount / 1000;
@@ -108,8 +110,6 @@ void updateAndRender() {
     vec3 *tet_vertex = rotating_tetrahedron->vertices,
             *position = &rotating_tetrahedron->xform.position;
     Triangle *tet_triangle = rotating_tetrahedron->triangles;
-    imulMat3(&rotating_tetrahedron->xform.rotation_matrix, &local_xform.rotation_matrix);
-    transposeMat3(&rotating_tetrahedron->xform.rotation_matrix, &rotating_tetrahedron->xform.rotation_matrix_inverted);
     for (u8 i = 0; i < 4; i++, tet_vertex++, tet_triangle++) {
         isubVec3(tet_vertex, position);
         imulVec3Mat3(tet_vertex, &local_xform.rotation_matrix);
@@ -118,6 +118,9 @@ void updateAndRender() {
         imulMat3(&tet_triangle->tangent_to_world, &local_xform.rotation_matrix);
     }
     updateTetrahedronMatrices(rotating_tetrahedron);
+#ifdef __CUDACC__
+    gpuErrchk(cudaMemcpyToSymbol(d_tetrahedra, main_scene.tetrahedra, sizeof(Tetrahedron) * TETRAHEDRON_COUNT, 0, cudaMemcpyHostToDevice));
+#endif
 
     if (mouse_moved)          current_camera_controller->onMouseMoved();
     current_camera_controller->onUpdate();

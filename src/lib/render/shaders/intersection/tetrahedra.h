@@ -15,7 +15,7 @@ __forceinline__
 #else
 inline
 #endif
-bool hitTetrahedra(Tetrahedron *tetrahedra, Ray *ray, bool check_any) {
+bool hitTetrahedra(Tetrahedron *tetrahedra, IndexBuffers *_index_buffers, Ray *ray, bool check_any) {
     vec3 hit_position, hit_position_tangent;
     vec3 *Ro = ray->origin,
          *Rd = ray->direction;
@@ -33,7 +33,7 @@ bool hitTetrahedra(Tetrahedron *tetrahedra, Ray *ray, bool check_any) {
 
         triangle = tetrahedron->triangles;
         for (t = 0; t < 4; t++, triangle++) {
-            v1 = &tetrahedron->vertices[index_buffers.tetrahedron[t][0]];
+            v1 = &tetrahedron->vertices[_index_buffers->tetrahedron[t][0]];
             n = &triangle->tangent_to_world.Z;
             if (hitPlane(v1, n, Rd, Ro, &distance)) {
                 if (distance < closest_distance) {

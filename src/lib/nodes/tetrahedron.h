@@ -45,7 +45,7 @@ void updateTetrahedronRadius(Tetrahedron *tet, f32 radius) {
     updateTetrahedronMatrices(tet);
 }
 
-void initTetrahedron(Tetrahedron *tet, f32 radius) {
+void initTetrahedron(Tetrahedron *tet, IndexBuffers *index_buffers, f32 radius) {
     initXform3(&tet->xform);
     tet->radius = radius;
 
@@ -55,9 +55,9 @@ void initTetrahedron(Tetrahedron *tet, f32 radius) {
     // Init triangles:
     Triangle *t = tet->triangles;
     for (u8 i = 0; i < 4; i++, t++) {
-        t->v1 = index_buffers.tetrahedron[i][0];
-        t->v2 = index_buffers.tetrahedron[i][1];
-        t->v3 = index_buffers.tetrahedron[i][2];
+        t->v1 = index_buffers->tetrahedron[i][0];
+        t->v2 = index_buffers->tetrahedron[i][1];
+        t->v3 = index_buffers->tetrahedron[i][2];
 
         subVec3(&tet->vertices[t->v3],
                 &tet->vertices[t->v1],

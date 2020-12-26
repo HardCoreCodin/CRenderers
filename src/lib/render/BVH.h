@@ -26,7 +26,7 @@ Pixel BLAS_line_pixel,
 
 void initBVH(BVH *bvh, u8 node_count) {
     bvh->node_count = node_count;
-    bvh->nodes = AllocN(BVHNode, node_count);
+    bvh->nodes = AllocN(BVHNode, 8);
 
     BLAS_line_pixel.color.R = MAX_COLOR_VALUE;
     BLAS_line_pixel.color.G = 0;
@@ -70,30 +70,50 @@ void updateBVH(BVH *bvh, Scene *scene) {
         aabb->max.z = z + r;
     }
 
-    if (bvh->node_count == 1) {
-        bvh->nodes->geo_type = GEO_TYPE__SPHERE;
-        bvh->nodes->geo_ids = 1 | 2 | 4 | 8;
-        bvh->nodes->children = 0;
+    AABB tet_aabbs[TETRAHEDRON_COUNT];
+    aabb = tet_aabbs;
 
-        setParentAABB(sphere_aabbs[0], sphere_aabbs[0], sphere_aabbs[1]);
-        setParentAABB(sphere_aabbs[1], sphere_aabbs[2], sphere_aabbs[3]);
-        setParentAABB(sphere_aabbs[0], sphere_aabbs[0], sphere_aabbs[1]);
+    Tetrahedron *tet = scene->tetrahedra;
+    for (u8 s = 0; s < TETRAHEDRON_COUNT; s++, tet++, aabb++) {
+        r = tet->radius;
+        x = tet->xform.position.x;
+        y = tet->xform.position.y;
+        z = tet->xform.position.z;
 
-        bvh->nodes->aabb = sphere_aabbs[0];
-    } else if (bvh->node_count == 3) {
+        aabb->min.x = x - r;
+        aabb->min.y = y - r;
+        aabb->min.z = z - r;
+
+        aabb->max.x = x + r;
+        aabb->max.y = y + r;
+        aabb->max.z = z + r;
+    }
+
+//    if (bvh->node_count == 1) {
+//        bvh->nodes->geo_type = GEO_TYPE__SPHERE;
+//        bvh->nodes->geo_ids = 1 | 2 | 4 | 8;
+//        bvh->nodes->children = 0;
+//
+//        setParentAABB(sphere_aabbs[0], sphere_aabbs[0], sphere_aabbs[1]);
+//        setParentAABB(sphere_aabbs[1], sphere_aabbs[2], sphere_aabbs[3]);
+//        setParentAABB(sphere_aabbs[0], sphere_aabbs[0], sphere_aabbs[1]);
+//
+//        bvh->nodes->aabb = sphere_aabbs[0];
+//    } else if (bvh->node_count == 3) {
         bvh->nodes->geo_type = GEO_TYPE__NONE;
         bvh->nodes->geo_ids = 0;
         bvh->nodes->children = 1 | 2;
 
-        setParentAABB(bvh->nodes[1].aabb, sphere_aabbs[0], sphere_aabbs[1]);
-        setParentAABB(bvh->nodes[2].aabb, sphere_aabbs[2], sphere_aabbs[3]);
+        setParentAABB(bvh->nodes[1].aabb, tet_aabbs[0], tet_aabbs[1]);
+        setParentAABB(bvh->nodes[2].aabb, tet_aabbs[2], tet_aabbs[3]);
         setParentAABB(bvh->nodes[0].aabb, bvh->nodes[1].aabb, bvh->nodes[2].aabb);
 
-        bvh->nodes[1].geo_type = GEO_TYPE__SPHERE;
-        bvh->nodes[2].geo_type = GEO_TYPE__SPHERE;
+        bvh->nodes[1].geo_type = GEO_TYPE__TETRAHEDRON;
+        bvh->nodes[2].geo_type = GEO_TYPE__TETRAHEDRON;
         bvh->nodes[1].geo_ids = 1 | 2;
         bvh->nodes[2].geo_ids = 4 | 8;
-    }
+//    }
+    copyBVHNodesFromCPUtoGPU(bvh->nodes);
 }
 
 #ifdef __CUDACC__
@@ -126,10 +146,11 @@ void setRayMasksFromBVH(Ray *ray, BVH *bvh) {
                     node = &bvh->nodes[i+1];
                     if (hitAABB(&node->aabb, ray)) {
                         next_children |= node->children;
-                        if (node->geo_type) switch (bvh->nodes->geo_type) {
+                        if (node->geo_type) switch (node->geo_type) {
                             case GEO_TYPE__SPHERE     : ray->masks.visibility.spheres    |= node->geo_ids; break;
                             case GEO_TYPE__CUBE       : ray->masks.visibility.cubes      |= node->geo_ids; break;
-                            case GEO_TYPE__TETRAHEDRON: ray->masks.visibility.tetrahedra |= node->geo_ids; break;
+                            case GEO_TYPE__TETRAHEDRON:
+                                ray->masks.visibility.tetrahedra |= node->geo_ids; break;
                         }
                     }
                 }

@@ -15,7 +15,7 @@ __forceinline__
 #else
 inline
 #endif
-void shadeSurface(Scene *scene, u8 material_id, vec3 *Rd, vec3 *P, vec3 *N, vec3 *out_color) {
+void shadeSurface(Scene *scene, BVH *bvh, Masks *masks, u8 material_id, vec3 *Rd, vec3 *P, vec3 *N, vec3 *out_color) {
     vec3 color, light_color;
     vec3 _rl, *RLd = &_rl;
     vec3 _l, *L = &_l;
@@ -40,7 +40,7 @@ void shadeSurface(Scene *scene, u8 material_id, vec3 *Rd, vec3 *P, vec3 *N, vec3
         d2 = squaredLengthVec3(L);
         d = sqrtf(d2);
         iscaleVec3(L, 1.0f / d);
-        if (inShadow(scene, L, P, d)) continue;
+        if (inShadow(scene, bvh, masks, L, P, d)) continue;
 
         if (mat.uses.blinn) {
             subVec3(L, Rd, H);

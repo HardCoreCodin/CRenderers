@@ -43,6 +43,7 @@ bool hitAABBold(AABB *aabb, Ray *ray) {
     return tmax >= max(0.0f, tmin);
 }
 
+
 #define hitAABB_init() f32 min_t_x, min_t_y, min_t_z, max_t_x, max_t_y, max_t_z
 #define hitAABB_components(hit, min_x, min_y, min_z, max_x, max_y, max_z, Ox, Oy, Oz, Dx, Dy, Dz) \
     min_t_x = (min_x - Ox) * Dx; \

@@ -19,32 +19,32 @@ __forceinline__
 #else
 inline
 #endif
-bool inShadow(Scene *scene, vec3* Rd, vec3* Ro, f32 light_distance) {
+bool inShadow(Scene *scene, BVH *bvh, Masks *masks, vec3* Rd, vec3* Ro, f32 light_distance) {
     Ray ray;
     ray.origin = Ro;
     ray.direction = Rd;
     ray.hit.distance = light_distance;
 
-    if (use_BVH) {
         vec3 Rd_rcp;
         Rd_rcp.x = 1.0f / Rd->x;
         Rd_rcp.y = 1.0f / Rd->y;
         Rd_rcp.z = 1.0f / Rd->z;
         ray.direction_rcp = &Rd_rcp;
 
-        setRayMasksFromBVH(&ray, &ray_tracer.bvh);
-        ray.masks.visibility.spheres &= ray_tracer.masks.shadowing.spheres;
-        if (!ray.masks.visibility.spheres) return false;
+        setRayMasksFromBVH(&ray, bvh);
+        ray.masks.visibility.tetrahedra &= masks->shadowing.tetrahedra;
+        if (!ray.masks.visibility.tetrahedra) return false;
 
 //        bool hit;
 //        hitAABB_init();
 //        hitAABB_macro(hit, ray_tracer.bvh.nodes->aabb, ray);
 //        if (!hit) return false;
 //        if (!hitAABB(&ray_tracer.bvh.nodes->aabb, &ray)) return false;
-    } else ray.masks.visibility = ray_tracer.masks.shadowing;
-    ray.masks.transparency = ray_tracer.masks.transparency;
 
-    return hitSpheres(scene->spheres, &ray, true) || hitTetrahedra(scene->tetrahedra, &ray, true);
+//        ray.masks.visibility = masks->shadowing;
+    ray.masks.transparency = masks->transparency;
+
+    return hitSpheres(scene->spheres, &ray, true) || hitTetrahedra(scene->tetrahedra, scene->index_buffers, &ray, true);
 }
 
 #ifdef __CUDACC__

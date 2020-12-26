@@ -8,7 +8,7 @@
 #define GEO_TYPE__CUBE 2
 #define GEO_TYPE__TETRAHEDRON 3
 
-#define TETRAHEDRON_COUNT 1
+#define TETRAHEDRON_COUNT 4
 #define CUBE_COUNT 1
 #define SPHERE_COUNT 4
 #define POINT_LIGHT_COUNT 3
@@ -37,14 +37,6 @@ typedef struct {
     u8 tetrahedron[4][3];
 //       cube[6][4];
 } IndexBuffers;
-IndexBuffers index_buffers = {
-        .tetrahedron = {
-                { 0, 1, 2 },
-                { 0, 2, 3 },
-                { 0, 3, 1 },
-                { 3, 2, 1 }
-        }
-};
 
 // Primitives:
 // ==========
@@ -156,6 +148,7 @@ typedef struct {
     Sphere *spheres;
     Plane *planes;
     Cube *cubes;
+    IndexBuffers *index_buffers;
 } Scene;
 Scene main_scene;
 
@@ -167,9 +160,6 @@ Scene main_scene;
     __constant__ Cube d_cubes[CUBE_COUNT];
     __constant__ Tetrahedron d_tetrahedra[TETRAHEDRON_COUNT];
     __constant__ AmbientLight d_ambient_light[1];
-    __constant__ Masks d_masks[1];
-    __constant__ mat3 d_sphere_rotations[SPHERE_COUNT];
-    __constant__ vec3 d_sphere_view_positions[SPHERE_COUNT];
-    __constant__ Bounds2Di d_sphere_view_bounds[SPHERE_COUNT];
+    __constant__ IndexBuffers d_index_buffers[1];
 //    __constant__ Scene d_scene[1];
 #endif

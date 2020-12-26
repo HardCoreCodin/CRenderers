@@ -17,16 +17,15 @@ void setRayDirectionKernel(vec3 start, vec3 right, vec3 down, u16 width, u32 ray
     iscaleVec3(&down,  y); iaddVec3(&ray_direction, &down);
     norm3(&ray_direction);
 
-    ray_direction_rcp.x = 1.0f / ray_direction->x;
-    ray_direction_rcp.y = 1.0f / ray_direction->y;
-    ray_direction_rcp.z = 1.0f / ray_direction->z;
+    ray_direction_rcp.x = 1.0f / ray_direction.x;
+    ray_direction_rcp.y = 1.0f / ray_direction.y;
+    ray_direction_rcp.z = 1.0f / ray_direction.z;
 
     d_ray_directions[i] = ray_direction;
     d_ray_directions_rcp[i] = ray_direction_rcp;
 }
 inline void setRayDirectionsGPU(vec3 *start, vec3 *right, vec3 *down) {
     u16 width = frame_buffer.width;
-    u16 height = frame_buffer.height;
     u32 count = frame_buffer.size;
     setupKernel(count)
 

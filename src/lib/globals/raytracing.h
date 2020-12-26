@@ -78,8 +78,14 @@ enum RenderMode render_mode = Beauty;
 #ifdef __CUDACC__
     __device__ vec3 d_ray_directions[MAX_WIDTH * MAX_HEIGHT];
     __device__ vec3 d_ray_directions_rcp[MAX_WIDTH * MAX_HEIGHT];
-    __device__ u8 d_masks_out[MAX_WIDTH * MAX_HEIGHT];
+    __constant__ Masks d_masks[1];
+    __constant__ BVHNode d_bvh_nodes[8];
+    __constant__ GeometryBounds d_ssb_bounds[1];
 
-    #define copyMasksFromGPUtoCPU(masks, count) \
-        gpuErrchk(cudaMemcpyFromSymbol(masks, d_masks_out, count, 0, cudaMemcpyDeviceToHost))
+    #define copyMasksFromCPUtoGPU(masks) \
+        gpuErrchk(cudaMemcpyToSymbol(d_masks, masks, sizeof(Masks), 0, cudaMemcpyHostToDevice))
+    #define copyBVHNodesFromCPUtoGPU(bvh_nodes) \
+        gpuErrchk(cudaMemcpyToSymbol(d_bvh_nodes, bvh_nodes, sizeof(BVHNode) * 8, 0, cudaMemcpyHostToDevice))
+    #define copySSBBoundsFromCPUtoGPU(ssb_bounds) \
+        gpuErrchk(cudaMemcpyToSymbol(d_ssb_bounds, ssb_bounds, sizeof(GeometryBounds), 0, cudaMemcpyHostToDevice))
 #endif
