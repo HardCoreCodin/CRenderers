@@ -10,6 +10,9 @@
 
 static char* RAY_TRACER_TITLE = "RayTrace";
 
+typedef struct { enum GeometryType geo_type; AABB aabb; u8 children, geo_ids; } BVHNode;
+typedef struct { u8 node_count; BVHNode *nodes; } BVH;
+
 typedef struct {
     vec2 uv;
     vec3 position,
@@ -45,16 +48,6 @@ typedef struct {
     u32 active_pixels;
     u8 visible_nodes[GEO_TYPE_COUNT];
 } Stats;
-
-typedef struct {
-    AABB aabb;
-    u8 children, geo_type, geo_ids;
-} BVHNode;
-
-typedef struct {
-    u8 node_count;
-    BVHNode *nodes;
-} BVH;
 
 typedef struct {
     BVH bvh;

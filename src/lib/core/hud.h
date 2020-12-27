@@ -83,12 +83,9 @@ void initHUD() {
     setControllerModeInHUD(false);
 }
 
-inline void updateHUDCounters(Timer *timer, u8 visible_nodes, u32 active_pixels) {
+inline void updateHUDCounters(Timer *timer) {
     printNumberIntoString(timer->average_frames_per_second, hud.fps);
     printNumberIntoString(timer->average_microseconds_per_frame, hud.msf);
-//    printNumberIntoString(aux->average_milliseconds_per_frame, hud.aux_msf);
-    printNumberIntoString(visible_nodes, hud.spr);
-    printNumberIntoString((u16)(100.0f * ((f32)active_pixels / (f32)frame_buffer.size)), hud.pixels);
 }
 
 inline void updateHUDDimensions() {

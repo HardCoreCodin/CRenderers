@@ -3,10 +3,6 @@
 #include "lib/core/types.h"
 
 #define GEO_TYPE_COUNT 3
-#define GEO_TYPE__NONE 0
-#define GEO_TYPE__SPHERE 1
-#define GEO_TYPE__CUBE 2
-#define GEO_TYPE__TETRAHEDRON 3
 
 #define TETRAHEDRON_COUNT 4
 #define CUBE_COUNT 1
@@ -25,13 +21,15 @@
 #define IOR_AIR 1
 #define IOR_GLASS 1.5f
 
-typedef struct {
-    u8 spheres, cubes, tetrahedra;
-} GeometeryMasks;
+enum GeometryType {
+    GeoTypeNone = -1,
+    GeoTypeCube,
+    GeoTypeSphere,
+    GeoTypeTetrahedron
+};
 
-typedef struct {
-    GeometeryMasks visibility, transparency, shadowing;
-} Masks;
+typedef struct { u8 planes, cubes, spheres, tetrahedra; } GeometryMasks;
+typedef struct { GeometryMasks visibility, transparency, shadowing; } Masks;
 
 typedef struct {
     u8 tetrahedron[4][3];

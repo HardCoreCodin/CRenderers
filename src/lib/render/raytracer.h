@@ -35,7 +35,7 @@ bool tracePrimaryRay(Ray *ray, Scene *scene, BVH *bvh, GeometryBounds *ssb_bound
     ray->hit.uv.x = ray->hit.uv.y = 1;
     ray->hit.distance = MAX_DISTANCE;
     ray->masks = *masks;
-    setRayVisibilityMasksFromBounds(&ray->masks.visibility, &masks->visibility, ssb_bounds, x, y);
+    setRayVisibilityMasksFromBounds(&ray->masks, masks, ssb_bounds, x, y);
 
     bool found_plane = hitPlanes(scene->planes, ray);
     bool found_sphere      = ray->masks.visibility.spheres != 0 && hitSpheres(scene->spheres, ray, false);
@@ -43,50 +43,56 @@ bool tracePrimaryRay(Ray *ray, Scene *scene, BVH *bvh, GeometryBounds *ssb_bound
 
     return found_plane | found_sphere | found_tetrahedron;
 }
-
-#ifdef __CUDACC__
-__device__
-__host__
-__forceinline__
-#else
-
-inline
-#endif
-bool traceSecondaryRay(Ray *ray, Scene *scene, BVH *bvh, Masks *masks) {
-    ray->hit.uv.x = ray->hit.uv.y = 1;
-    ray->hit.distance = MAX_DISTANCE;
-    ray->masks.shadowing = masks->shadowing;
-    ray->masks.transparency = masks->transparency;
-    ray->masks.visibility.spheres = ray->masks.visibility.cubes = ray->masks.visibility.tetrahedra = FULL_MASK;
-
-    bool found_plane  = hitPlanes(  scene->planes, ray);
-    bool found_sphere = hitSpheres(scene->spheres, ray, false);
-    bool found_tetrahedron = hitTetrahedra(scene->tetrahedra, scene->index_buffers, ray, false);
-
-    return found_plane | found_tetrahedron | found_sphere;
-}
-
-
-#ifdef __CUDACC__
-__device__
-__host__
-__forceinline__
-#else
-inline
-#endif
-bool traceSecondaryRaySimple(Ray *ray, Scene *scene, BVH *bvh, Masks *masks) {
-    ray->hit.uv.x = ray->hit.uv.y = 1;
-    ray->hit.distance = MAX_DISTANCE;
-    ray->masks.shadowing = masks->shadowing;
-    ray->masks.transparency = masks->transparency;
-    ray->masks.visibility.spheres = ray->masks.visibility.cubes = ray->masks.visibility.tetrahedra = FULL_MASK;
-
-    bool found_plane  = hitPlanes(  scene->planes, ray);
-    bool found_sphere = hitSpheresSimple(scene->spheres, ray);
-    bool found_tetrahedron = hitTetrahedra(scene->tetrahedra, scene->index_buffers, ray, false);
-
-    return found_plane | found_tetrahedron | found_sphere;
-}
+//
+//#ifdef __CUDACC__
+//__device__
+//__host__
+//__forceinline__
+//#else
+//
+//inline
+//#endif
+//bool traceSecondaryRay(Ray *ray, Scene *scene, BVH *bvh, Masks *masks) {
+//    ray->hit.uv.x = ray->hit.uv.y = 1;
+//    ray->hit.distance = MAX_DISTANCE;
+//
+//    for (u8 geo_type = 0; geo_type < GEO_TYPE_COUNT; geo_type++) {
+//        ray->masks.visibility[geo_type] = FULL_MASK;
+//        ray->masks.shadowing[geo_type] = masks->shadowing[geo_type];
+//        ray->masks.transparency[geo_type] = masks->transparency[geo_type];
+//    }
+//
+//    bool found_plane  = hitPlanes(  scene->planes, ray);
+//    bool found_sphere = hitSpheres(scene->spheres, ray, false);
+//    bool found_tetrahedron = hitTetrahedra(scene->tetrahedra, scene->index_buffers, ray, false);
+//
+//    return found_plane | found_tetrahedron | found_sphere;
+//}
+//
+//
+//#ifdef __CUDACC__
+//__device__
+//__host__
+//__forceinline__
+//#else
+//inline
+//#endif
+//bool traceSecondaryRaySimple(Ray *ray, Scene *scene, BVH *bvh, Masks *masks) {
+//    ray->hit.uv.x = ray->hit.uv.y = 1;
+//    ray->hit.distance = MAX_DISTANCE;
+//
+//    for (u8 geo_type = 0; geo_type < GEO_TYPE_COUNT; geo_type++) {
+//        ray->masks.visibility[geo_type] = FULL_MASK;
+//        ray->masks.shadowing[geo_type] = masks->shadowing[geo_type];
+//        ray->masks.transparency[geo_type] = masks->transparency[geo_type];
+//    }
+//
+//    bool found_plane  = hitPlanes(  scene->planes, ray);
+//    bool found_sphere = hitSpheresSimple(scene->spheres, ray);
+//    bool found_tetrahedron = hitTetrahedra(scene->tetrahedra, scene->index_buffers, ray, false);
+//
+//    return found_plane | found_tetrahedron | found_sphere;
+//}
 
 #ifdef __CUDACC__
 __device__
@@ -185,7 +191,6 @@ void renderOnGPU(Scene *scene, Camera *camera) {
     for (u16 y = 0; y < frame_buffer.height; y++) { \
         for (u16 x = 0; x < frame_buffer.width; x++, pixel++, ray.direction++, ray.direction_rcp++) { \
             shader(&ray, scene, bvh, &ssb->bounds, masks, x, y, pixel); \
-            if (ray.masks.visibility.spheres) active_pixels++; \
         }  \
     }  \
 }
@@ -378,8 +383,8 @@ void initRayTracer(Scene *scene) {
         ray_tracer.masks.visibility.spheres |= sphere_id;
     }
 
-    ray_tracer.masks.shadowing.tetrahedra = 1;
-    ray_tracer.masks.visibility.tetrahedra = 1;
+    ray_tracer.masks.shadowing.tetrahedra = FULL_MASK;
+    ray_tracer.masks.visibility.tetrahedra = FULL_MASK;
     ray_tracer.masks.transparency.tetrahedra = 0;
 
 //

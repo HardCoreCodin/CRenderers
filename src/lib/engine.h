@@ -139,7 +139,7 @@ void updateAndRender() {
     endFrameTimer(&update_timer, true);
     if (hud.is_visible) {
         if (!update_timer.accumulated_frame_count)
-            updateHUDCounters(&update_timer, ray_tracer.stats.visible_nodes[GEO_TYPE__SPHERE-1], ray_tracer.stats.active_pixels);
+            updateHUDCounters(&update_timer);
         drawText(&frame_buffer, hud.text, HUD_COLOR, frame_buffer.width - HUD_RIGHT - HUD_WIDTH, HUD_TOP);
     }
 

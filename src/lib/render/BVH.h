@@ -89,31 +89,21 @@ void updateBVH(BVH *bvh, Scene *scene) {
         aabb->max.z = z + r;
     }
 
-//    if (bvh->node_count == 1) {
-//        bvh->nodes->geo_type = GEO_TYPE__SPHERE;
-//        bvh->nodes->geo_ids = 1 | 2 | 4 | 8;
-//        bvh->nodes->children = 0;
-//
-//        setParentAABB(sphere_aabbs[0], sphere_aabbs[0], sphere_aabbs[1]);
-//        setParentAABB(sphere_aabbs[1], sphere_aabbs[2], sphere_aabbs[3]);
-//        setParentAABB(sphere_aabbs[0], sphere_aabbs[0], sphere_aabbs[1]);
-//
-//        bvh->nodes->aabb = sphere_aabbs[0];
-//    } else if (bvh->node_count == 3) {
-        bvh->nodes->geo_type = GEO_TYPE__NONE;
-        bvh->nodes->geo_ids = 0;
-        bvh->nodes->children = 1 | 2;
+    bvh->nodes->geo_type = GeoTypeNone;
+    bvh->nodes->geo_ids = 0;
+    bvh->nodes->children = 1 | 2;
 
-        setParentAABB(bvh->nodes[1].aabb, tet_aabbs[0], tet_aabbs[1]);
-        setParentAABB(bvh->nodes[2].aabb, tet_aabbs[2], tet_aabbs[3]);
-        setParentAABB(bvh->nodes[0].aabb, bvh->nodes[1].aabb, bvh->nodes[2].aabb);
+    setParentAABB(bvh->nodes[1].aabb, tet_aabbs[0], tet_aabbs[1]);
+    setParentAABB(bvh->nodes[2].aabb, tet_aabbs[2], tet_aabbs[3]);
+    setParentAABB(bvh->nodes[0].aabb, bvh->nodes[1].aabb, bvh->nodes[2].aabb);
 
-        bvh->nodes[1].geo_type = GEO_TYPE__TETRAHEDRON;
-        bvh->nodes[2].geo_type = GEO_TYPE__TETRAHEDRON;
-        bvh->nodes[1].geo_ids = 1 | 2;
-        bvh->nodes[2].geo_ids = 4 | 8;
-//    }
+    bvh->nodes[1].geo_type = GeoTypeTetrahedron;
+    bvh->nodes[2].geo_type = GeoTypeTetrahedron;
+    bvh->nodes[1].geo_ids = 1 | 2;
+    bvh->nodes[2].geo_ids = 4 | 8;
+#ifdef __CUDACC__
     copyBVHNodesFromCPUtoGPU(bvh->nodes);
+#endif
 }
 
 #ifdef __CUDACC__
@@ -124,41 +114,141 @@ __forceinline__
 inline
 #endif
 void setRayMasksFromBVH(Ray *ray, BVH *bvh) {
-    ray->masks.visibility.spheres = 0;
-    ray->masks.visibility.cubes = 0;
-    ray->masks.visibility.tetrahedra = 0;
+    BVHNode *node = bvh->nodes;
+    u8 i, child, next_children, children = node->children;
+    GeometryMasks visibility;
+    visibility.spheres = visibility.cubes = visibility.tetrahedra = 0;
 
-    if (bvh->nodes->geo_type) switch (bvh->nodes->geo_type) {
-        case GEO_TYPE__SPHERE     : ray->masks.visibility.spheres    |= bvh->nodes->geo_ids; break;
-        case GEO_TYPE__CUBE       : ray->masks.visibility.cubes      |= bvh->nodes->geo_ids; break;
-        case GEO_TYPE__TETRAHEDRON: ray->masks.visibility.tetrahedra |= bvh->nodes->geo_ids; break;
-    }
-    if (bvh->nodes->children) {
-        BVHNode *node = bvh->nodes;
-        u8 i, child, next_children, children = node->children;
+    while (children) { // Breadth-first_traversal
+        next_children = 0;
+        child = 1;
 
-        while (children) { // Breadth-first_traversal
-            next_children = 0;
-            child = 1;
-
-            for (i = 0; i < 8; i++, child <<= (u8)1)
-                if (child & children) {
-                    node = &bvh->nodes[i+1];
-                    if (hitAABB(&node->aabb, ray)) {
-                        next_children |= node->children;
-                        if (node->geo_type) switch (node->geo_type) {
-                            case GEO_TYPE__SPHERE     : ray->masks.visibility.spheres    |= node->geo_ids; break;
-                            case GEO_TYPE__CUBE       : ray->masks.visibility.cubes      |= node->geo_ids; break;
-                            case GEO_TYPE__TETRAHEDRON:
-                                ray->masks.visibility.tetrahedra |= node->geo_ids; break;
-                        }
+        for (i = 0; i < 8; i++, child <<= (u8)1)
+            if (child & children) {
+                node = &bvh->nodes[i+1];
+                if (hitAABB(&node->aabb, ray)) {
+                    next_children |= node->children;
+                    switch (node->geo_type) {
+                        case GeoTypeCube       : visibility.cubes      |= node->geo_ids; break;
+                        case GeoTypeSphere     : visibility.spheres    |= node->geo_ids; break;
+                        case GeoTypeTetrahedron: visibility.tetrahedra |= node->geo_ids; break;
+                        case GeoTypeNone       :                                         break;
                     }
                 }
+            }
 
-            children = next_children;
-        }
+        children = next_children;
     }
+
+    ray->masks.visibility = visibility;
 }
+
+
+//#ifdef __CUDACC__
+//__device__
+//__host__
+////__forceinline__
+//#else
+//inline
+//#endif
+//void setRayMasksFromBVH(Ray *ray, BVH *bvh) {
+//    u8 masks[3];
+//    masks[0] = 0;
+//    masks[1] = 1;
+//    masks[2] = 2;
+//
+//    BVHNode *node1 = &bvh->nodes[1];
+//    BVHNode *node2 = &bvh->nodes[2];
+//
+//    u8 geo_type1 = (u8)node1->geo_type;
+//    u8 geo_type2 = (u8)node2->geo_type;
+//
+//    if (geo_type1 >= 0 && geo_type1 < 3) masks[geo_type1] |= node1->geo_ids;
+//    if (geo_type2 >= 0 && geo_type2 < 3) masks[geo_type2] |= node2->geo_ids;
+//
+//    ray->masks.visibility[0] = masks[0];
+//    ray->masks.visibility[1] = masks[1];
+//    ray->masks.visibility[2] = masks[2];
+//}
+//
+//#ifdef __CUDACC__
+//__device__
+//__host__
+//__forceinline__
+//#else
+//inline
+//#endif
+//void setRayMasksFromBVH1(Ray *ray, BVH *bvh) {
+//    u8 visibility_0 = 0,
+//       visibility_1 = 0,
+//       visibility_2 = 0;
+//
+//    BVHNode *node = bvh->nodes;
+//    u8 i, child, next_children, children = node->children;
+//
+//    while (children) { // Breadth-first_traversal
+//        next_children = 0;
+//        child = 1;
+//
+//        for (i = 0; i < 8; i++, child <<= (u8)1)
+//            if (child & children) {
+//                node = &bvh->nodes[i+1];
+//                if (hitAABB(&node->aabb, ray)) {
+//                    next_children |= node->children;
+//                    switch (node->geo_type) {
+//                        case GeoTypeCube       : visibility_0 |= node->geo_ids; break;
+//                        case GeoTypeSphere     : visibility_1 |= node->geo_ids; break;
+//                        case GeoTypeTetrahedron: visibility_2 |= node->geo_ids; break;
+//                        case GeoTypeNone       :                                break;
+//                    }
+//                }
+//            }
+//
+//        children = next_children;
+//    }
+//
+//    ray->masks.visibility[0] = visibility_0;
+//    ray->masks.visibility[1] = visibility_1;
+//    ray->masks.visibility[2] = visibility_2;
+//}
+//
+//
+//#ifdef __CUDACC__
+//__device__
+//__host__
+//__forceinline__
+//#else
+//inline
+//#endif
+//void setRayMasksFromBVHCleanest(Ray *ray, BVH *bvh) {
+//    BVHNode *node = bvh->nodes;
+//    u8 i, child, next_children, children = node->children;
+//
+//    u8 masks[GEO_TYPE_COUNT];
+//    masks[0] = 0;
+//    masks[1] = 1;
+//    masks[2] = 2;
+//
+//    while (children) { // Breadth-first_traversal
+//        next_children = 0;
+//        child = 1;
+//
+//        for (i = 0; i < 8; i++, child <<= (u8)1)
+//            if (child & children) {
+//                node = &bvh->nodes[i+1];
+//                if (hitAABB(&node->aabb, ray)) {
+//                    next_children |= node->children;
+//                    if (node->geo_type != GeoTypeNone) masks[node->geo_type] |= node->geo_ids;
+//                }
+//            }
+//
+//        children = next_children;
+//    }
+//
+//    ray->masks.visibility[0] = masks[0];
+//    ray->masks.visibility[1] = masks[1];
+//    ray->masks.visibility[2] = masks[2];
+//}
 
 void drawBVH(BVH *bvh, Camera *camera) {
     BBox bbox;

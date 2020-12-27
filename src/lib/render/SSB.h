@@ -38,14 +38,9 @@ __forceinline__
 #else
 inline
 #endif
-void setRayVisibilityMasksFromBounds(
-        GeometeryMasks *ray_visibility_mask,
-        GeometeryMasks *scene_visibility_mask,
-        GeometryBounds *scene_geometry_bounds,
-        u16 x,
-        u16 y) {
-    ray_visibility_mask->spheres    = getVisibilityMasksFromBounds(scene_geometry_bounds->spheres,    SPHERE_COUNT,      scene_visibility_mask->spheres,    x, y);
-    ray_visibility_mask->tetrahedra = getVisibilityMasksFromBounds(scene_geometry_bounds->tetrahedra, TETRAHEDRON_COUNT, scene_visibility_mask->tetrahedra, x, y);
+void setRayVisibilityMasksFromBounds(Masks *ray_masks, Masks *scene_masks, GeometryBounds *bounds, u16 x, u16 y) {
+    ray_masks->visibility.spheres    = getVisibilityMasksFromBounds(bounds->spheres,    SPHERE_COUNT,      scene_masks->visibility.spheres,    x, y);
+    ray_masks->visibility.tetrahedra = getVisibilityMasksFromBounds(bounds->tetrahedra, TETRAHEDRON_COUNT, scene_masks->visibility.tetrahedra, x, y);
 }
 
 bool computeSSB(Bounds2Di *bounds, f32 x, f32 y, f32 z, f32 r, f32 focal_length) {
@@ -139,7 +134,7 @@ bool computeSSB(Bounds2Di *bounds, f32 x, f32 y, f32 z, f32 r, f32 focal_length)
 void updateSceneMasks(Scene* scene, SSB* ssb, Masks *masks, f32 focal_length) {
     u8 visible_nodes = 0;
     u8 visibility_mask = 0;
-    u8 transparency_mask = masks->transparency.spheres;
+    u8 transparency_mask = masks->transparency.tetrahedra;
     u8 node_id = 1;
 
     Sphere *s = scene->spheres;
@@ -161,7 +156,6 @@ void updateSceneMasks(Scene* scene, SSB* ssb, Masks *masks, f32 focal_length) {
         }
     }
     masks->visibility.spheres =  0;
-    ray_tracer.stats.visible_nodes[GEO_TYPE__SPHERE-1] = visible_nodes;
 
     visible_nodes = 0;
     visibility_mask = 0;
@@ -185,7 +179,6 @@ void updateSceneMasks(Scene* scene, SSB* ssb, Masks *masks, f32 focal_length) {
 
     masks->shadowing.tetrahedra = FULL_MASK;
     masks->visibility.tetrahedra = FULL_MASK;
-    ray_tracer.stats.visible_nodes[GEO_TYPE__TETRAHEDRON-1] = visible_nodes;
 
 #ifdef __CUDACC__
     copySSBBoundsFromCPUtoGPU(&ray_tracer.ssb.bounds);
