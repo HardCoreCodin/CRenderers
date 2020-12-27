@@ -10,9 +10,6 @@
 
 static char* RAY_TRACER_TITLE = "RayTrace";
 
-typedef struct { enum GeometryType geo_type; AABB aabb; u8 children, geo_ids; } BVHNode;
-typedef struct { u8 node_count; BVHNode *nodes; } BVH;
-
 typedef struct {
     vec2 uv;
     vec3 position,
@@ -21,6 +18,14 @@ typedef struct {
     bool is_back_facing;
     u8 material_id;
 } RayHit;
+
+typedef struct {
+    u8 cubes, spheres, tetrahedra;
+} GeometryMasks;
+
+typedef struct {
+    GeometryMasks visibility, transparency, shadowing;
+} Masks;
 
 typedef struct {
     vec3 *origin,
@@ -44,16 +49,23 @@ typedef struct {
     GeometryViewPositions view_positions;
 } SSB;
 
+#define MAX_BVH_NODE_COUNT 8
+
 typedef struct {
-    u32 active_pixels;
-    u8 visible_nodes[GEO_TYPE_COUNT];
-} Stats;
+    enum GeometryType geo_type;
+    AABB aabb;
+    u8 children, geo_ids;
+} BVHNode;
+
+typedef struct {
+    u8 node_count;
+    BVHNode *nodes;
+} BVH;
 
 typedef struct {
     BVH bvh;
     SSB ssb;
     Masks masks;
-    Stats stats;
     u32 ray_count;
     u8 rays_per_pixel;
     vec3 *ray_directions,
@@ -61,24 +73,17 @@ typedef struct {
 } RayTracer;
 RayTracer ray_tracer;
 
-enum RenderMode {
-    Beauty,
-    Normal,
-    UVs
-};
-enum RenderMode render_mode = Beauty;
-
 #ifdef __CUDACC__
     __device__ vec3 d_ray_directions[MAX_WIDTH * MAX_HEIGHT];
     __device__ vec3 d_ray_directions_rcp[MAX_WIDTH * MAX_HEIGHT];
     __constant__ Masks d_masks[1];
-    __constant__ BVHNode d_bvh_nodes[8];
+    __constant__ BVHNode d_bvh_nodes[MAX_BVH_NODE_COUNT];
     __constant__ GeometryBounds d_ssb_bounds[1];
 
     #define copyMasksFromCPUtoGPU(masks) \
         gpuErrchk(cudaMemcpyToSymbol(d_masks, masks, sizeof(Masks), 0, cudaMemcpyHostToDevice))
     #define copyBVHNodesFromCPUtoGPU(bvh_nodes) \
-        gpuErrchk(cudaMemcpyToSymbol(d_bvh_nodes, bvh_nodes, sizeof(BVHNode) * 8, 0, cudaMemcpyHostToDevice))
+        gpuErrchk(cudaMemcpyToSymbol(d_bvh_nodes, bvh_nodes, sizeof(BVHNode) * MAX_BVH_NODE_COUNT, 0, cudaMemcpyHostToDevice))
     #define copySSBBoundsFromCPUtoGPU(ssb_bounds) \
         gpuErrchk(cudaMemcpyToSymbol(d_ssb_bounds, ssb_bounds, sizeof(GeometryBounds), 0, cudaMemcpyHostToDevice))
 #endif

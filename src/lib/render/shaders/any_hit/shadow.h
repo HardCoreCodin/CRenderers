@@ -10,6 +10,7 @@
 #include "../intersection/tetrahedra.h"
 #include "../intersection/sphere.h"
 #include "../intersection/plane.h"
+#include "../intersection/cube.h"
 #include "../intersection/AABB.h"
 
 #ifdef __CUDACC__
@@ -19,7 +20,7 @@ __forceinline__
 #else
 inline
 #endif
-bool inShadow(Scene *scene, BVH *bvh, Masks *masks, vec3* Rd, vec3* Ro, f32 light_distance) {
+bool inShadow(Scene *scene, BVHNode *bvh_nodes, Masks *masks, vec3* Rd, vec3* Ro, f32 light_distance) {
     Ray ray;
     ray.origin = Ro;
     ray.direction = Rd;
@@ -31,12 +32,12 @@ bool inShadow(Scene *scene, BVH *bvh, Masks *masks, vec3* Rd, vec3* Ro, f32 ligh
     Rd_rcp.z = 1.0f / Rd->z;
     ray.direction_rcp = &Rd_rcp;
 
-    setRayMasksFromBVH(&ray, bvh);
-//
-//    ray.masks.transparency.cubes = masks->transparency.cubes;
-//    ray.masks.visibility.cubes &= masks->shadowing.cubes;
-//    if (ray.masks.visibility.cubes && hitCubes(scene->cubes, scene->index_buffers, &ray, true))
-//        return true;
+    setRayMasksFromBVH(&ray, bvh_nodes);
+
+    ray.masks.transparency.cubes = masks->transparency.cubes;
+    ray.masks.visibility.cubes &= masks->shadowing.cubes;
+    if (ray.masks.visibility.cubes && hitCubes(scene->cubes, scene->cube_indices, &ray, true))
+        return true;
 
     ray.masks.transparency.spheres = masks->transparency.spheres;
     ray.masks.visibility.spheres &= masks->shadowing.spheres;
@@ -45,7 +46,7 @@ bool inShadow(Scene *scene, BVH *bvh, Masks *masks, vec3* Rd, vec3* Ro, f32 ligh
 
     ray.masks.transparency.tetrahedra = masks->transparency.tetrahedra;
     ray.masks.visibility.tetrahedra &= masks->shadowing.tetrahedra;
-    if (ray.masks.visibility.tetrahedra && hitTetrahedra(scene->tetrahedra, scene->index_buffers, &ray, true))
+    if (ray.masks.visibility.tetrahedra && hitTetrahedra(scene->tetrahedra, scene->tetrahedron_indices, &ray, true))
         return true;
 
     return false;

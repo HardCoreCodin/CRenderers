@@ -174,8 +174,13 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     ctrl_key       = VK_CONTROL;
     alt_key        = VK_MENU;
     toggle_HUD_key = VK_TAB;
-    toggle_BVH_key = '1';
-    toggle_SSB_key = '2';
+    toggle_GPU_key = 'G';
+    toggle_SSB_key = '0';
+    toggle_BVH_key = '9';
+    set_beauty_key = '1';
+    set_normal_key = '2';
+    set_depth_key  = '3';
+    set_uvs_key    = '4';
 
     info.bmiHeader.biSize        = sizeof(info.bmiHeader);
     info.bmiHeader.biCompression = BI_RGB;

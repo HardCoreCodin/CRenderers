@@ -19,13 +19,8 @@ typedef struct HUD {
     char *width,
          *height,
          *run_on,
-         *use_bvh,
-         *use_old,
-         *fps, *aux_alt,
-         *msf, *aux_msf,
-         *spr,
-         *pixels,
-         *shading,
+         *fps,
+         *msf,
          *mode;
 } HUD;
 HUD hud;

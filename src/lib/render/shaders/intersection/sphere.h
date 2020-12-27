@@ -52,12 +52,12 @@ bool hitSpheresSimple(Sphere *spheres, Ray *ray) {
 
         sphere = &spheres[i];
 
-        subVec3(&sphere->position, Ro, C);
+        subVec3(&sphere->node.position, Ro, C);
         t = dotVec3(C, Rd);
         if (t > 0) {
             scaleVec3(Rd, t, I);
             isubVec3(I, C);
-            r = sphere->radius;
+            r = sphere->node.radius;
             dt = r*r - squaredLengthVec3(I);
             if (dt > 0 && t*t > dt) { // Inside the sphere
                 distance = t - sqrtf(dt);
@@ -72,10 +72,10 @@ bool hitSpheresSimple(Sphere *spheres, Ray *ray) {
 
     if (found) {
         ray->hit.is_back_facing = false;
-        ray->hit.material_id = hit_sphere->material_id;
+        ray->hit.material_id = hit_sphere->node.geo.material_id;
         ray->hit.distance = closest_distance;
-        C = &hit_sphere->position;
-        r = hit_sphere->radius;
+        C = &hit_sphere->node.position;
+        r = hit_sphere->node.radius;
 
         scaleVec3(Rd, closest_distance, P);
         iaddVec3(P, Ro);
@@ -124,12 +124,12 @@ bool hitSpheres(Sphere *spheres, Ray *ray, bool check_any) {
     for (u8 i = 0; i < SPHERE_COUNT; i++, sphere_id <<= (u8)1, sphere++) {
         if (!(sphere_id & visibility_mask)) continue;
 
-        subVec3(&sphere->position, Ro, C);
+        subVec3(&sphere->node.position, Ro, C);
         t = dotVec3(C, Rd);
         if (t > 0) {
             scaleVec3(Rd, t, I);
             isubVec3(I, C);
-            r = sphere->radius;
+            r = sphere->node.radius;
             dt = r*r - squaredLengthVec3(I);
 
             if (dt > 0 && dt < closest_distance_squared) { // Inside the sphere
@@ -142,7 +142,7 @@ bool hitSpheres(Sphere *spheres, Ray *ray, bool check_any) {
                 has_outer_hit = outer_hit_distance > 0 && outer_hit_distance < closest_hit.distance;
                 if (has_inner_hit ||
                     has_outer_hit) {
-                    Sp = &sphere->position;
+                    Sp = &sphere->node.position;
                     Sr = &sphere->rotation;
 
                     if (transparency_mask & sphere_id) {
@@ -168,7 +168,7 @@ bool hitSpheres(Sphere *spheres, Ray *ray, bool check_any) {
                         current_hit.uv = setRaySphereHit(Ro, Rd, P, N, Sp, Sr, d, current_hit.is_back_facing);
                     }
                     closest_hit = current_hit;
-                    closest_hit.material_id = sphere->material_id;
+                    closest_hit.material_id = sphere->node.geo.material_id;
                     closest_hit.distance = d;
                     found = true;
                     if (check_any) break;

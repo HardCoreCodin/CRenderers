@@ -31,68 +31,17 @@ __forceinline__
 #else
 inline
 #endif
-bool tracePrimaryRay(Ray *ray, Scene *scene, BVH *bvh, GeometryBounds *ssb_bounds, Masks *masks, u16 x, u16 y) {
+void tracePrimaryRay(Ray *ray, Scene *scene, GeometryBounds *bounds, Masks *masks, u16 x, u16 y) {
     ray->hit.uv.x = ray->hit.uv.y = 1;
     ray->hit.distance = MAX_DISTANCE;
     ray->masks = *masks;
-    setRayVisibilityMasksFromBounds(&ray->masks, masks, ssb_bounds, x, y);
+    setRayVisibilityMasksFromBounds(&ray->masks, masks, bounds, x, y);
 
-    bool found_plane = hitPlanes(scene->planes, ray);
-    bool found_sphere      = ray->masks.visibility.spheres != 0 && hitSpheres(scene->spheres, ray, false);
-    bool found_tetrahedron = ray->masks.visibility.tetrahedra != 0 && hitTetrahedra(scene->tetrahedra, scene->index_buffers, ray, false);
-
-    return found_plane | found_sphere | found_tetrahedron;
+    hitPlanes(scene->planes, ray);
+    if (ray->masks.visibility.cubes) hitCubes(scene->cubes, scene->cube_indices, ray, false);
+    if (ray->masks.visibility.spheres) hitSpheres(scene->spheres, ray, false);
+    if (ray->masks.visibility.tetrahedra) hitTetrahedra(scene->tetrahedra, scene->tetrahedron_indices, ray, false);
 }
-//
-//#ifdef __CUDACC__
-//__device__
-//__host__
-//__forceinline__
-//#else
-//
-//inline
-//#endif
-//bool traceSecondaryRay(Ray *ray, Scene *scene, BVH *bvh, Masks *masks) {
-//    ray->hit.uv.x = ray->hit.uv.y = 1;
-//    ray->hit.distance = MAX_DISTANCE;
-//
-//    for (u8 geo_type = 0; geo_type < GEO_TYPE_COUNT; geo_type++) {
-//        ray->masks.visibility[geo_type] = FULL_MASK;
-//        ray->masks.shadowing[geo_type] = masks->shadowing[geo_type];
-//        ray->masks.transparency[geo_type] = masks->transparency[geo_type];
-//    }
-//
-//    bool found_plane  = hitPlanes(  scene->planes, ray);
-//    bool found_sphere = hitSpheres(scene->spheres, ray, false);
-//    bool found_tetrahedron = hitTetrahedra(scene->tetrahedra, scene->index_buffers, ray, false);
-//
-//    return found_plane | found_tetrahedron | found_sphere;
-//}
-//
-//
-//#ifdef __CUDACC__
-//__device__
-//__host__
-//__forceinline__
-//#else
-//inline
-//#endif
-//bool traceSecondaryRaySimple(Ray *ray, Scene *scene, BVH *bvh, Masks *masks) {
-//    ray->hit.uv.x = ray->hit.uv.y = 1;
-//    ray->hit.distance = MAX_DISTANCE;
-//
-//    for (u8 geo_type = 0; geo_type < GEO_TYPE_COUNT; geo_type++) {
-//        ray->masks.visibility[geo_type] = FULL_MASK;
-//        ray->masks.shadowing[geo_type] = masks->shadowing[geo_type];
-//        ray->masks.transparency[geo_type] = masks->transparency[geo_type];
-//    }
-//
-//    bool found_plane  = hitPlanes(  scene->planes, ray);
-//    bool found_sphere = hitSpheresSimple(scene->spheres, ray);
-//    bool found_tetrahedron = hitTetrahedra(scene->tetrahedra, scene->index_buffers, ray, false);
-//
-//    return found_plane | found_tetrahedron | found_sphere;
-//}
 
 #ifdef __CUDACC__
 __device__
@@ -101,16 +50,15 @@ __forceinline__
 #else
 inline
 #endif
-void renderPixel(Ray *ray, Scene *scene, BVH *bvh, GeometryBounds *ssb_bounds, Masks *masks, u16 x, u16 y, Pixel* pixel) {
-    tracePrimaryRay(ray, scene, bvh, ssb_bounds, masks, x, y);
+void renderBeauty(Ray *ray, Scene *scene, BVHNode *bvh_nodes, GeometryBounds *bounds, Masks *masks, u16 x, u16 y, Pixel* pixel) {
+    tracePrimaryRay(ray, scene, bounds, masks, x, y);
 
     vec3 color;
     fillVec3(&color, 0);
-//    shadeSurface(scene, ray->hit.material_id, ray->direction,  &ray->hit.position, &ray->hit.normal, &color);
-    shadeLambert(scene, bvh, masks, ray->direction, &ray->hit.position, &ray->hit.normal, &color);
-//    shadePhong(scene, ray->direction, &ray->hit.position, &ray->hit.normal &color);
-//    shadeBlinn(scene, ray->direction, &ray->hit.position, &ray->hit.normal, &color);
-//    shadeDepth(ray->hit.distance, &color);
+//    shadeSurface(scene, bvh, masks, ray->hit.material_id, ray->direction,  &ray->hit.position, &ray->hit.normal, &color);
+    shadeLambert(scene, bvh_nodes, masks, ray->direction, &ray->hit.position, &ray->hit.normal, &color);
+//    shadePhong(scene, bvh, masks, ray->direction, &ray->hit.position, &ray->hit.normal &color);
+//    shadeBlinn(scene, bvh, masks, ray->direction, &ray->hit.position, &ray->hit.normal, &color);
     setPixelColor(pixel, color);
 }
 
@@ -121,8 +69,8 @@ __forceinline__
 #else
 inline
 #endif
-void renderNorm(Ray *ray, Scene *scene, BVH *bvh, GeometryBounds *ssb_bounds, Masks *masks, u16 x, u16 y, Pixel* pixel) {
-    tracePrimaryRay(ray, scene, bvh, ssb_bounds, masks, x, y);
+void renderNormals(Ray *ray, Scene *scene, BVHNode *bvh_nodes, GeometryBounds *bounds, Masks *masks, u16 x, u16 y, Pixel* pixel) {
+    tracePrimaryRay(ray, scene, bounds, masks, x, y);
 
     vec3 color;
     shadeDirection(&ray->hit.normal, &color);
@@ -136,8 +84,23 @@ __forceinline__
 #else
 inline
 #endif
-void renderUV(Ray *ray, Scene *scene, BVH *bvh, GeometryBounds *ssb_bounds, Masks *masks, u16 x, u16 y, Pixel* pixel) {
-    tracePrimaryRay(ray, scene, bvh, ssb_bounds, masks, x, y);
+void renderDepth(Ray *ray, Scene *scene, BVHNode *bvh_nodes, GeometryBounds *bounds, Masks *masks, u16 x, u16 y, Pixel* pixel) {
+    tracePrimaryRay(ray, scene, bounds, masks, x, y);
+
+    vec3 color;
+    shadeDepth(ray->hit.distance, &color);
+    setPixelColor(pixel, color);
+}
+
+#ifdef __CUDACC__
+__device__
+__host__
+__forceinline__
+#else
+inline
+#endif
+void renderUVs(Ray *ray, Scene *scene, BVHNode *bvh_nodes, GeometryBounds *bounds, Masks *masks, u16 x, u16 y, Pixel* pixel) {
+    tracePrimaryRay(ray, scene, bounds, masks, x, y);
 
     vec3 color;
     shadeUV(ray->hit.uv, &color);
@@ -148,28 +111,30 @@ void renderUV(Ray *ray, Scene *scene, BVH *bvh, GeometryBounds *ssb_bounds, Mask
 
 #define initShader(C, W) \
     initKernel(C, W);    \
+                         \
     Pixel *pixel = (Pixel *)&d_pixels[i]; \
+                         \
     Ray ray; \
     ray.direction = &d_ray_directions[i]; \
     ray.origin = &Ro; \
     ray.hit.distance = MAX_DISTANCE; \
-    Ray *R = &ray;   \
-    BVH bvh;               \
-    bvh.nodes = d_bvh_nodes;              \
+                         \
     Scene scene;         \
-    scene.index_buffers = d_index_buffers;                    \
+    scene.geo_counts = d_geo_counts; \
     scene.materials = d_materials; \
     scene.point_lights = d_point_lights; \
     scene.tetrahedra = d_tetrahedra; \
     scene.spheres = d_spheres; \
     scene.planes = d_planes; \
     scene.cubes = d_cubes; \
-    scene.ambient_light = d_ambient_light; \
-    Scene *S = &scene; BVH *B = &bvh
+    scene.ambient_light = d_ambient_light;\
+    scene.cube_indices = d_cube_indices;\
+    scene.tetrahedron_indices = d_tetrahedron_indices
 
-__global__ void d_renderNorm( u16 W, u32 C, vec3 Ro) { initShader(C, W); renderNorm( R, S, B, d_ssb_bounds, d_masks, x, y, pixel); }
-__global__ void d_renderUVs(  u16 W, u32 C, vec3 Ro) { initShader(C, W); renderUV(   R, S, B, d_ssb_bounds, d_masks, x, y, pixel); }
-__global__ void d_renderPixel(u16 W, u32 C, vec3 Ro) { initShader(C, W); renderPixel(R, S, B, d_ssb_bounds, d_masks, x, y, pixel); }
+__global__ void d_renderUVs(     u16 W, u32 C, vec3 Ro) { initShader(C, W); renderUVs(     &ray, &scene, d_bvh_nodes, d_ssb_bounds, d_masks, x, y, pixel); }
+__global__ void d_renderDepth(   u16 W, u32 C, vec3 Ro) { initShader(C, W); renderDepth(   &ray, &scene, d_bvh_nodes, d_ssb_bounds, d_masks, x, y, pixel); }
+__global__ void d_renderBeauty(  u16 W, u32 C, vec3 Ro) { initShader(C, W); renderBeauty(  &ray, &scene, d_bvh_nodes, d_ssb_bounds, d_masks, x, y, pixel); }
+__global__ void d_renderNormals( u16 W, u32 C, vec3 Ro) { initShader(C, W); renderNormals( &ray, &scene, d_bvh_nodes, d_ssb_bounds, d_masks, x, y, pixel); }
 
 void renderOnGPU(Scene *scene, Camera *camera) {
     u32 count = frame_buffer.size;
@@ -178,42 +143,37 @@ void renderOnGPU(Scene *scene, Camera *camera) {
     vec3 Ro = camera->transform.position;
 
     switch (render_mode) {
-        case Beauty    : d_renderPixel<<<blocks, threads>>>(frame_buffer.width, count, Ro); break;
-        case Normal    :  d_renderNorm<<<blocks, threads>>>(frame_buffer.width, count, Ro); break;
-        case UVs       :   d_renderUVs<<<blocks, threads>>>(frame_buffer.width, count, Ro); break;
+        case Beauty    : d_renderBeauty<<< blocks, threads>>>(frame_buffer.width, count, Ro); break;
+        case Depth     : d_renderDepth<<<  blocks, threads>>>(frame_buffer.width, count, Ro); break;
+        case Normals   : d_renderNormals<<<blocks, threads>>>(frame_buffer.width, count, Ro); break;
+        case UVs       : d_renderUVs<<<    blocks, threads>>>(frame_buffer.width, count, Ro); break;
     }
 
     copyPixelsFromGPUtoCPU((u32*)frame_buffer.pixels, count);
 }
 #endif
 
-#define runShader(shader) { \
+#define runShaderOnCPU(shader) { \
     for (u16 y = 0; y < frame_buffer.height; y++) { \
         for (u16 x = 0; x < frame_buffer.width; x++, pixel++, ray.direction++, ray.direction_rcp++) { \
-            shader(&ray, scene, bvh, &ssb->bounds, masks, x, y, pixel); \
+            shader(&ray, scene, ray_tracer.bvh.nodes, &ray_tracer.ssb.bounds, &ray_tracer.masks, x, y, pixel); \
         }  \
     }  \
 }
 
 void renderOnCPU(Scene *scene, Camera *camera) {
     Pixel* pixel = frame_buffer.pixels;
-    Masks *masks = &ray_tracer.masks;
-    SSB *ssb = &ray_tracer.ssb;
-    BVH *bvh = &ray_tracer.bvh;
-    u32 active_pixels = 0;
-
     Ray ray;
     ray.origin = &camera->transform.position;
     ray.direction = ray_tracer.ray_directions;
     ray.direction_rcp = ray_tracer.ray_directions_rcp;
 
     switch (render_mode) {
-        case Beauty    : runShader(renderPixel) break;
-        case Normal    : runShader(renderNorm)  break;
-        case UVs       : runShader(renderUV)    break;
+        case Beauty    : runShaderOnCPU(renderBeauty)  break;
+        case Depth     : runShaderOnCPU(renderDepth)   break;
+        case Normals   : runShaderOnCPU(renderNormals) break;
+        case UVs       : runShaderOnCPU(renderUVs)     break;
     }
-
-    ray_tracer.stats.active_pixels = active_pixels;
 }
 
 void onZoom() {
@@ -231,18 +191,40 @@ void onTurn() {
 }
 
 void onMove(Scene* scene) {
-    vec3 *position = &current_camera_controller->camera->transform.position;
-    mat3 *rotation = &current_camera_controller->camera->transform.rotation_matrix_inverted;
-    for (u8 i = 0; i < SPHERE_COUNT; i++) {
-        subVec3(&scene->spheres[i].position, position, &ray_tracer.ssb.view_positions.spheres[i]);
-        imulVec3Mat3(&ray_tracer.ssb.view_positions.spheres[i], rotation);
-    }
-    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++) {
-        subVec3(&scene->tetrahedra[i].xform.position, position, &ray_tracer.ssb.view_positions.tetrahedra[i]);
-        imulVec3Mat3(&ray_tracer.ssb.view_positions.tetrahedra[i], rotation);
-    }
+    vec3 *geo_position_in_view_space;
+    vec3 *cam_position = &current_camera_controller->camera->transform.position;
+    mat3 *cam_rotation = &current_camera_controller->camera->transform.rotation_matrix_inverted;
+    Node *node, **node_ptr;
+    u8 geo_count;
 
+    for (u8 geo_type = 0; geo_type < GEO_TYPE_COUNT; geo_type++) {
+        switch (geo_type) {
+            case GeoTypeCube:
+                geo_count = CUBE_COUNT;
+                geo_position_in_view_space = ray_tracer.ssb.view_positions.cubes;
+                node_ptr = scene->node_ptrs.cubes;
+                break;
+            case GeoTypeSphere:
+                geo_count = SPHERE_COUNT;
+                geo_position_in_view_space = ray_tracer.ssb.view_positions.spheres;
+                node_ptr = scene->node_ptrs.spheres;
+                break;
+            case GeoTypeTetrahedron:
+                geo_count = TETRAHEDRON_COUNT;
+                geo_position_in_view_space = ray_tracer.ssb.view_positions.tetrahedra;
+                node_ptr = scene->node_ptrs.tetrahedra;
+                break;
+            default:
+                continue;
+        }
+        for (u8 i = 0; i < geo_count; i++, geo_position_in_view_space++, node_ptr++) {
+            node = *node_ptr;
+            subVec3(&node->position, cam_position, geo_position_in_view_space);
+            imulVec3Mat3(geo_position_in_view_space, cam_rotation);
+        }
+    }
     updateSceneMasks(scene, &ray_tracer.ssb, &ray_tracer.masks, current_camera_controller->camera->focal_length);
+
     current_camera_controller->moved = false;
 }
 
@@ -277,51 +259,19 @@ void draw3DLineSegment(vec3 *start, vec3 *end, Camera *camera, Pixel *pixel) {
                pixel);
 }
 
-void draw3DTriangle(vec3 *v1, vec3 *v2, vec3 *v3, Camera *camera, Pixel *pixel) {
-    draw3DLineSegment(v1, v2, camera, pixel);
-    draw3DLineSegment(v2, v3, camera, pixel);
-    draw3DLineSegment(v3, v1, camera, pixel);
+void draw3DShape(vec3 *vertices, u8 vertex_count, Camera *camera, Pixel *pixel) {
+    for (u8 v = 0; v < vertex_count; v++)
+        draw3DLineSegment(vertices + v, vertices + ((v + 1) % vertex_count), camera, pixel);
 }
-//void draw3DTetrahedron3(Tetrahedron *tetrahedron, Camera *camera, Pixel *pixel) {
-//    vec3 v1, v2, v3, v12, v13;
-//    for (u8 i = 0; i < 1; i++) {
-//        v1 = tetrahedron->vertices[index_buffers.tetrahedron[i][0]];
-//        v12 = tetrahedron->triangles[i].world_to_tangent.X;
-//        v13 = tetrahedron->triangles[i].world_to_tangent.Y;
-////        imulVec3Mat3(&v12, &tetrahedron->scale);
-////        imulVec3Mat3(&v13, &tetrahedron->skew);
-////        imulVec3Mat3(&v13, &tetrahedron->scale);
-////        imulVec3Mat3(&v12, &tetrahedron->skew);
-//        addVec3(&v1, &v12, &v2);
-//        addVec3(&v1, &v13, &v3);
-//
-//        draw3DTriangle(&v1, &v2, &v3, camera, pixel);
-//    }
-//}
-//void draw3DTetrahedron2(Tetrahedron *tetrahedron, Camera *camera, Pixel *pixel) {
-//    vec3 v1, v2, v3, v12, v13;
-//    for (u8 i = 0; i < 1; i++) {
-//        v1 = tetrahedron->vertices[index_buffers.tetrahedron[i][0]];
-//        v12 = tetrahedron->triangles[i].tangent_to_world.X;
-//        v13 = tetrahedron->triangles[i].tangent_to_world.Y;
-//        imulVec3Mat3(&v12, &tetrahedron->scale);
-//        imulVec3Mat3(&v12, &tetrahedron->skew);
-//        imulVec3Mat3(&v13, &tetrahedron->scale);
-//        imulVec3Mat3(&v13, &tetrahedron->skew);
-//        addVec3(&v1, &v12, &v2);
-//        addVec3(&v1, &v13, &v3);
-//v
-//        draw3DTriangle(&v1, &v2, &v3, camera, pixel);
-//    }
-//}
-void draw3DTetrahedron(Tetrahedron *tetrahedron, IndexBuffers *index_buffers, Camera *camera, Pixel *pixel) {
-    vec3 v1, v2, v3;
-    for (u8 i = 0; i < 4; i++) {
-        v1 = tetrahedron->vertices[index_buffers->tetrahedron[i][0]];
-        v2 = tetrahedron->vertices[index_buffers->tetrahedron[i][1]];
-        v3 = tetrahedron->vertices[index_buffers->tetrahedron[i][2]];
 
-        draw3DTriangle(&v1, &v2, &v3, camera, pixel);
+void drawCube(Cube *cube, QuadIndices *indices, Camera *camera, Pixel *pixel) {
+    vec3 quad[4];
+    for (u8 q = 0; q < 6; q++) {
+        quad[0] = cube->vertices[indices[q].v1];
+        quad[1] = cube->vertices[indices[q].v2];
+        quad[2] = cube->vertices[indices[q].v3];
+        quad[3] = cube->vertices[indices[q].v4];
+        draw3DShape(quad, 4, camera, pixel);
     }
 }
 
@@ -346,64 +296,72 @@ void onRender(Scene *scene, Camera *camera) {
 #endif
     Pixel pixel;
     pixel.color.R = MAX_COLOR_VALUE;
-    pixel.color.G = use_old_SSB ? 0 : MAX_COLOR_VALUE;
+    pixel.color.G = MAX_COLOR_VALUE;
     pixel.color.B = 0;
     pixel.color.A = 0;
 
     if (show_BVH) drawBVH(&ray_tracer.bvh, camera);
     if (show_SSB) drawSSB(&ray_tracer.ssb, &pixel);
 
-    pixel.color = WHITE;
-//    draw3DTetrahedron(scene->tetrahedra, camera, &pixel);
-//    draw3DTetrahedron2(scene->tetrahedra, camera, &BLAS_line_pixel);
+//    for (u8 c = 0; c < CUBE_COUNT; c++)
+//        drawCube(scene->cubes + c, scene->cube_indices, camera, &pixel);
 }
 
 
 void initRayTracer(Scene *scene) {
-    initBVH(&ray_tracer.bvh, 3); updateBVH(&ray_tracer.bvh, scene);
-//    initBVH(&ray_tracer.bvh, scene);
-//    initBVH_SoA(&ray_tracer.bvh_soa, 2, 4);
-//    updateBVH_SoA(&ray_tracer.bvh_soa, scene);
-//    ray_tracer.bvh_soa.depth = 1;
+    initBVH(&ray_tracer.bvh, 3);
+    updateBVH(&ray_tracer.bvh, scene);
 
     ray_tracer.rays_per_pixel = 1;
     ray_tracer.ray_count = ray_tracer.rays_per_pixel * MAX_WIDTH * MAX_HEIGHT;
-    ray_tracer.ray_directions = AllocN(vec3, ray_tracer.ray_count);
+    ray_tracer.ray_directions     = AllocN(vec3, ray_tracer.ray_count);
     ray_tracer.ray_directions_rcp = AllocN(vec3, ray_tracer.ray_count);
 
-    ray_tracer.masks.shadowing.spheres = 0;
-    ray_tracer.masks.transparency.spheres = 0;
-    ray_tracer.masks.visibility.spheres = 0;
+    Node *node, **node_ptr;
+    u8 node_id, geo_count, *shadowing, *visibility, *transparency;
+    for (u8 geo_type = 0; geo_type < GEO_TYPE_COUNT; geo_type++) {
+        node_id = 1;
 
-    u8 sphere_id = 1;
-    for (u8 i = 0; i < SPHERE_COUNT; i++, sphere_id <<= (u8)1) {
-        if (i != 3) ray_tracer.masks.shadowing.spheres |= sphere_id;
-        if (scene->materials[scene->spheres[i].material_id].uses & (u8) TRANSPARENCY)
-            ray_tracer.masks.transparency.spheres |= sphere_id;
-        ray_tracer.masks.visibility.spheres |= sphere_id;
+        switch (geo_type) {
+            case GeoTypeCube:
+                geo_count = CUBE_COUNT;
+                shadowing    = &ray_tracer.masks.shadowing.cubes;
+                visibility   = &ray_tracer.masks.visibility.cubes;
+                transparency = &ray_tracer.masks.transparency.cubes;
+                node_ptr = scene->node_ptrs.cubes;
+                break;
+            case GeoTypeSphere:
+                geo_count = SPHERE_COUNT;
+                shadowing    = &ray_tracer.masks.shadowing.spheres;
+                visibility   = &ray_tracer.masks.visibility.spheres;
+                transparency = &ray_tracer.masks.transparency.spheres;
+                node_ptr = scene->node_ptrs.spheres;
+                break;
+            case GeoTypeTetrahedron:
+                geo_count = TETRAHEDRON_COUNT;
+                shadowing    = &ray_tracer.masks.shadowing.tetrahedra;
+                visibility   = &ray_tracer.masks.visibility.tetrahedra;
+                transparency = &ray_tracer.masks.transparency.tetrahedra;
+                node_ptr = scene->node_ptrs.tetrahedra;
+                break;
+            default:
+                continue;
+        }
+
+        *shadowing    = 0;
+        *visibility   = 0;
+        *transparency = 0;
+
+        for (u8 i = 0; i < geo_count; i++, node_id <<= (u8)1, node_ptr++) {
+            node = *node_ptr;
+            if (scene->materials[node->geo.material_id].uses & (u8) TRANSPARENCY)
+                *transparency |= node_id;
+            *visibility |= node_id;
+        }
     }
 
+    ray_tracer.masks.shadowing.spheres &= (u8)(~((u8)((u8)1 << (u8)3)));
     ray_tracer.masks.shadowing.tetrahedra = FULL_MASK;
-    ray_tracer.masks.visibility.tetrahedra = FULL_MASK;
-    ray_tracer.masks.transparency.tetrahedra = 0;
-
-//
-//    my_helix.radius = 4;
-//    my_helix.thickness_radius = 1;
-//    my_helix.revolution_count = 60;
-//    my_helix.position.x = my_helix.position.z = 0;
-//    my_helix.position.y = 1;
-//    my_helix_pixel.color.R = 0;
-//    my_helix_pixel.color.G = MAX_COLOR_VALUE;
-//    my_helix_pixel.color.B = 0;
-//    my_helix_pixel.color.A = 0;
-//
-//
-//    my_coil.radius = 1;
-//    my_coil.height = 4;
-//    my_coil.revolution_count = 60;
-//    my_coil.position.x = my_helix.position.z = 0;
-//    my_coil.position.y = 1;
 }
 
 
@@ -414,7 +372,7 @@ void initRayTracer(Scene *scene) {
 //#else
 //inline
 //#endif
-//u8 renderPixel(Pixel* pixel, u16 x, u16 y, Ray *ray, Scene *scene) {
+//u8 renderBeauty(Pixel* pixel, u16 x, u16 y, Ray *ray, Scene *scene) {
 //    u8 sphere_visibility_mask = getSphereVisibilityMask(scene->spheres, scene->masks->visibility, x, y);
 //
 //    vec3 *Rd = ray->direction,

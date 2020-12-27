@@ -12,11 +12,17 @@
 #define HUD_LENGTH 140
 
 bool is_running = true;
-bool use_GPU = false;
-bool use_BVH = false;
+bool use_GPU = true;
 bool show_BVH = false;
 bool show_SSB = false;
-bool use_old_SSB = false;
+
+enum RenderMode {
+    Normals,
+    Beauty,
+    Depth,
+    UVs
+};
+enum RenderMode render_mode = Beauty;
 
 #ifdef __CUDACC__
     #define CUDA_MAX_THREADS 1024

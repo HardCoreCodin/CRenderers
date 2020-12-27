@@ -50,7 +50,7 @@ bool hitPlanes(Plane *planes, Ray* ray) {
     Plane* plane;
     for (u8 i = 0; i < PLANE_COUNT; i++) {
         plane = &planes[i];
-        if (!hitPlane(&plane->position, &plane->normal, Rd, Ro, &current_hit_distance))
+        if (!hitPlane(&plane->node.position, &plane->normal, Rd, Ro, &current_hit_distance))
             continue;
 
         if (current_hit_distance < closest_hit_distance) {
@@ -62,7 +62,7 @@ bool hitPlanes(Plane *planes, Ray* ray) {
 
     if (found) {
         setRayHitPosition(Ro, Rd, closest_hit_distance - EPS, &ray->hit.position);
-        ray->hit.material_id = hit_plane->material_id;
+        ray->hit.material_id = hit_plane->node.geo.material_id;
         ray->hit.normal = hit_plane->normal;
         ray->hit.distance = closest_hit_distance;
         f32 x = ray->hit.position.x + 32; x *= 0.125f; x -= (f32)((u8)x);

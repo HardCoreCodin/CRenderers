@@ -3,10 +3,11 @@
 #include "lib/core/types.h"
 
 #define GEO_TYPE_COUNT 3
-
 #define TETRAHEDRON_COUNT 4
-#define CUBE_COUNT 1
+#define CUBE_COUNT 4
 #define SPHERE_COUNT 4
+#define MAX_GEO_COUNT 4
+
 #define POINT_LIGHT_COUNT 3
 #define PLANE_COUNT 6
 #define MATERIAL_COUNT 7
@@ -21,66 +22,53 @@
 #define IOR_AIR 1
 #define IOR_GLASS 1.5f
 
+
 enum GeometryType {
     GeoTypeNone = -1,
+
     GeoTypeCube,
     GeoTypeSphere,
     GeoTypeTetrahedron
 };
 
-typedef struct { u8 planes, cubes, spheres, tetrahedra; } GeometryMasks;
-typedef struct { GeometryMasks visibility, transparency, shadowing; } Masks;
-
 typedef struct {
-    u8 tetrahedron[4][3];
-//       cube[6][4];
-} IndexBuffers;
+    enum GeometryType type;
+    u8 id, material_id, vertex_count, prim_count;
+} Geometry;
 
 // Primitives:
 // ==========
+
 typedef struct {
-    vec3 position,
-         normal;
-    u8 material_id;
+    Geometry geo;
+    vec3 position;
+    f32 radius;
+} Node;
+
+typedef struct {
+    Node node;
+    vec3 normal;
 } Plane;
 
 typedef struct {
-    u8 v1,
-       v2,
-       v3;
-    mat3 tangent_to_world,
-         world_to_tangent;
-} Triangle;
-#define expandTriangle(i, vs, v1, v2, v3, n) \
-    v1 = &vs[triangle->v1];                         \
-    v2 = &vs[triangle->v2];                         \
-    v3 = &vs[triangle->v3];                         \
-    n = &triangle->tangent_to_world.Z
-#define expandTrianglePN(triangle, vs, v1, n) \
-    v1 = &vs[triangle->v1];                   \
-    n = &triangle->tangent_to_world.Z
+    Node node;
+    mat3 rotation;
+} Sphere;
 
 typedef struct {
-    Triangle triangles[12];
-    mat3 rotation_matrix;
-    vec3 position, vertices[8];
-    u8 material_id;
+    Node node;
+    vec3 vertices[8];
+    mat3 tangent_to_world[6],
+         world_to_tangent[6];
 } Cube;
 
 typedef struct {
-    Triangle triangles[4];
+    Node node;
+    mat3 tangent_to_world[4],
+         world_to_tangent[4];
     vec3 vertices[4];
-    f32 radius;
-    xform3 xform;
-    u8 material_id;
 } Tetrahedron;
 
-typedef struct {
-    vec3 position;
-    mat3 rotation;
-    f32 radius;
-    u8 material_id;
-} Sphere;
 
 
 // Materials:
@@ -136,6 +124,23 @@ typedef struct {
     f32 intensity;
 } PointLight;
 
+// Indices:
+// ========
+typedef struct {
+    u8 v1, v2, v3;
+} TriangleIndices;
+
+typedef struct {
+    u8 v1, v2, v3, v4;
+} QuadIndices;
+
+typedef Node* NodePtr;
+typedef struct {
+    NodePtr cubes[CUBE_COUNT];
+    NodePtr spheres[SPHERE_COUNT];
+    NodePtr tetrahedra[TETRAHEDRON_COUNT];
+} NodePointers;
+
 // Scene:
 // =====
 typedef struct {
@@ -146,8 +151,11 @@ typedef struct {
     Sphere *spheres;
     Plane *planes;
     Cube *cubes;
-    IndexBuffers *index_buffers;
+    QuadIndices *cube_indices;
+    TriangleIndices *tetrahedron_indices;
+    NodePointers node_ptrs;
 } Scene;
+
 Scene main_scene;
 
 #ifdef __CUDACC__
@@ -158,6 +166,6 @@ Scene main_scene;
     __constant__ Cube d_cubes[CUBE_COUNT];
     __constant__ Tetrahedron d_tetrahedra[TETRAHEDRON_COUNT];
     __constant__ AmbientLight d_ambient_light[1];
-    __constant__ IndexBuffers d_index_buffers[1];
-//    __constant__ Scene d_scene[1];
+    __constant__ TriangleIndices d_tetrahedron_indices[4];
+    __constant__ QuadIndices d_cube_indices[6];
 #endif

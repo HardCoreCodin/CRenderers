@@ -22,6 +22,17 @@ typedef unsigned char byte;
 
 typedef void (*CallBack)();
 
+#if defined(__CUDACC__) // NVCC
+    #define _align(n) __align__(n)
+#elif defined(__GNUC__) // GCC
+    #define _align(n) __attribute__((aligned(n)))
+#elif defined(_MSC_VER) // MSVC
+    #define _align(n) __declspec(align(n))
+#else
+    #error "Please provide a definition for _align macro for your host compiler!"
+#endif
+
+
 // Math:
 // ====
 #define EPS 0.0001f
@@ -92,7 +103,7 @@ typedef struct {
     #ifndef NDEBUG
         #define gpuErrchk(ans) ans
     #else
-        #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+        #define gpuErrchk(ans) gpuAssert((ans), __FILE__, __LINE__)
 
         #include <stdio.h>
         #include <stdlib.h>
