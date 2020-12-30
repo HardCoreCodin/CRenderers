@@ -58,6 +58,9 @@ typedef union {
     u32 value;
 } Pixel;
 #define setPixelColor(pixel, color) \
+        color.x *= 255;    \
+        color.y *= 255;    \
+        color.z *= 255;    \
         pixel->color.R = color.x > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.x; \
         pixel->color.G = color.y > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.y; \
         pixel->color.B = color.z > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.z
@@ -86,33 +89,32 @@ typedef struct {
 } xform3;
 
 #ifdef __CUDACC__
-    #define initKernel(count, width) \
+    #define initKernel() \
         u32 i = blockDim.x * blockIdx.x + threadIdx.x; \
-        if (i >= count) return; \
-        f32 x = i % width; \
-        f32 y = i / width
+        if (i >= d_dimentions->width_times_height) return; \
+        f32 x = i % d_dimentions->width; \
+        f32 y = i / d_dimentions->width
 
-    #define setupKernel(count) \
-        u16 threads = CUDA_MAX_THREADS; \
-        u16 blocks  = count / CUDA_MAX_THREADS; \
-        if (count < CUDA_MAX_THREADS) { \
-            threads = count; \
+    #define setupKernel() \
+        u16 threads = 256; \
+        u16 blocks  = frame_buffer.dimentions.width_times_height / threads; \
+        if (frame_buffer.dimentions.width_times_height < threads) { \
+            threads = frame_buffer.dimentions.width_times_height; \
             blocks = 1; \
-        }
+        } \
+        if (frame_buffer.dimentions.width_times_height % threads) blocks++;
 
     #ifndef NDEBUG
-        #define gpuErrchk(ans) ans
-    #else
-        #define gpuErrchk(ans) gpuAssert((ans), __FILE__, __LINE__)
-
         #include <stdio.h>
         #include <stdlib.h>
-
+        #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
         inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
             if (code != cudaSuccess) {
                 fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
                 if (abort) exit(code);
             }
         }
+    #else
+        #define gpuErrchk(ans) ans
     #endif
 #endif

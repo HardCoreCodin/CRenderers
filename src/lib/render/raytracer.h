@@ -12,164 +12,39 @@
 #include "lib/nodes/camera.h"
 #include "lib/memory/allocators.h"
 
-#include "lib/render/shaders/closest_hit/debug.h"
-#include "lib/render/shaders/closest_hit/classic.h"
-#include "lib/render/shaders/closest_hit/surface.h"
-#include "lib/render/shaders/intersection/cube.h"
-#include "lib/render/shaders/intersection/plane.h"
-#include "lib/render/shaders/intersection/sphere.h"
-#include "lib/render/shaders/intersection/tetrahedra.h"
-#include "lib/render/shaders/ray_generation/primary_rays.h"
-
 #include "BVH.h"
 #include "SSB.h"
+#include "render_shaders.h"
 
 #ifdef __CUDACC__
-__device__
-__host__
-__forceinline__
-#else
-inline
-#endif
-void tracePrimaryRay(Ray *ray, Scene *scene, GeometryBounds *bounds, Masks *masks, u16 x, u16 y) {
-    ray->hit.uv.x = ray->hit.uv.y = 1;
-    ray->hit.distance = MAX_DISTANCE;
-    ray->masks = *masks;
-    setRayVisibilityMasksFromBounds(&ray->masks, masks, bounds, x, y);
-
-    hitPlanes(scene->planes, ray);
-    if (ray->masks.visibility.cubes) hitCubes(scene->cubes, scene->cube_indices, ray, false);
-    if (ray->masks.visibility.spheres) hitSpheres(scene->spheres, ray, false);
-    if (ray->masks.visibility.tetrahedra) hitTetrahedra(scene->tetrahedra, scene->tetrahedron_indices, ray, false);
-}
-
-#ifdef __CUDACC__
-__device__
-__host__
-__forceinline__
-#else
-inline
-#endif
-void renderBeauty(Ray *ray, Scene *scene, BVHNode *bvh_nodes, GeometryBounds *bounds, Masks *masks, u16 x, u16 y, Pixel* pixel) {
-    tracePrimaryRay(ray, scene, bounds, masks, x, y);
-
-    vec3 color;
-    fillVec3(&color, 0);
-//    shadeSurface(scene, bvh, masks, ray->hit.material_id, ray->direction,  &ray->hit.position, &ray->hit.normal, &color);
-    shadeLambert(scene, bvh_nodes, masks, ray->direction, &ray->hit.position, &ray->hit.normal, &color);
-//    shadePhong(scene, bvh, masks, ray->direction, &ray->hit.position, &ray->hit.normal &color);
-//    shadeBlinn(scene, bvh, masks, ray->direction, &ray->hit.position, &ray->hit.normal, &color);
-    setPixelColor(pixel, color);
-}
-
-#ifdef __CUDACC__
-__device__
-__host__
-__forceinline__
-#else
-inline
-#endif
-void renderNormals(Ray *ray, Scene *scene, BVHNode *bvh_nodes, GeometryBounds *bounds, Masks *masks, u16 x, u16 y, Pixel* pixel) {
-    tracePrimaryRay(ray, scene, bounds, masks, x, y);
-
-    vec3 color;
-    shadeDirection(&ray->hit.normal, &color);
-    setPixelColor(pixel, color);
-}
-
-#ifdef __CUDACC__
-__device__
-__host__
-__forceinline__
-#else
-inline
-#endif
-void renderDepth(Ray *ray, Scene *scene, BVHNode *bvh_nodes, GeometryBounds *bounds, Masks *masks, u16 x, u16 y, Pixel* pixel) {
-    tracePrimaryRay(ray, scene, bounds, masks, x, y);
-
-    vec3 color;
-    shadeDepth(ray->hit.distance, &color);
-    setPixelColor(pixel, color);
-}
-
-#ifdef __CUDACC__
-__device__
-__host__
-__forceinline__
-#else
-inline
-#endif
-void renderUVs(Ray *ray, Scene *scene, BVHNode *bvh_nodes, GeometryBounds *bounds, Masks *masks, u16 x, u16 y, Pixel* pixel) {
-    tracePrimaryRay(ray, scene, bounds, masks, x, y);
-
-    vec3 color;
-    shadeUV(ray->hit.uv, &color);
-    setPixelColor(pixel, color);
-}
-
-#ifdef __CUDACC__
-
-#define initShader(C, W) \
-    initKernel(C, W);    \
-                         \
-    Pixel *pixel = (Pixel *)&d_pixels[i]; \
-                         \
-    Ray ray; \
-    ray.direction = &d_ray_directions[i]; \
-    ray.origin = &Ro; \
-    ray.hit.distance = MAX_DISTANCE; \
-                         \
-    Scene scene;         \
-    scene.geo_counts = d_geo_counts; \
-    scene.materials = d_materials; \
-    scene.point_lights = d_point_lights; \
-    scene.tetrahedra = d_tetrahedra; \
-    scene.spheres = d_spheres; \
-    scene.planes = d_planes; \
-    scene.cubes = d_cubes; \
-    scene.ambient_light = d_ambient_light;\
-    scene.cube_indices = d_cube_indices;\
-    scene.tetrahedron_indices = d_tetrahedron_indices
-
-__global__ void d_renderUVs(     u16 W, u32 C, vec3 Ro) { initShader(C, W); renderUVs(     &ray, &scene, d_bvh_nodes, d_ssb_bounds, d_masks, x, y, pixel); }
-__global__ void d_renderDepth(   u16 W, u32 C, vec3 Ro) { initShader(C, W); renderDepth(   &ray, &scene, d_bvh_nodes, d_ssb_bounds, d_masks, x, y, pixel); }
-__global__ void d_renderBeauty(  u16 W, u32 C, vec3 Ro) { initShader(C, W); renderBeauty(  &ray, &scene, d_bvh_nodes, d_ssb_bounds, d_masks, x, y, pixel); }
-__global__ void d_renderNormals( u16 W, u32 C, vec3 Ro) { initShader(C, W); renderNormals( &ray, &scene, d_bvh_nodes, d_ssb_bounds, d_masks, x, y, pixel); }
-
-void renderOnGPU(Scene *scene, Camera *camera) {
-    u32 count = frame_buffer.size;
-    setupKernel(count)
-
-    vec3 Ro = camera->transform.position;
-
-    switch (render_mode) {
-        case Beauty    : d_renderBeauty<<< blocks, threads>>>(frame_buffer.width, count, Ro); break;
-        case Depth     : d_renderDepth<<<  blocks, threads>>>(frame_buffer.width, count, Ro); break;
-        case Normals   : d_renderNormals<<<blocks, threads>>>(frame_buffer.width, count, Ro); break;
-        case UVs       : d_renderUVs<<<    blocks, threads>>>(frame_buffer.width, count, Ro); break;
-    }
-
-    copyPixelsFromGPUtoCPU((u32*)frame_buffer.pixels, count);
-}
+#include "raytracer.cu"
 #endif
 
 #define runShaderOnCPU(shader) { \
-    for (u16 y = 0; y < frame_buffer.height; y++) { \
-        for (u16 x = 0; x < frame_buffer.width; x++, pixel++, ray.direction++, ray.direction_rcp++) { \
-            shader(&ray, scene, ray_tracer.bvh.nodes, &ray_tracer.ssb.bounds, &ray_tracer.masks, x, y, pixel); \
-        }  \
-    }  \
+    for (u16 y = 0; y < frame_buffer.dimentions.height; y++) { \
+        for (u16 x = 0; x < frame_buffer.dimentions.width; x++, pixel++) { \
+            ray_direction = current; \
+            norm3(&ray_direction); \
+            shader(&ray, &main_scene, ray_tracer.bvh.nodes, &ray_tracer.ssb.bounds, &ray_tracer.masks, x, y, pixel); \
+                                 \
+            iaddVec3(&current, right); \
+        } \
+        iaddVec3(start, down); \
+        current = *start; \
+    } \
 }
 
-void renderOnCPU(Scene *scene, Camera *camera) {
+void renderOnCPU(vec3 *Ro, vec3 *start, vec3 *right, vec3 *down) {
     Pixel* pixel = frame_buffer.pixels;
+    vec3 ray_direction;
     Ray ray;
-    ray.origin = &camera->transform.position;
-    ray.direction = ray_tracer.ray_directions;
-    ray.direction_rcp = ray_tracer.ray_directions_rcp;
+    ray.origin = Ro;
+    ray.direction = &ray_direction;
+
+    vec3 current = *start;
 
     switch (render_mode) {
-        case Beauty    : runShaderOnCPU(renderBeauty)  break;
+        case Beauty    : runShaderOnCPU(renderBeauty)   break;
         case Depth     : runShaderOnCPU(renderDepth)   break;
         case Normals   : runShaderOnCPU(renderNormals) break;
         case UVs       : runShaderOnCPU(renderUVs)     break;
@@ -177,13 +52,21 @@ void renderOnCPU(Scene *scene, Camera *camera) {
 }
 
 void onZoom() {
-    generateRayDirections();
+//#ifdef __CUDACC__
+//    if (!use_GPU) generateRayDirections();
+//#else
+//    generateRayDirections();
+//#endif
     current_camera_controller->moved = true;
     current_camera_controller->zoomed = false;
 }
 
 void onTurn() {
-    generateRayDirections();
+//#ifdef __CUDACC__
+//    if (!use_GPU) generateRayDirections();
+//#else
+//    generateRayDirections();
+//#endif
     transposeMat3(&current_camera_controller->camera->transform.rotation_matrix,
                   &current_camera_controller->camera->transform.rotation_matrix_inverted);
     current_camera_controller->turned = false;
@@ -229,13 +112,17 @@ void onMove(Scene* scene) {
 }
 
 void onResize(Scene *scene) {
-    generateRayDirections();
+//#ifdef __CUDACC__
+//    if (!use_GPU) generateRayDirections();
+//#else
+//    generateRayDirections();
+//#endif
     onMove(scene);
 }
 
 void draw3DLineSegment(vec3 *start, vec3 *end, Camera *camera, Pixel *pixel) {
     f32 x_factor = camera->focal_length;
-    f32 y_factor = camera->focal_length * frame_buffer.width_over_height;
+    f32 y_factor = camera->focal_length * frame_buffer.dimentions.width_over_height;
 
     vec3 *cam_pos = &camera->transform.position;
     mat3 *cam_rot = &camera->transform.rotation_matrix_inverted;
@@ -276,23 +163,35 @@ void drawCube(Cube *cube, QuadIndices *indices, Camera *camera, Pixel *pixel) {
 }
 
 void onRender(Scene *scene, Camera *camera) {
+    vec3 start,
+         right,
+         down,
+         *s = &start,
+         *r = &right,
+         *d = &down,
+         *Ro = &camera->transform.position,
+         *U = camera->transform.up_direction,
+         *R = camera->transform.right_direction,
+         *F = camera->transform.forward_direction;
+
+    f32 fl = camera->focal_length,
+        w = (f32)frame_buffer.dimentions.width,
+        h = (f32)frame_buffer.dimentions.height;
+
+    scaleVec3(F, w * fl, s);
+    scaleVec3(R, 1 - w, r);
+    scaleVec3(U, h - 2, d);
+    iaddVec3(s, r);
+    iaddVec3(s, d);
+
+    scaleVec3(R, 2, r);
+    scaleVec3(U, -2, d);
 
 #ifdef __CUDACC__
-    if (use_GPU) {
-        if (last_rendered_on_CPU) generateRayDirections();
-
-        renderOnGPU(scene, camera);
-
-        last_rendered_on_CPU = false;
-    } else {
-        if (!last_rendered_on_CPU) generateRayDirections();
-
-        renderOnCPU(scene, camera);
-
-        last_rendered_on_CPU = true;
-    }
+    if (use_GPU) renderOnGPU(Ro, s, r, d);
+    else         renderOnCPU(Ro, s, r, d);
 #else
-    renderOnCPU(scene, camera);
+    renderOnCPU(Ro, s, r, d);
 #endif
     Pixel pixel;
     pixel.color.R = MAX_COLOR_VALUE;
@@ -360,8 +259,9 @@ void initRayTracer(Scene *scene) {
         }
     }
 
-    ray_tracer.masks.shadowing.spheres &= (u8)(~((u8)((u8)1 << (u8)3)));
-    ray_tracer.masks.shadowing.tetrahedra = FULL_MASK;
+    ray_tracer.masks.shadowing.cubes = 15;
+    ray_tracer.masks.shadowing.spheres = 7;
+    ray_tracer.masks.shadowing.tetrahedra = 15;
 }
 
 

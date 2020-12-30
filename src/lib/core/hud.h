@@ -13,8 +13,8 @@ inline void setCountersInHUD(Timer *timer) {
 }
 
 inline void setDimesionsInHUD() {
-    printNumberIntoString(frame_buffer.width, hud.width);
-    printNumberIntoString(frame_buffer.height, hud.height);
+    printNumberIntoString(frame_buffer.dimentions.width, hud.width);
+    printNumberIntoString(frame_buffer.dimentions.height, hud.height);
 }
 
 inline void setRenderModeInHUD() {

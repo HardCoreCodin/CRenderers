@@ -128,7 +128,7 @@ inline void projectBBox(BBox *bbox, Camera *camera) {
 
     // Transform vertex positions of edges from view-space to screen-space (w/ culling and clipping):
     f32 x_factor = camera->focal_length;
-    f32 y_factor = camera->focal_length * frame_buffer.width_over_height;
+    f32 y_factor = camera->focal_length * frame_buffer.dimentions.width_over_height;
     for (u8 i = 0; i < BBOX_EDGE_COUNT; i++)
         projectEdge(&bbox->edge.buffer[i].from,
                     &bbox->edge.buffer[i].to,

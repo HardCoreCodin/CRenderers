@@ -22,18 +22,12 @@
 #define IOR_AIR 1
 #define IOR_GLASS 1.5f
 
-
-enum GeometryType {
-    GeoTypeNone = -1,
-
-    GeoTypeCube,
-    GeoTypeSphere,
-    GeoTypeTetrahedron
-};
+#define GeoTypeCube 0
+#define GeoTypeSphere 1
+#define GeoTypeTetrahedron 2
 
 typedef struct {
-    enum GeometryType type;
-    u8 id, material_id, vertex_count, prim_count;
+    u8 id, type, material_id;
 } Geometry;
 
 // Primitives:

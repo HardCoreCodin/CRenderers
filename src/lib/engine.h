@@ -42,9 +42,6 @@ void updateAndRender() {
     startFrameTimer(&update_timer);
 
     yawMat3(update_timer.delta_time * SPHERE_TURN_SPEED, &main_scene.spheres[1].rotation);
-#ifdef __CUDACC__
-    gpuErrchk(cudaMemcpyToSymbol(d_spheres, main_scene.spheres, sizeof(Sphere) * SPHERE_COUNT, 0, cudaMemcpyHostToDevice));
-#endif
 
     if (mouse_wheel_scrolled) {
        if (shift_is_pressed) {
@@ -62,7 +59,7 @@ void updateAndRender() {
            mouse_wheel_scroll_amount = 0;
            mouse_wheel_scrolled = false;
 #ifdef __CUDACC__
-           copySSBBoundsFromCPUtoGPU(ray_tracer.ssb.bounds);
+           copySSBBoundsFromCPUtoGPU(&ray_tracer.ssb.bounds);
            copyBVHNodesFromCPUtoGPU(ray_tracer.bvh.nodes);
 #endif
        } else
@@ -97,8 +94,9 @@ void updateAndRender() {
     }
     updateCubeMatrices(main_scene.cubes);
 #ifdef __CUDACC__
-    gpuErrchk(cudaMemcpyToSymbol(d_tetrahedra, main_scene.tetrahedra, sizeof(Tetrahedron), 0, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpyToSymbol(d_cubes,      main_scene.cubes,      sizeof(Cube),        0, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpyToSymbol(d_cubes, main_scene.cubes, sizeof(Cube) * CUBE_COUNT, 0, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpyToSymbol(d_spheres, main_scene.spheres, sizeof(Sphere) * SPHERE_COUNT, 0, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpyToSymbol(d_tetrahedra, main_scene.tetrahedra, sizeof(Tetrahedron) * TETRAHEDRON_COUNT, 0, cudaMemcpyHostToDevice));
 #endif
     if (mouse_moved)          current_camera_controller->onMouseMoved();
     current_camera_controller->onUpdate();
@@ -112,7 +110,7 @@ void updateAndRender() {
     endFrameTimer(&update_timer, true);
     if (hud.is_visible) {
         if (!update_timer.accumulated_frame_count) setCountersInHUD(&update_timer);
-        drawText(&frame_buffer, hud.text, HUD_COLOR, frame_buffer.width - HUD_RIGHT - HUD_WIDTH, HUD_TOP);
+        drawText(&frame_buffer, hud.text, HUD_COLOR, frame_buffer.dimentions.width - HUD_RIGHT - HUD_WIDTH, HUD_TOP);
     }
 
     if (mouse_double_clicked) {

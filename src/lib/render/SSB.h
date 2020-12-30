@@ -30,18 +30,6 @@ u8 getVisibilityMasksFromBounds(Bounds2Di *bounds, u8 node_count, u8 node_visibi
     return ray_visibility_mask;
 }
 
-#ifdef __CUDACC__
-__device__
-__host__
-__forceinline__
-#else
-inline
-#endif
-void setRayVisibilityMasksFromBounds(Masks *ray_masks, Masks *scene_masks, GeometryBounds *bounds, u16 x, u16 y) {
-    ray_masks->visibility.spheres    = getVisibilityMasksFromBounds(bounds->spheres,    SPHERE_COUNT,      scene_masks->visibility.spheres,    x, y);
-    ray_masks->visibility.tetrahedra = getVisibilityMasksFromBounds(bounds->tetrahedra, TETRAHEDRON_COUNT, scene_masks->visibility.tetrahedra, x, y);
-}
-
 bool computeSSB(Bounds2Di *bounds, f32 x, f32 y, f32 z, f32 r, f32 focal_length) {
 /*
  h = y - t
@@ -91,10 +79,10 @@ bool computeSSB(Bounds2Di *bounds, f32 x, f32 y, f32 z, f32 r, f32 focal_length)
   s1 = f(yz - sqr)
   s2 = f(yz + sqr)
 */
-    bounds->x_range.min = frame_buffer.width + 1;
-    bounds->x_range.max = frame_buffer.width + 1;
-    bounds->y_range.max = frame_buffer.height + 1;
-    bounds->y_range.min = frame_buffer.height + 1;
+    bounds->x_range.min = frame_buffer.dimentions.width + 1;
+    bounds->x_range.max = frame_buffer.dimentions.width + 1;
+    bounds->y_range.max = frame_buffer.dimentions.height + 1;
+    bounds->y_range.min = frame_buffer.dimentions.height + 1;
 
     f32 den = z*z - r*r;
     f32 factor = focal_length / den;
@@ -104,7 +92,7 @@ bool computeSSB(Bounds2Di *bounds, f32 x, f32 y, f32 z, f32 r, f32 focal_length)
     f32 left  = factor*(xz - sqr);
     f32 right = factor*(xz + sqr);
     if (left < 1 && right > -1) {
-        factor *= frame_buffer.width_over_height;
+        factor *= frame_buffer.dimentions.width_over_height;
 
         f32 yz = y * z;
         sqr = r * sqrtf(y*y + den);
@@ -119,10 +107,10 @@ bool computeSSB(Bounds2Di *bounds, f32 x, f32 y, f32 z, f32 r, f32 focal_length)
             top    = 2 - top;
             bottom = 2 - bottom;
 
-            bounds->x_range.min = (u16)(frame_buffer.h_width * left);
-            bounds->x_range.max = (u16)(frame_buffer.h_width * right);
-            bounds->y_range.max = (u16)(frame_buffer.h_height * bottom);
-            bounds->y_range.min = (u16)(frame_buffer.h_height * top);
+            bounds->x_range.min = (u16)(frame_buffer.dimentions.h_width * left);
+            bounds->x_range.max = (u16)(frame_buffer.dimentions.h_width * right);
+            bounds->y_range.max = (u16)(frame_buffer.dimentions.h_height * bottom);
+            bounds->y_range.min = (u16)(frame_buffer.dimentions.h_height * top);
             return true;
         }
     }
@@ -186,7 +174,7 @@ void updateSceneMasks(Scene* scene, SSB* ssb, Masks *masks, f32 focal_length) {
 
 #ifdef __CUDACC__
     copyMasksFromCPUtoGPU(masks);
-    copySSBBoundsFromCPUtoGPU(bounds);
+    copySSBBoundsFromCPUtoGPU(&ssb->bounds);
 #endif
 }
 

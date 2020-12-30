@@ -53,7 +53,7 @@ void drawHelix(Camera *camera, Helix *helix, Pixel *pixel) {
 
     // Transform vertex positions of edges from view-space to screen-space (w/ culling and clipping):
     f32 x_factor = camera->focal_length;
-    f32 y_factor = camera->focal_length * frame_buffer.width_over_height;
+    f32 y_factor = camera->focal_length * frame_buffer.dimentions.width_over_height;
 
     vec3 *cam_pos = &camera->transform.position;
     mat3 *cam_rot = &camera->transform.rotation_matrix_inverted;
@@ -123,7 +123,7 @@ void drawCoil(Camera *camera, Coil *coil, Pixel *pixel) {
 
     // Transform vertex positions of edges from view-space to screen-space (w/ culling and clipping):
     f32 x_factor = camera->focal_length;
-    f32 y_factor = camera->focal_length * frame_buffer.width_over_height;
+    f32 y_factor = camera->focal_length * frame_buffer.dimentions.width_over_height;
 
     vec3 *cam_pos = &camera->transform.position;
     mat3 *cam_rot = &camera->transform.rotation_matrix_inverted;

@@ -21,24 +21,24 @@ inline void subRange(i32 from, i32 to, i32 end, i32 start, i32 *first, i32 *last
 }
 
 inline void drawHLine2D(i32 from, i32 to, i32 at, Pixel *pixel) {
-	if (!inRange(at, frame_buffer.height, 0)) return;
+	if (!inRange(at, frame_buffer.dimentions.height, 0)) return;
 
-	i32 offset = at * (i32)frame_buffer.width;
+	i32 offset = at * (i32)frame_buffer.dimentions.width;
     i32 first, last;
-    subRange(from, to, frame_buffer.width, 0, &first, &last);
+    subRange(from, to, frame_buffer.dimentions.width, 0, &first, &last);
 	first += offset;
 	last += offset;
 	for (i32 i = first; i <= last; i++) frame_buffer.pixels[i] = *pixel;
 }
 
 inline void drawVLine2D(i32 from, i32 to, i32 at, Pixel *pixel) {
-    if (!inRange(at, frame_buffer.width, 0)) return;
+    if (!inRange(at, frame_buffer.dimentions.width, 0)) return;
     i32 first, last;
 
-    subRange(from, to, frame_buffer.height, 0, &first, &last);
-	first *= frame_buffer.width; first += at;
-	last  *= frame_buffer.width; last  += at;
-	for (i32 i = first; i <= last; i += frame_buffer.width) frame_buffer.pixels[i] = *pixel;
+    subRange(from, to, frame_buffer.dimentions.height, 0, &first, &last);
+	first *= frame_buffer.dimentions.width; first += at;
+	last  *= frame_buffer.dimentions.width; last  += at;
+	for (i32 i = first; i <= last; i += frame_buffer.dimentions.width) frame_buffer.pixels[i] = *pixel;
 }
 
 inline void drawLine2D(i32 x0, i32 y0, i32 x1, i32 y1, Pixel *pixel) {
@@ -58,8 +58,8 @@ inline void drawLine2D(i32 x0, i32 y0, i32 x1, i32 y1, Pixel *pixel) {
 	    return;
 	}
 
-	i32 width = (i32)frame_buffer.width;
-	i32 height = (i32)frame_buffer.height;
+	i32 width = (i32)frame_buffer.dimentions.width;
+	i32 height = (i32)frame_buffer.dimentions.height;
 
     i32 pitch = width;
 	i32 index = x0 + y0 * pitch;
@@ -104,7 +104,7 @@ inline void drawLine2D(i32 x0, i32 y0, i32 x1, i32 y1, Pixel *pixel) {
     while (current1 != end) {
         current1 += inc1;
 
-        if (inRange(index, frame_buffer.size, 0)) {
+        if (inRange(index, frame_buffer.dimentions.width_times_height, 0)) {
             if (is_steap) {
                 if (inRange(current1, height, 0) &&
                     inRange(current2, width, 0))
@@ -162,14 +162,14 @@ inline void projectEdge(vec3 *v1, vec3 *v2, f32 x_factor, f32 y_factor) {
     v2->y *= y_factor * v2_one_over_z;
 
     // NDC->screen:
-    v1->x += 1; v1->x *= frame_buffer.h_width;
-    v2->x += 1; v2->x *= frame_buffer.h_width;
-    v1->y += 1; v1->y *= frame_buffer.h_height;
-    v2->y += 1; v2->y *= frame_buffer.h_height;
+    v1->x += 1; v1->x *= frame_buffer.dimentions.h_width;
+    v2->x += 1; v2->x *= frame_buffer.dimentions.h_width;
+    v1->y += 1; v1->y *= frame_buffer.dimentions.h_height;
+    v2->y += 1; v2->y *= frame_buffer.dimentions.h_height;
 
     // Flip Y:
-    v1->y = frame_buffer.f_height - v1->y;
-    v2->y = frame_buffer.f_height - v2->y;
+    v1->y = frame_buffer.dimentions.f_height - v1->y;
+    v2->y = frame_buffer.dimentions.f_height - v2->y;
 }
 
 //#include "lib/memory/buffers.h"

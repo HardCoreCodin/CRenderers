@@ -28,11 +28,10 @@ typedef struct {
 } Masks;
 
 typedef struct {
-    vec3 *origin,
-         *direction,
-         *direction_rcp;
-    RayHit hit;
     Masks masks;
+    RayHit hit;
+    vec3 *origin,
+         *direction;
 } Ray;
 
 
@@ -52,9 +51,8 @@ typedef struct {
 #define MAX_BVH_NODE_COUNT 8
 
 typedef struct {
-    enum GeometryType geo_type;
+    u8 children, geo_type, geo_ids;
     AABB aabb;
-    u8 children, geo_ids;
 } BVHNode;
 
 typedef struct {
@@ -74,16 +72,12 @@ typedef struct {
 RayTracer ray_tracer;
 
 #ifdef __CUDACC__
-    __device__ vec3 d_ray_directions[MAX_WIDTH * MAX_HEIGHT];
-    __device__ vec3 d_ray_directions_rcp[MAX_WIDTH * MAX_HEIGHT];
+    __constant__ vec3 d_vectors[4];
     __constant__ Masks d_masks[1];
     __constant__ BVHNode d_bvh_nodes[MAX_BVH_NODE_COUNT];
     __constant__ GeometryBounds d_ssb_bounds[1];
 
-    #define copyMasksFromCPUtoGPU(masks) \
-        gpuErrchk(cudaMemcpyToSymbol(d_masks, masks, sizeof(Masks), 0, cudaMemcpyHostToDevice))
-    #define copyBVHNodesFromCPUtoGPU(bvh_nodes) \
-        gpuErrchk(cudaMemcpyToSymbol(d_bvh_nodes, bvh_nodes, sizeof(BVHNode) * MAX_BVH_NODE_COUNT, 0, cudaMemcpyHostToDevice))
-    #define copySSBBoundsFromCPUtoGPU(ssb_bounds) \
-        gpuErrchk(cudaMemcpyToSymbol(d_ssb_bounds, ssb_bounds, sizeof(GeometryBounds), 0, cudaMemcpyHostToDevice))
+    #define copyMasksFromCPUtoGPU(masks) gpuErrchk(cudaMemcpyToSymbol(d_masks, masks, sizeof(Masks), 0, cudaMemcpyHostToDevice))
+    #define copyBVHNodesFromCPUtoGPU(bvh_nodes) gpuErrchk(cudaMemcpyToSymbol(d_bvh_nodes, bvh_nodes, sizeof(BVHNode) * MAX_BVH_NODE_COUNT, 0, cudaMemcpyHostToDevice))
+    #define copySSBBoundsFromCPUtoGPU(ssb_bounds) gpuErrchk(cudaMemcpyToSymbol(d_ssb_bounds, ssb_bounds, sizeof(GeometryBounds), 0, cudaMemcpyHostToDevice))
 #endif

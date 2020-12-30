@@ -16,12 +16,12 @@ __forceinline__
 #else
 inline
 #endif
-bool hitTetrahedra(Tetrahedron *tetrahedra, TriangleIndices *indices, Ray *ray, bool check_any) {
+bool hitTetrahedra(Tetrahedron *tetrahedra, TriangleIndices *indices, Ray *ray, u8 visibility_mask, bool check_any) {
     vec3 hit_position, hit_position_tangent;
     vec3 *Ro = ray->origin,
          *Rd = ray->direction;
     f32 x, y, distance, closest_distance = ray->hit.distance;
-    u8 t, tetrahedron_id = 1, visibility_mask = ray->masks.visibility.tetrahedra;
+    u8 t, tetrahedron_id = 1;
     bool found = false;
 
     // Loop over all tetrahedra and intersect the ray against them:

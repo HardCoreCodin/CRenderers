@@ -9,23 +9,23 @@
 #define LAST_CHARACTER_CODE 127
 
 void drawText(FrameBuffer* fb, char *str, u32 color, int x, int y) {
-    if (x < 0 || x > fb->width - FONT_WIDTH ||
-        y < 0 || y > fb->height - FONT_HEIGHT)
+    if (x < 0 || x > fb->dimentions.width - FONT_WIDTH ||
+        y < 0 || y > fb->dimentions.height - FONT_HEIGHT)
         return;
 
     u16 current_x = x;
     u16 current_y = y;
     u16 t_offset = 0;
-    u16 pixel_line_step = fb->width - FONT_WIDTH;
-    u32 char_line_step  = fb->width * LINE_HEIGHT;
-    Pixel* pixel = fb->pixels + fb->width * y + x;;
+    u16 pixel_line_step = fb->dimentions.width - FONT_WIDTH;
+    u32 char_line_step  = fb->dimentions.width * LINE_HEIGHT;
+    Pixel* pixel = fb->pixels + fb->dimentions.width * y + x;;
     Pixel* character_pixel;
     u8* byte;
     char character = *str;
 
     while (character) {
         if (character == '\n') {
-            if (current_y + FONT_HEIGHT > fb->height)
+            if (current_y + FONT_HEIGHT > fb->dimentions.height)
                 break;
 
             pixel += char_line_step - current_x + x;

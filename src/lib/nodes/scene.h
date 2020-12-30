@@ -19,9 +19,9 @@ void initScene(Scene *scene) {
     scene->planes = AllocN(Plane, PLANE_COUNT);
     scene->cubes = AllocN(Cube, CUBE_COUNT);
     scene->ambient_light = Alloc(AmbientLight);
-    scene->ambient_light->color.x = 20;
-    scene->ambient_light->color.y = 20;
-    scene->ambient_light->color.z = 40;
+    scene->ambient_light->color.x = 0.08;
+    scene->ambient_light->color.y = 0.08;
+    scene->ambient_light->color.z = 0.16;
 
     vec3 cube_initial_vertex_positions[8] = {
             // Front
@@ -308,22 +308,21 @@ void initScene(Scene *scene) {
     fill_light->position.y = 10;
     fill_light->position.z = -5;
 
-    key_light->color.x = 255;
-    key_light->color.y = 255;
-    key_light->color.z = 200;
-    rim_light->color.x = 255;
-    rim_light->color.y = 128;
-    rim_light->color.z = 128;
-    fill_light->color.x = 200;
-    fill_light->color.y = 200;
-    fill_light->color.z = 255;
+    key_light->color.x = 1;
+    key_light->color.y = 1;
+    key_light->color.z = 0.8;
+    rim_light->color.x = 1;
+    rim_light->color.y = 0.5;
+    rim_light->color.z = 0.5;
+    fill_light->color.x = 0.8;
+    fill_light->color.y = 0.8;
+    fill_light->color.z = 1;
 
     key_light->intensity = 13;
     rim_light->intensity = 15;
     fill_light->intensity = 11;
 
 #ifdef __CUDACC__
-    gpuErrchk(cudaMemcpyToSymbol(d_geo_counts, scene->geo_counts, GEO_TYPE_COUNT, 0, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpyToSymbol(d_cube_indices, scene->cube_indices, sizeof(QuadIndices) * 6, 0, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpyToSymbol(d_tetrahedron_indices, scene->tetrahedron_indices, sizeof(TriangleIndices) * 4, 0, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpyToSymbol(d_ambient_light, scene->ambient_light, sizeof(AmbientLight), 0, cudaMemcpyHostToDevice));

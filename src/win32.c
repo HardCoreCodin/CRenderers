@@ -67,8 +67,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
         case WM_PAINT:
             SetDIBitsToDevice(win_dc,
-                    0, 0, frame_buffer.width, frame_buffer.height,
-                    0, 0, 0, frame_buffer.height,
+                    0, 0, frame_buffer.dimentions.width, frame_buffer.dimentions.height,
+                    0, 0, 0, frame_buffer.dimentions.height,
                     (u32*)frame_buffer.pixels, &info, DIB_RGB_COLORS);
 
             ValidateRgn(window, NULL);

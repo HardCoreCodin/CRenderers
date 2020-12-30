@@ -92,19 +92,16 @@ bool hitSpheresSimple(Sphere *spheres, Ray *ray) {
 #ifdef __CUDACC__
 __device__
 __host__
-__forceinline__
+//__forceinline__
 #else
-inline
+//inline
 #endif
-bool hitSpheres(Sphere *spheres, Ray *ray, bool check_any) {
+bool hitSpheres(Sphere *spheres, Ray *ray, u8 visibility_mask, u8 transparency_mask, bool check_any) {
     RayHit current_hit, closest_hit = ray->hit;
     vec3 *P = &current_hit.position,
          *N = &current_hit.normal,
          *Ro = ray->origin,
          *Rd = ray->direction;
-
-    u8 transparency_mask = ray->masks.transparency.spheres;
-    u8 visibility_mask   = ray->masks.visibility.spheres;
 
     f32 t, dt, r, d, closest_distance_squared = ray->hit.distance * ray->hit.distance;
     vec3 _i, *I = &_i, _c, *C = &_c;

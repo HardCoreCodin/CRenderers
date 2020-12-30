@@ -15,20 +15,20 @@ __forceinline__
 #else
 inline
 #endif
-bool hitCubes(Cube *cubes, QuadIndices *indices, Ray *ray, bool check_any) {
+bool hitCubes(Cube *cubes, QuadIndices *indices, Ray *ray, u8 visibility, bool check_any) {
     vec3 hit_position, hit_position_tangent;
     vec3 *Ro = ray->origin,
          *Rd = ray->direction;
     f32 x, y, distance, closest_distance = ray->hit.distance;
-    u8 q, tetrahedron_id = 1, visibility_mask = ray->masks.visibility.cubes;
+    u8 q, cude_id = 1;
     bool found = false;
 
     // Loop over all tetrahedra and intersect the ray against them:
     Cube* cube = cubes;
     vec3 *v1, *n;
 
-    for (u8 i = 0; i < CUBE_COUNT; i++, cube++, tetrahedron_id <<= 1) {
-        if (!(tetrahedron_id & visibility_mask)) continue;
+    for (u8 i = 0; i < CUBE_COUNT; i++, cube++, cude_id <<= 1) {
+        if (!(cude_id & visibility)) continue;
 
         for (q = 0; q < 6; q++) {
             v1 = &cube->vertices[indices[q].v1];
