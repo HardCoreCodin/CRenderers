@@ -58,9 +58,9 @@ typedef struct {
 
 typedef struct {
     Node node;
+    vec3 vertices[4];
     mat3 tangent_to_world[4],
          world_to_tangent[4];
-    vec3 vertices[4];
 } Tetrahedron;
 
 
@@ -121,12 +121,8 @@ typedef struct {
 // Indices:
 // ========
 typedef struct {
-    u8 v1, v2, v3;
-} TriangleIndices;
-
-typedef struct {
     u8 v1, v2, v3, v4;
-} QuadIndices;
+} Indices;
 
 typedef Node* NodePtr;
 typedef struct {
@@ -134,6 +130,29 @@ typedef struct {
     NodePtr spheres[SPHERE_COUNT];
     NodePtr tetrahedra[TETRAHEDRON_COUNT];
 } NodePointers;
+
+vec3 tetrahedron_initial_vertex_positions[4] = {
+        {0, 0, 0},
+        {0, 1, 1},
+        {1, 1, 0},
+        {1, 0, 1},
+};
+vec3 cube_initial_vertex_positions[8] = {
+        // Front
+        {0, 0, 0}, // Bottom Left
+        {0, 1, 0}, // Top Left
+        {1, 1, 0}, // Top Right
+        {1, 0, 0}, // Bottom Right
+
+        // Back
+        {0, 0, 1}, // Bottom Left
+        {0, 1, 1}, // Top Left
+        {1, 1, 1}, // Top Right
+        {1, 0, 1}, // Bottom Right
+};
+
+Indices cube_indices[6];
+Indices tetrahedron_indices[4];
 
 // Scene:
 // =====
@@ -145,8 +164,8 @@ typedef struct {
     Sphere *spheres;
     Plane *planes;
     Cube *cubes;
-    QuadIndices *cube_indices;
-    TriangleIndices *tetrahedron_indices;
+    Indices *cube_indices;
+    Indices *tetrahedron_indices;
     NodePointers node_ptrs;
 } Scene;
 
@@ -160,6 +179,6 @@ Scene main_scene;
     __constant__ Cube d_cubes[CUBE_COUNT];
     __constant__ Tetrahedron d_tetrahedra[TETRAHEDRON_COUNT];
     __constant__ AmbientLight d_ambient_light[1];
-    __constant__ TriangleIndices d_tetrahedron_indices[4];
-    __constant__ QuadIndices d_cube_indices[6];
+    __constant__ Indices d_tetrahedron_indices[4];
+    __constant__ Indices d_cube_indices[6];
 #endif

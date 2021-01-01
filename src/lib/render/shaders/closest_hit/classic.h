@@ -5,7 +5,7 @@
 #include "lib/core/types.h"
 #include "lib/globals/scene.h"
 #include "lib/math/math3D.h"
-#include "../any_hit/shadow.h"
+#include "../trace.h"
 #include "common.h"
 
 #ifdef __CUDACC__

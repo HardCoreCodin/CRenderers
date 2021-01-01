@@ -15,7 +15,7 @@ __forceinline__
 #else
 inline
 #endif
-bool hitCubes(Cube *cubes, QuadIndices *indices, Ray *ray, u8 visibility, bool check_any) {
+bool hitCubes(Cube *cubes, Indices *indices, Ray *ray, u8 visibility, bool check_any) {
     vec3 hit_position, hit_position_tangent;
     vec3 *Ro = ray->origin,
          *Rd = ray->direction;

@@ -14,7 +14,7 @@
 
 #include "BVH.h"
 #include "SSB.h"
-#include "render_shaders.h"
+#include "lib/render/shaders/shade.h"
 
 #ifdef __CUDACC__
 #include "raytracer.cu"
@@ -52,21 +52,11 @@ void renderOnCPU(vec3 *Ro, vec3 *start, vec3 *right, vec3 *down) {
 }
 
 void onZoom() {
-//#ifdef __CUDACC__
-//    if (!use_GPU) generateRayDirections();
-//#else
-//    generateRayDirections();
-//#endif
     current_camera_controller->moved = true;
     current_camera_controller->zoomed = false;
 }
 
 void onTurn() {
-//#ifdef __CUDACC__
-//    if (!use_GPU) generateRayDirections();
-//#else
-//    generateRayDirections();
-//#endif
     transposeMat3(&current_camera_controller->camera->transform.rotation_matrix,
                   &current_camera_controller->camera->transform.rotation_matrix_inverted);
     current_camera_controller->turned = false;
@@ -112,11 +102,6 @@ void onMove(Scene* scene) {
 }
 
 void onResize(Scene *scene) {
-//#ifdef __CUDACC__
-//    if (!use_GPU) generateRayDirections();
-//#else
-//    generateRayDirections();
-//#endif
     onMove(scene);
 }
 
@@ -151,7 +136,7 @@ void draw3DShape(vec3 *vertices, u8 vertex_count, Camera *camera, Pixel *pixel) 
         draw3DLineSegment(vertices + v, vertices + ((v + 1) % vertex_count), camera, pixel);
 }
 
-void drawCube(Cube *cube, QuadIndices *indices, Camera *camera, Pixel *pixel) {
+void drawCube(Cube *cube, Indices *indices, Camera *camera, Pixel *pixel) {
     vec3 quad[4];
     for (u8 q = 0; q < 6; q++) {
         quad[0] = cube->vertices[indices[q].v1];
@@ -200,15 +185,12 @@ void onRender(Scene *scene, Camera *camera) {
     pixel.color.A = 0;
 
     if (show_BVH) drawBVH(&ray_tracer.bvh, camera);
-    if (show_SSB) drawSSB(&ray_tracer.ssb, &pixel);
-
-//    for (u8 c = 0; c < CUBE_COUNT; c++)
-//        drawCube(scene->cubes + c, scene->cube_indices, camera, &pixel);
+    if (show_SSB) drawSSB(&ray_tracer.ssb);
 }
 
 
 void initRayTracer(Scene *scene) {
-    initBVH(&ray_tracer.bvh, 3);
+    initBVH(&ray_tracer.bvh, 5);
     updateBVH(&ray_tracer.bvh, scene);
 
     ray_tracer.rays_per_pixel = 1;
@@ -264,7 +246,6 @@ void initRayTracer(Scene *scene) {
     ray_tracer.masks.shadowing.tetrahedra = 15;
 }
 
-
 //#ifdef __CUDACC__
 //__device__
 //__host__
@@ -293,7 +274,7 @@ void initRayTracer(Scene *scene) {
 //    reflect(Rd, N, NdotRd, &RLd);
 //
 //    shadeSurface(scene, hit_material, Rd,  &RLd, P, N, &color);
-
+//
 //    vec3 *N, *Rd, *P, L, H, color, scaled_light_color, ambient_color = scene->aux->ambient_color;
 //    Material *material;
 //    u8 uses, exp;

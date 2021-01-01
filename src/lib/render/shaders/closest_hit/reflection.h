@@ -17,7 +17,7 @@ __forceinline__
 #else
 inline
 #endif
-void shadeSurface(Scene *scene, BVHNode *bvh_nodes, Masks *masks, u8 material_id, vec3 *Rd, vec3 *P, vec3 *N, vec3 *out_color) {
+void shadeReflection(Scene *scene, BVHNode *bvh_nodes, Masks *scene_masks, u8 material_id, vec3 *Rd, vec3 *P, vec3 *N, u8 depth, vec3 *out_color) {
     vec3 color, light_color;
     vec3 _rl, *RLd = &_rl;
     vec3 _l, *L = &_l;
@@ -27,12 +27,23 @@ void shadeSurface(Scene *scene, BVHNode *bvh_nodes, Masks *masks, u8 material_id
     MaterialSpec mat; f32 di, si; u8 exp;
     decodeMaterial(material, mat, di, si, exp);
 
-    if (mat.uses.phong || mat.has.reflection || mat.has.refraction) {
+    if (mat.uses.phong || mat.has.reflection) {
         NdotRd = -sdotInv(N, Rd);
         reflect(Rd, N, NdotRd, RLd);
     }
-    if (mat.has.reflection || mat.has.refraction) fillVec3(&color, 0);
-    else color = scene->ambient_light->color;
+
+    if (mat.has.reflection) {
+        fillVec3(&color, 0);
+        u8 new_hit_depth = depth + 1;
+        if (new_hit_depth < MAX_HIT_DEPTH) {
+            Ray ray;
+            ray.origin = P;
+            ray.direction = RLd;
+
+            traceSecondaryRay(&ray, scene, bvh_nodes, scene_masks);
+            shadeReflection(scene, bvh_nodes, scene_masks, ray.hit.material_id, RLd, &ray.hit.position, &ray.hit.normal, new_hit_depth, &color);
+        }
+    } else color = scene->ambient_light->color;
 
     PointLight *light;
     for (u8 i = 0; i < POINT_LIGHT_COUNT; i++) {
@@ -42,7 +53,7 @@ void shadeSurface(Scene *scene, BVHNode *bvh_nodes, Masks *masks, u8 material_id
         d2 = squaredLengthVec3(L);
         d = sqrtf(d2);
         iscaleVec3(L, 1.0f / d);
-        if (inShadow(scene, bvh_nodes, masks, L, P, d)) continue;
+        if (inShadow(scene, bvh_nodes, scene_masks, L, P, d)) continue;
 
         if (mat.uses.blinn) {
             subVec3(L, Rd, H);

@@ -19,6 +19,7 @@
 #include "lib/controllers/orb.h"
 #include "lib/controllers/camera_controller.h"
 
+#include "lib/nodes/node.h"
 #include "lib/nodes/scene.h"
 #include "lib/nodes/camera.h"
 
@@ -45,12 +46,16 @@ void updateAndRender() {
 
     if (mouse_wheel_scrolled) {
        if (shift_is_pressed) {
-           updateTetrahedronRadius(main_scene.tetrahedra, main_scene.tetrahedra->node.radius + mouse_wheel_scroll_amount / 1000);
+           Node *node = &main_scene.tetrahedra->node;
+           f32 radius = node->radius + mouse_wheel_scroll_amount / 1000;
+           setNodeRadius(node, radius);
            vec3* p = ray_tracer.ssb.view_positions.tetrahedra;
            Bounds2Di *b = ray_tracer.ssb.bounds.tetrahedra;
-           computeSSB(b, p->x, p->y, p->z, main_scene.tetrahedra->node.radius, main_camera.focal_length);
+           computeSSB(b, p->x, p->y, p->z, radius, main_camera.focal_length);
 
-           updateCubeRadius(main_scene.cubes, main_scene.cubes->node.radius + mouse_wheel_scroll_amount / 1000);
+           node = &main_scene.cubes->node;
+           radius = node->radius + mouse_wheel_scroll_amount / 1000;
+           setNodeRadius(node, radius);
            p = ray_tracer.ssb.view_positions.cubes;
            b = ray_tracer.ssb.bounds.cubes;
            computeSSB(b, p->x, p->y, p->z, main_scene.cubes->node.radius, main_camera.focal_length);
@@ -70,29 +75,9 @@ void updateAndRender() {
     xform3 local_xform;
     initXform3(&local_xform);
     rotateXform3(&local_xform, amount, amount/2, amount/3);
+    rotateNode(&main_scene.cubes->node, &local_xform.rotation_matrix);
+    rotateNode(&main_scene.tetrahedra->node, &local_xform.rotation_matrix);
 
-    vec3 *vertex = main_scene.tetrahedra->vertices,
-         *position = &main_scene.tetrahedra->node.position;
-    for (u8 i = 0; i < 4; i++, vertex++) {
-        isubVec3(vertex, position);
-        imulVec3Mat3(vertex, &local_xform.rotation_matrix);
-        iaddVec3(vertex, position);
-
-        imulMat3(&main_scene.tetrahedra->tangent_to_world[i], &local_xform.rotation_matrix);
-    }
-    updateTetrahedronMatrices(main_scene.tetrahedra);
-
-    vertex = main_scene.cubes->vertices;
-    position = &main_scene.cubes->node.position;
-    for (u8 v = 0; v < 8; v++, vertex++) {
-        isubVec3(vertex, position);
-        imulVec3Mat3(vertex, &local_xform.rotation_matrix);
-        iaddVec3(vertex, position);
-    }
-    for (u8 q = 0; q < 8; q++, vertex++) {
-        imulMat3(&main_scene.cubes->tangent_to_world[q], &local_xform.rotation_matrix);
-    }
-    updateCubeMatrices(main_scene.cubes);
 #ifdef __CUDACC__
     gpuErrchk(cudaMemcpyToSymbol(d_cubes, main_scene.cubes, sizeof(Cube) * CUBE_COUNT, 0, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpyToSymbol(d_spheres, main_scene.spheres, sizeof(Sphere) * SPHERE_COUNT, 0, cudaMemcpyHostToDevice));

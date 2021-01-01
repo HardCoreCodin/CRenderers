@@ -34,7 +34,14 @@ __global__ void d_renderBeauty() {  initShader(); renderBeauty(  &ray, &scene, d
 __global__ void d_renderNormals() { initShader(); renderNormals( &ray, &scene, d_bvh_nodes, d_ssb_bounds, d_masks, x, y, pixel); }
 
 void renderOnGPU(vec3 *Ro, vec3 *start, vec3 *right, vec3 *down) {
-    setupKernel()
+    u32 count = frame_buffer.dimentions.width_times_height;
+    u16 threads = 32;
+    u16 blocks  = count / threads;
+    if (count < threads) {
+        threads = count;
+        blocks = 1;
+    } else if (count % threads)
+        blocks++;
 
     vec3 vectors[4];
     vectors[0] = *Ro;

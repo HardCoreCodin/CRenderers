@@ -23,6 +23,21 @@ bool hitAABB(vec3 *aabb_min, vec3 *aabb_max, vec3 *Ro, vec3* RD_rcp) {
     ) >= max(0.0f, max(max(min(min_t_x, max_t_x), min(min_t_y, max_t_y)), min(min_t_z, max_t_z)));
 }
 
+inline void setAABBfromNode(AABB *aabb, Node *node) {
+    f32 r = node->radius,
+        x = node->position.x,
+        y = node->position.y,
+        z = node->position.z;
+
+    aabb->min.x = x - r;
+    aabb->min.y = y - r;
+    aabb->min.z = z - r;
+
+    aabb->max.x = x + r;
+    aabb->max.y = y + r;
+    aabb->max.z = z + r;
+}
+
 //#ifdef __CUDACC__
 //__device__
 //__host__

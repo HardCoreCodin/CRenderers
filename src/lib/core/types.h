@@ -95,15 +95,6 @@ typedef struct {
         f32 x = i % d_dimentions->width; \
         f32 y = i / d_dimentions->width
 
-    #define setupKernel() \
-        u16 threads = 256; \
-        u16 blocks  = frame_buffer.dimentions.width_times_height / threads; \
-        if (frame_buffer.dimentions.width_times_height < threads) { \
-            threads = frame_buffer.dimentions.width_times_height; \
-            blocks = 1; \
-        } \
-        if (frame_buffer.dimentions.width_times_height % threads) blocks++;
-
     #ifndef NDEBUG
         #include <stdio.h>
         #include <stdlib.h>

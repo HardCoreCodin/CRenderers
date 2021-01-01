@@ -4,14 +4,122 @@
 #include "lib/globals/scene.h"
 #include "lib/memory/allocators.h"
 #include "lib/math/math3D.h"
-#include "lib/nodes/camera.h"
 
-#include "cube.h"
-#include "tetrahedron.h"
+#include "node.h"
+#include "camera.h"
+
+void initGeometryMetadata() {
+    tetrahedron_initial_vertex_positions[0].x = 0;
+    tetrahedron_initial_vertex_positions[0].y = 0;
+    tetrahedron_initial_vertex_positions[0].z = 0;
+
+    tetrahedron_initial_vertex_positions[1].x = 0;
+    tetrahedron_initial_vertex_positions[1].y = 1;
+    tetrahedron_initial_vertex_positions[1].z = 1;
+
+    tetrahedron_initial_vertex_positions[2].x = 1;
+    tetrahedron_initial_vertex_positions[2].y = 1;
+    tetrahedron_initial_vertex_positions[2].z = 0;
+
+    tetrahedron_initial_vertex_positions[3].x = 1;
+    tetrahedron_initial_vertex_positions[3].y = 0;
+    tetrahedron_initial_vertex_positions[3].z = 1;
+
+    // Front:
+    // ======
+    // Bottom Left
+    cube_initial_vertex_positions[0].x = 0;
+    cube_initial_vertex_positions[0].y = 0;
+    cube_initial_vertex_positions[0].z = 0;
+
+    // Top Left
+    cube_initial_vertex_positions[1].x = 0;
+    cube_initial_vertex_positions[1].y = 1;
+    cube_initial_vertex_positions[1].z = 0;
+
+    // Top Right
+    cube_initial_vertex_positions[2].x = 1;
+    cube_initial_vertex_positions[2].y = 1;
+    cube_initial_vertex_positions[2].z = 0;
+
+    // Bottom Right
+    cube_initial_vertex_positions[3].x = 1;
+    cube_initial_vertex_positions[3].y = 0;
+    cube_initial_vertex_positions[3].z = 0;
+
+    // Back
+    // Bottom Left
+    cube_initial_vertex_positions[4].x = 0;
+    cube_initial_vertex_positions[4].y = 0;
+    cube_initial_vertex_positions[4].z = 1;
+
+    // Top Left
+    cube_initial_vertex_positions[5].x = 0;
+    cube_initial_vertex_positions[5].y = 1;
+    cube_initial_vertex_positions[5].z = 1;
+
+    // Top Right
+    cube_initial_vertex_positions[6].x = 1;
+    cube_initial_vertex_positions[6].y = 1;
+    cube_initial_vertex_positions[6].z = 1;
+
+    // Bottom Right
+    cube_initial_vertex_positions[7].x = 1;
+    cube_initial_vertex_positions[7].y = 0;
+    cube_initial_vertex_positions[7].z = 1;
+
+    cube_indices[0].v1 = 0;
+    cube_indices[0].v2 = 1;
+    cube_indices[0].v3 = 2;
+    cube_indices[0].v4 = 3;
+
+    cube_indices[1].v1 = 3;
+    cube_indices[1].v2 = 2;
+    cube_indices[1].v3 = 6;
+    cube_indices[1].v4 = 7;
+
+    cube_indices[2].v1 = 7;
+    cube_indices[2].v2 = 6;
+    cube_indices[2].v3 = 5;
+    cube_indices[2].v4 = 4;
+
+    cube_indices[3].v1 = 4;
+    cube_indices[3].v2 = 5;
+    cube_indices[3].v3 = 1;
+    cube_indices[3].v4 = 0;
+
+    cube_indices[4].v1 = 1;
+    cube_indices[4].v2 = 5;
+    cube_indices[4].v3 = 6;
+    cube_indices[4].v4 = 2;
+
+    cube_indices[5].v1 = 4;
+    cube_indices[5].v2 = 0;
+    cube_indices[5].v3 = 3;
+    cube_indices[5].v4 = 7;
+
+    tetrahedron_indices[0].v1 = 0;
+    tetrahedron_indices[0].v2 = 1;
+    tetrahedron_indices[0].v3 = 2;
+
+    tetrahedron_indices[1].v1 = 0;
+    tetrahedron_indices[1].v2 = 2;
+    tetrahedron_indices[1].v3 = 3;
+
+    tetrahedron_indices[2].v1 = 0;
+    tetrahedron_indices[2].v2 = 3;
+    tetrahedron_indices[2].v3 = 1;
+
+    tetrahedron_indices[3].v1 = 3;
+    tetrahedron_indices[3].v2 = 2;
+    tetrahedron_indices[3].v3 = 1;
+
+}
 
 void initScene(Scene *scene) {
-    scene->cube_indices = AllocN(QuadIndices, 6);
-    scene->tetrahedron_indices = AllocN(TriangleIndices, 4);
+    initGeometryMetadata();
+    scene->cube_indices = cube_indices;
+    scene->tetrahedron_indices = tetrahedron_indices;
     scene->tetrahedra = AllocN(Tetrahedron, TETRAHEDRON_COUNT);
     scene->point_lights = AllocN(PointLight, POINT_LIGHT_COUNT);
     scene->materials = AllocN(Material, MATERIAL_COUNT);
@@ -19,91 +127,33 @@ void initScene(Scene *scene) {
     scene->planes = AllocN(Plane, PLANE_COUNT);
     scene->cubes = AllocN(Cube, CUBE_COUNT);
     scene->ambient_light = Alloc(AmbientLight);
-    scene->ambient_light->color.x = 0.08;
-    scene->ambient_light->color.y = 0.08;
-    scene->ambient_light->color.z = 0.16;
+    scene->ambient_light->color.x = 0.08f;
+    scene->ambient_light->color.y = 0.08f;
+    scene->ambient_light->color.z = 0.16f;
 
-    vec3 cube_initial_vertex_positions[8] = {
-            // Front
-            {0, 0, 0}, // Bottom Left
-            {0, 1, 0}, // Top Left
-            {1, 1, 0}, // Top Right
-            {1, 0, 0}, // Bottom Right
+    u8 wall_material_id = 0;
+    u8 diffuse_material_id = 1;
+    u8 phong_material_id = 2;
+    u8 blinn_material_id = 3;
+    u8 reflective_material_id = 4;
+    u8 refractive_material_id = 5;
+    u8 reflective_refractive_material_id = 6;
 
-            // Back
-            {0, 0, 1}, // Bottom Left
-            {0, 1, 1}, // Top Left
-            {1, 1, 1}, // Top Right
-            {1, 0, 1}, // Bottom Right
-    };
-    scene->cube_indices[0].v1 = 0;
-    scene->cube_indices[0].v2 = 1;
-    scene->cube_indices[0].v3 = 2;
-    scene->cube_indices[0].v4 = 3;
-
-    scene->cube_indices[1].v1 = 3;
-    scene->cube_indices[1].v2 = 2;
-    scene->cube_indices[1].v3 = 6;
-    scene->cube_indices[1].v4 = 7;
-
-    scene->cube_indices[2].v1 = 7;
-    scene->cube_indices[2].v2 = 6;
-    scene->cube_indices[2].v3 = 5;
-    scene->cube_indices[2].v4 = 4;
-
-    scene->cube_indices[3].v1 = 4;
-    scene->cube_indices[3].v2 = 5;
-    scene->cube_indices[3].v3 = 1;
-    scene->cube_indices[3].v4 = 0;
-
-    scene->cube_indices[4].v1 = 1;
-    scene->cube_indices[4].v2 = 5;
-    scene->cube_indices[4].v3 = 6;
-    scene->cube_indices[4].v4 = 2;
-
-    scene->cube_indices[5].v1 = 4;
-    scene->cube_indices[5].v2 = 0;
-    scene->cube_indices[5].v3 = 3;
-    scene->cube_indices[5].v4 = 7;
-
-    vec3 tetrahedron_initial_vertex_positions[4] = {
-            {0, 0, 0},
-            {0, 1, 1},
-            {1, 1, 0},
-            {1, 0, 1},
-    };
-    scene->tetrahedron_indices[0].v1 = 0;
-    scene->tetrahedron_indices[0].v2 = 1;
-    scene->tetrahedron_indices[0].v3 = 2;
-
-    scene->tetrahedron_indices[1].v1 = 0;
-    scene->tetrahedron_indices[1].v2 = 2;
-    scene->tetrahedron_indices[1].v3 = 3;
-
-    scene->tetrahedron_indices[2].v1 = 0;
-    scene->tetrahedron_indices[2].v2 = 3;
-    scene->tetrahedron_indices[2].v3 = 1;
-
-    scene->tetrahedron_indices[3].v1 = 3;
-    scene->tetrahedron_indices[3].v2 = 2;
-    scene->tetrahedron_indices[3].v3 = 1;
-
-
-    Material *walls_material = scene->materials,
-            *diffuse_ball_material = scene->materials + 1,
-            *specular_ball_material_phong = scene->materials + 2,
-            *specular_ball_material_blinn = scene->materials + 3,
-            *reflective_ball_material = scene->materials + 4,
-            *refractive_ball_material = scene->materials + 5,
-            *reflective_refractive_ball_material = scene->materials + 6;
+    Material *walls_material = scene->materials + wall_material_id,
+            *diffuse_material = scene->materials + diffuse_material_id,
+            *phong_material = scene->materials + phong_material_id,
+            *blinn_material = scene->materials + blinn_material_id,
+            *reflective_material = scene->materials + reflective_material_id,
+            *refractive_material = scene->materials + refractive_material_id,
+            *reflective_refractive_material = scene->materials + reflective_refractive_material_id;
 
     walls_material->uses = LAMBERT;
-    diffuse_ball_material->uses = LAMBERT;
-    specular_ball_material_phong->uses = LAMBERT | PHONG | TRANSPARENCY;
-    specular_ball_material_blinn->uses = LAMBERT | BLINN;
-    reflective_ball_material->uses = BLINN | REFLECTION;
-    refractive_ball_material->uses = BLINN | REFRACTION;
-    reflective_refractive_ball_material->uses = BLINN | REFLECTION | REFRACTION;
+    diffuse_material->uses = LAMBERT;
+    phong_material->uses = LAMBERT | PHONG | TRANSPARENCY;
+    blinn_material->uses = LAMBERT | BLINN;
+    reflective_material->uses = LAMBERT | BLINN | REFLECTION;
+    refractive_material->uses = LAMBERT | BLINN | REFRACTION;
+    reflective_refractive_material->uses = BLINN | REFLECTION | REFRACTION;
 
     Material* material = scene->materials;
     for (int i = 0; i < MATERIAL_COUNT; i++, material++) {
@@ -115,116 +165,111 @@ void initScene(Scene *scene) {
         material->n2_over_n1 = IOR_GLASS / IOR_AIR;
     }
 
-    specular_ball_material_phong->diffuse_color.z = 0.4f;
-    diffuse_ball_material->diffuse_color.x = 0.3f;
-    diffuse_ball_material->diffuse_color.z = 0.2f;
-    diffuse_ball_material->diffuse_color.z = 0.7f;
+    phong_material->diffuse_color.z = 0.4f;
+    diffuse_material->diffuse_color.x = 0.3f;
+    diffuse_material->diffuse_color.z = 0.2f;
+    diffuse_material->diffuse_color.z = 0.7f;
 
-    Cube *cube = scene->cubes;
-    for (u8 i = 0; i < CUBE_COUNT; i++, cube++) {
-        cube->node.geo.id = i;
-        cube->node.geo.type = GeoTypeCube;
-        cube->node.geo.material_id = 2;
-        cube->node.radius = (f32)(i + 1);
-        scene->node_ptrs.cubes[i] = &cube->node;
-        initCube(cube, cube->node.radius, cube_initial_vertex_positions, scene->cube_indices);
-    }
+    Node *node;
+    vec3 positions[4];
+    vec3 *position;
 
-    // Back-right tetrahedron position:
-    cube = scene->cubes;
-    vec3 *pos = &cube->node.position;
-    pos->x = 3;
-    pos->y = 4;
-    pos->z = 8;
-
-    // Back-left tetrahedron position:
-    cube++;
-    pos = &cube->node.position;
-    pos->y = cube->node.radius;
-    pos->x = 4;
-    pos->z = 6;
-
-    // Front-left tetrahedron position:
-    cube++;
-    pos = &cube->node.position;
-    pos->y = cube->node.radius;
-    pos->x = -3;
-    pos->z = 0;
-
-    // Front-right tetrahedron position:
-    cube++;
-    pos = &cube->node.position;
-    pos->y = cube->node.radius;
-    pos->x = 4;
-    pos->z = -3;
-
-    cube = scene->cubes;
     xform3 xf;
-    initXform3(&xf);
-    for (u8 i = 0; i < CUBE_COUNT; i++, cube++) {
-        for (u8 v = 0; v < 8; v++) {
-            imulVec3Mat3(&cube->vertices[v], &xf.rotation_matrix);
-            iaddVec3(&cube->vertices[v], &cube->node.position);
-        }
-        for (u8 q = 0; q < 6; q++) {
-            imulMat3(&cube->tangent_to_world[q], &xf.rotation_matrix);
-        }
+    mat3 *rotation = &xf.rotation_matrix;
 
-        updateCubeMatrices(cube);
+    // Back-right cube position:
+    Cube *cube = scene->cubes;
+    position = positions;
+    node = &cube->node;
+    node->geo.material_id = reflective_material_id;
+    position->x = 9;
+    position->y = 4;
+    position->z = 3;
+
+    // Back-left cube position:
+    cube++; position++;
+    node = &cube->node;
+    node->geo.material_id = phong_material_id;
+    position->x = 10;
+    position->z = 1;
+
+    // Front-left cube position:
+    cube++; position++;
+    node = &cube->node;
+    node->geo.material_id = reflective_material_id;
+    position->x = -1;
+    position->z = -5;
+
+    // Front-right cube position:
+    cube++; position++;
+    node = &cube->node;
+    node->geo.material_id = blinn_material_id;
+    position->x = 10;
+    position->z = -8;
+
+    initXform3(&xf);
+    position = positions;
+    for (u8 i = 0; i < CUBE_COUNT; i++, position++) {
+        node = scene->node_ptrs.cubes[i] = &scene->cubes[i].node;
+        node->geo.id = i;
+        node->geo.type = GeoTypeCube;
+
+        fillVec3(&node->position, 0);
+        initNode(node, (f32)(i + 1));
 
         rotateXform3(&xf, 0.3f, 0.4f, 0.5f);
+        rotateNode(node, rotation);
+
+        if (i) position->y = node->radius;
+        setNodePosition(node, position);
     }
 
-    Tetrahedron *tet = scene->tetrahedra;
-    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++, tet++) {
-        tet->node.geo.id = i;
-        tet->node.geo.type = GeoTypeTetrahedron;
-        tet->node.geo.material_id = 2;
-        tet->node.radius = (f32)(i + 1);
-        scene->node_ptrs.tetrahedra[i] = &tet->node;
-        initTetrahedron(tet, tet->node.radius, tetrahedron_initial_vertex_positions, scene->tetrahedron_indices);
-    }
 
     // Back-right tetrahedron position:
-    tet = scene->tetrahedra;
-    pos = &tet->node.position;
-    pos->x = 3;
-    pos->y = 4;
-    pos->z = 8;
+    Tetrahedron *tet = scene->tetrahedra;
+    node = &tet->node;
+    node->geo.material_id = reflective_material_id;
+    position = positions;
+    position->x = 3;
+    position->y = 4;
+    position->z = 8;
 
     // Back-left tetrahedron position:
-    tet++;
-    pos = &tet->node.position;
-    pos->y = tet->node.radius;
-    pos->x = 4;
-    pos->z = 6;
+    tet++; position++;
+    node = &tet->node;
+    node->geo.material_id = phong_material_id;
+    position->x = 4;
+    position->z = 6;
 
     // Front-left tetrahedron position:
-    tet++;
-    pos = &tet->node.position;
-    pos->y = tet->node.radius;
-    pos->x = -3;
-    pos->z = 0;
+    tet++; position++;
+    node = &tet->node;
+    node->geo.material_id = reflective_material_id;
+    position->x = -3;
+    position->z = 0;
 
     // Front-right tetrahedron position:
-    tet++;
-    pos = &tet->node.position;
-    pos->y = tet->node.radius;
-    pos->x = 4;
-    pos->z = -3;
+    tet++; position++;
+    node = &tet->node;
+    node->geo.material_id = blinn_material_id;
+    position->x = 4;
+    position->z = -3;
 
-    tet = scene->tetrahedra;
     initXform3(&xf);
-    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++, tet++) {
-        for (u8 t = 0; t < 4; t++) {
-            imulVec3Mat3(&tet->vertices[t], &xf.rotation_matrix);
-            iaddVec3(&tet->vertices[t], &tet->node.position);
+    position = positions;
+    for (u8 i = 0; i < TETRAHEDRON_COUNT; i++, position++) {
+        node = scene->node_ptrs.tetrahedra[i] = &scene->tetrahedra[i].node;
+        node->geo.id = i;
+        node->geo.type = GeoTypeTetrahedron;
 
-            imulMat3(&tet->tangent_to_world[t], &xf.rotation_matrix);
-        }
-        updateTetrahedronMatrices(tet);
+        fillVec3(&node->position, 0);
+        initNode(node, (f32)(i + 1));
 
         rotateXform3(&xf, 0.3f, 0.4f, 0.5f);
+        rotateNode(node, rotation);
+
+        if (i) position->y = node->radius;
+        setNodePosition(node, position);
     }
 
     Sphere* sphere = scene->spheres;
@@ -244,7 +289,7 @@ void initScene(Scene *scene) {
 
     // Back-left sphere position:
     sphere = scene->spheres;
-    pos = &sphere->node.position;
+    vec3 *pos = &sphere->node.position;
     pos->x = -1;
     pos->z = 5;
 
@@ -281,6 +326,8 @@ void initScene(Scene *scene) {
     Plane *back_plane = scene->planes + 4;
     Plane *front_plane = scene->planes + 5;
 
+//    bottom_plane->node.geo.material_id = reflective_material_id;
+
     top_plane->node.position.y   = 20;
     back_plane->node.position.z  = 20;
     front_plane->node.position.z = -20;
@@ -310,12 +357,12 @@ void initScene(Scene *scene) {
 
     key_light->color.x = 1;
     key_light->color.y = 1;
-    key_light->color.z = 0.8;
+    key_light->color.z = 0.8f;
     rim_light->color.x = 1;
-    rim_light->color.y = 0.5;
-    rim_light->color.z = 0.5;
-    fill_light->color.x = 0.8;
-    fill_light->color.y = 0.8;
+    rim_light->color.y = 0.5f;
+    rim_light->color.z = 0.5f;
+    fill_light->color.x = 0.8f;
+    fill_light->color.y = 0.8f;
     fill_light->color.z = 1;
 
     key_light->intensity = 13;
@@ -323,8 +370,8 @@ void initScene(Scene *scene) {
     fill_light->intensity = 11;
 
 #ifdef __CUDACC__
-    gpuErrchk(cudaMemcpyToSymbol(d_cube_indices, scene->cube_indices, sizeof(QuadIndices) * 6, 0, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpyToSymbol(d_tetrahedron_indices, scene->tetrahedron_indices, sizeof(TriangleIndices) * 4, 0, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpyToSymbol(d_cube_indices, scene->cube_indices, sizeof(Indices) * 6, 0, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpyToSymbol(d_tetrahedron_indices, scene->tetrahedron_indices, sizeof(Indices) * 4, 0, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpyToSymbol(d_ambient_light, scene->ambient_light, sizeof(AmbientLight), 0, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpyToSymbol(d_point_lights, scene->point_lights, sizeof(PointLight) * POINT_LIGHT_COUNT, 0, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpyToSymbol(d_tetrahedra, scene->tetrahedra, sizeof(Tetrahedron) * TETRAHEDRON_COUNT, 0, cudaMemcpyHostToDevice));
