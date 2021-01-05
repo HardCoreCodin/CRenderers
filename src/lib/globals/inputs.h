@@ -14,7 +14,8 @@ MouseButton middle_mouse_button,
             left_mouse_button;
 
 vec2i mouse_pos,
-      mouse_pos_diff;
+      mouse_pos_raw_diff,
+      mouse_movement;
 
 bool mouse_moved,
      mouse_is_captured,
@@ -36,22 +37,25 @@ bool move_right,
      space_is_pressed,
      show_hud;
 
-u8 up_key,
-   down_key,
-   left_key, turn_left_key,
-   right_key, turn_right_key,
-   forward_key,
-   backward_key,
-   toggle_HUD_key,
-   toggle_BVH_key,
-   toggle_SSB_key,
-   toggle_GPU_key,
-   alt_key,
-   ctrl_key,
-   shift_key,
-   space_key,
-   exit_key,
-   set_beauty_key,
-   set_normal_key,
-   set_depth_key,
-   set_uvs_key;
+typedef struct {
+    u8 up,
+       down,
+       left, turn_left,
+       right, turn_right,
+       forward,
+       backward,
+       toggle_HUD,
+       toggle_BVH,
+       toggle_SSB,
+       toggle_GPU,
+       alt,
+       ctrl,
+       shift,
+       space,
+       exit,
+       set_beauty,
+       set_normal,
+       set_depth,
+       set_uvs;
+} KeyMap;
+KeyMap keys;

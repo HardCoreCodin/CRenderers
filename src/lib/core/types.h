@@ -53,18 +53,6 @@ typedef struct { u16 min, max; } range2i;
 typedef struct { vec3 min, max; } AABB;
 typedef struct { range2i x_range, y_range; } Bounds2Di;
 
-typedef union {
-    Color color;
-    u32 value;
-} Pixel;
-#define setPixelColor(pixel, color) \
-        color.x *= 255;    \
-        color.y *= 255;    \
-        color.z *= 255;    \
-        pixel->color.R = color.x > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.x; \
-        pixel->color.G = color.y > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.y; \
-        pixel->color.B = color.z > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : (u8)color.z
-
 typedef struct {
     mat2 matrix,
          rotation_matrix,

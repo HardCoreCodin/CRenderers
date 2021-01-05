@@ -6,7 +6,7 @@
 #include "lib/globals/display.h"
 
 
-void drawTriangle(f32 *X, f32 *Y, u16 pitch, Pixel *pixel) {
+void drawTriangle(f32 *X, f32 *Y, u16 pitch, Pixel pixel) {
     f32 dx1, x1, y1, xs,
         dx2, x2, y2, xe,
         dx3, x3, y3, dy;
@@ -36,7 +36,7 @@ void drawTriangle(f32 *X, f32 *Y, u16 pitch, Pixel *pixel) {
         if (y == y2i) xe = dx2 ? (x2 + dx2 * (1 - (y2 - (f32)y2i))) : x2;
         xsi = (i32)xs;
         xei = (i32)xe;
-        for (x = xsi; x < xei; x++) frame_buffer.pixels[offset + x] = *pixel;
+        for (x = xsi; x < xei; x++) frame_buffer.pixels[offset + x] = pixel;
         offset += pitch;
         xs += y < y3i ? dx3 : dx2;
         xe += y < y2i ? dx1 : dx2;

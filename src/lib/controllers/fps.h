@@ -19,12 +19,12 @@ void onMouseScrolledFps() {
 
 void onMouseMovedFps() {
     rotateXform3(&fps_camera_controller.controller.camera->transform,
-             MOUSE_TURN_SPEED * -mouse_pos_diff.x,
-             MOUSE_TURN_SPEED * -mouse_pos_diff.y,
+             MOUSE_TURN_SPEED * -mouse_pos_raw_diff.x,
+             MOUSE_TURN_SPEED * -mouse_pos_raw_diff.y,
              0);
     fps_camera_controller.controller.turned = true;
-    mouse_pos_diff.x = 0;
-    mouse_pos_diff.y = 0;
+    mouse_pos_raw_diff.x = 0;
+    mouse_pos_raw_diff.y = 0;
     mouse_moved = false;
 }
 

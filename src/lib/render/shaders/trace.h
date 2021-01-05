@@ -56,8 +56,14 @@ void traceSecondaryRay(Ray *ray, Scene *scene, BVHNode *bvh_nodes, Masks *scene_
 //    if (!hitAABB(&bvh_nodes->aabb.min, &bvh_nodes->aabb.max, Ro, &Rd_rcp))
 //        return false;
 
+
     hitPlanes(scene->planes, ray);
     GeometryMasks visibility = getRayVisibilityMasksFromBVH(ray->origin, &Rd_rcp, bvh_nodes);
+
+    visibility.cubes &= scene_masks->visibility.cubes;
+    visibility.spheres &= scene_masks->visibility.spheres;
+    visibility.tetrahedra &= scene_masks->visibility.tetrahedra;
+
     if (visibility.spheres) hitSpheres(scene->spheres, ray, visibility.spheres, scene_masks->transparency.spheres, true);
     if (visibility.cubes) hitCubes(scene->cubes, scene->cube_indices, ray, visibility.cubes, true);
     if (visibility.tetrahedra) hitTetrahedra(scene->tetrahedra, scene->tetrahedron_indices, ray, visibility.tetrahedra, true);

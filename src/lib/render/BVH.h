@@ -49,14 +49,24 @@ void updateBVH(BVH *bvh, Scene *scene) {
     bvh->nodes[3].geo_ids = 1 | 2;
     bvh->nodes[4].geo_ids = 4 | 8;
 
-    AABB root_aabb;
-    setParentAABB(root_aabb, bvh->nodes[1].aabb, bvh->nodes[2].aabb);
-    setParentAABB(bvh->nodes[0].aabb, bvh->nodes[3].aabb, bvh->nodes[4].aabb);
-    setParentAABB(bvh->nodes[0].aabb, bvh->nodes[0].aabb, root_aabb);
+    setParentAABB(bvh->nodes[5].aabb, sphere_aabbs[0], sphere_aabbs[1]);
+    setParentAABB(bvh->nodes[6].aabb, sphere_aabbs[2], sphere_aabbs[3]);
+
+    bvh->nodes[5].geo_type = GeoTypeSphere;
+    bvh->nodes[6].geo_type = GeoTypeSphere;
+    bvh->nodes[5].geo_ids = 1 | 2;
+    bvh->nodes[6].geo_ids = 4 | 8;
+
+    AABB spheres_aabb, cubes_aabb, tetrahedra_aabb;
+    setParentAABB(tetrahedra_aabb, bvh->nodes[1].aabb, bvh->nodes[2].aabb);
+    setParentAABB(cubes_aabb, bvh->nodes[3].aabb, bvh->nodes[4].aabb);
+    setParentAABB(spheres_aabb, bvh->nodes[5].aabb, bvh->nodes[6].aabb);
+    setParentAABB(bvh->nodes[0].aabb, spheres_aabb, cubes_aabb);
+    setParentAABB(bvh->nodes[0].aabb, bvh->nodes[0].aabb, tetrahedra_aabb);
 
     bvh->nodes->geo_type = 0;
     bvh->nodes->geo_ids = 0;
-    bvh->nodes->children = 1 | 2 | 3 | 4;
+    bvh->nodes->children = 1 | 2 | 4 | 8 | 16 | 32;
 #ifdef __CUDACC__
     copyBVHNodesFromCPUtoGPU(bvh->nodes);
 #endif
@@ -111,11 +121,11 @@ void drawBVH(BVH *bvh, Camera *camera) {
             case GeoTypeTetrahedron: pixel.color = MAGENTA; break;
             default: pixel.color = WHITE; break;
         }
-        drawBBox(&bbox, &pixel);
+        drawBBox(&bbox, pixel);
     }
     setBBoxFromAABB(&bvh->nodes->aabb, &bbox);
     projectBBox(&bbox, camera);
 
     pixel.color = BLUE;
-    drawBBox(&bbox, &pixel);
+    drawBBox(&bbox, pixel);
 }

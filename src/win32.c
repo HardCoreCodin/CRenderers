@@ -11,6 +11,11 @@
 
 #define RAW_INPUT_MAX_SIZE Kilobytes(1)
 
+typedef struct tagV5BMPINFO {
+    BITMAPV5HEADER bmiHeader;
+    DWORD        bmiColors[3];
+} V5BMPINFO;
+
 static WNDCLASSA window_class;
 static HWND window;
 static HDC win_dc;
@@ -67,9 +72,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
         case WM_PAINT:
             SetDIBitsToDevice(win_dc,
-                    0, 0, frame_buffer.dimentions.width, frame_buffer.dimentions.height,
-                    0, 0, 0, frame_buffer.dimentions.height,
-                    (u32*)frame_buffer.pixels, &info, DIB_RGB_COLORS);
+                              0, 0, frame_buffer.dimentions.width, frame_buffer.dimentions.height,
+                              0, 0, 0, frame_buffer.dimentions.height,
+                              (u32*)frame_buffer.pixels, &info, DIB_RGB_COLORS);
 
             ValidateRgn(window, NULL);
             break;
@@ -119,6 +124,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             break;
 
         case WM_MOUSEMOVE:
+            setMouseMovement(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             setMousePosition(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             break;
 
@@ -126,9 +132,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             if ((hasRawMouseInput(lParam)) && (
                 raw_inputs.data.mouse.lLastX != 0 ||
                 raw_inputs.data.mouse.lLastY != 0))
-                setMouseMovement(
-                    raw_inputs.data.mouse.lLastX,
-                    raw_inputs.data.mouse.lLastY
+                setMouseRawMovement(
+                        raw_inputs.data.mouse.lLastX,
+                        raw_inputs.data.mouse.lLastY
                 );
 
         default:
@@ -154,33 +160,35 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     QueryPerformanceFrequency(&performance_frequency);
     Win32_ticksPerSecond = (u64)performance_frequency.QuadPart;
 
+    KeyMap key_map;
+    key_map.up       = 'R';
+    key_map.down     = 'F';
+    key_map.forward  = 'W';
+    key_map.backward = 'S';
+    key_map.left     = 'A';
+    key_map.right    = 'D';
+    key_map.turn_right = 'E';
+    key_map.turn_left  = 'Q';
+    key_map.space      = VK_SPACE;
+    key_map.shift      = VK_SHIFT;
+    key_map.ctrl       = VK_CONTROL;
+    key_map.alt        = VK_MENU;
+    key_map.toggle_HUD = VK_TAB;
+    key_map.toggle_GPU = 'G';
+    key_map.toggle_SSB = '0';
+    key_map.toggle_BVH = '9';
+    key_map.set_beauty = '1';
+    key_map.set_normal = '2';
+    key_map.set_depth  = '3';
+    key_map.set_uvs    = '4';
+
     initEngine(
         Win32_updateWindowTitle,
         Win32_printDebugString,
         Win32_getTicks,
-        Win32_ticksPerSecond
+        Win32_ticksPerSecond,
+        key_map
     );
-
-    up_key       = 'R';
-    down_key     = 'F';
-    forward_key  = 'W';
-    backward_key = 'S';
-    left_key     = 'A';
-    right_key    = 'D';
-    turn_right_key = 'E';
-    turn_left_key  = 'Q';
-    space_key      = VK_SPACE;
-    shift_key      = VK_SHIFT;
-    ctrl_key       = VK_CONTROL;
-    alt_key        = VK_MENU;
-    toggle_HUD_key = VK_TAB;
-    toggle_GPU_key = 'G';
-    toggle_SSB_key = '0';
-    toggle_BVH_key = '9';
-    set_beauty_key = '1';
-    set_normal_key = '2';
-    set_depth_key  = '3';
-    set_uvs_key    = '4';
 
     info.bmiHeader.biSize        = sizeof(info.bmiHeader);
     info.bmiHeader.biCompression = BI_RGB;
@@ -193,7 +201,13 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     window_class.style          = CS_OWNDC|CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS;
     window_class.hCursor        = LoadCursorA(0, IDC_ARROW);
 
-    RegisterClassA(&window_class);
+    if (!RegisterClassA(&window_class)) return -1;
+
+    win_rect.top = 0;
+    win_rect.left = 0;
+    win_rect.right = 480;
+    win_rect.bottom = 360;
+    AdjustWindowRect(&win_rect, WS_OVERLAPPEDWINDOW, false);
 
     window = CreateWindowA(
             window_class.lpszClassName,
@@ -202,8 +216,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
             CW_USEDEFAULT,
             CW_USEDEFAULT,
-            500,
-            400,
+            win_rect.right - win_rect.left,
+            win_rect.bottom - win_rect.top,
 
             0,
             0,
@@ -219,6 +233,9 @@ int APIENTRY WinMain(HINSTANCE hInstance,
         return -1;
 
     win_dc = GetDC(window);
+
+    SetICMMode(win_dc, ICM_OFF);
+
     ShowWindow(window, nCmdShow);
 
     MSG message;
@@ -231,5 +248,5 @@ int APIENTRY WinMain(HINSTANCE hInstance,
         InvalidateRgn(window, NULL, FALSE);
     }
 
-    return (int)message.wParam;
+    return 0;// (int)message.wParam;
 }

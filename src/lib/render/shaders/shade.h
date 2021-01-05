@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lib/core/types.h"
+#include "lib/core/color.h"
 #include "lib/globals/raytracing.h"
 
 #include "lib/render/shaders/closest_hit/debug.h"
@@ -25,12 +26,13 @@ void renderBeauty(Ray *ray, Scene *scene, BVHNode *bvh_nodes, GeometryBounds *bo
 
     vec3 color;
     fillVec3(&color, 0);
-    shadeReflection(scene, bvh_nodes, masks, ray->hit.material_id, ray->direction,  &ray->hit.position, &ray->hit.normal, 0, &color);
-//    shadeSurface(scene, bvh_nodes, masks, ray->hit.material_id, ray->direction,  &ray->hit.position, &ray->hit.normal, &color);
+//    shadeReflection(scene, bvh_nodes, masks, ray->hit.material_id, ray->direction,  &ray->hit.position, &ray->hit.normal, 0, &color);
+    shadeSurface(scene, bvh_nodes, masks, ray->hit.material_id, ray->direction,  &ray->hit.position, &ray->hit.normal, &color);
 //    shadeLambert(scene, bvh_nodes, masks, ray->direction, &ray->hit.position, &ray->hit.normal, &color);
 //    shadePhong(scene, bvh_nodes, masks, ray->direction, &ray->hit.position, &ray->hit.normal, &color);
 //    shadeBlinn(scene, bvh_nodes, masks, ray->direction, &ray->hit.position, &ray->hit.normal, &color);
-    setPixelColor(pixel, color);
+    setPixelBakedToneMappedColor(pixel, color);
+//    setPixelGammaCorrectedColor(pixel, color);
 }
 
 #ifdef __CUDACC__

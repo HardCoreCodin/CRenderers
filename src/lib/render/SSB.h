@@ -170,7 +170,10 @@ void updateSceneMasks(Scene* scene, SSB* ssb, Masks *masks, f32 focal_length) {
             }
         }
     }
-    masks->visibility.spheres = 0;
+
+    masks->visibility.cubes = 0;
+//    masks->visibility.spheres = 0;
+    masks->visibility.tetrahedra = 0;
 
 #ifdef __CUDACC__
     copyMasksFromCPUtoGPU(masks);
@@ -186,12 +189,12 @@ void drawSSB(SSB* ssb) {
     pixel.color.A = 0;
 
     Bounds2Di *bounds = ssb->bounds.spheres;
-//    for (u8 i = 0; i < SPHERE_COUNT; i++, bounds++) {
-//        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.min, pixel);
-//        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.max, pixel);
-//        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.min, pixel);
-//        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.max, pixel);
-//    }
+    for (u8 i = 0; i < SPHERE_COUNT; i++, bounds++) {
+        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.min, pixel);
+        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.max, pixel);
+        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.min, pixel);
+        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.max, pixel);
+    }
 
     pixel.color.R = MAX_COLOR_VALUE;
     pixel.color.G = 0;
@@ -199,10 +202,10 @@ void drawSSB(SSB* ssb) {
 
     bounds = ssb->bounds.tetrahedra;
     for (u8 i = 0; i < TETRAHEDRON_COUNT; i++, bounds++) {
-        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.min, &pixel);
-        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.max, &pixel);
-        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.min, &pixel);
-        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.max, &pixel);
+        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.min, pixel);
+        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.max, pixel);
+        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.min, pixel);
+        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.max, pixel);
     }
 
     pixel.color.R = 0;
@@ -211,9 +214,9 @@ void drawSSB(SSB* ssb) {
 
     bounds = ssb->bounds.cubes;
     for (u8 i = 0; i < CUBE_COUNT; i++, bounds++) {
-        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.min, &pixel);
-        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.max, &pixel);
-        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.min, &pixel);
-        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.max, &pixel);
+        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.min, pixel);
+        drawHLine2D(bounds->x_range.min, bounds->x_range.max, bounds->y_range.max, pixel);
+        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.min, pixel);
+        drawVLine2D(bounds->y_range.min, bounds->y_range.max, bounds->x_range.max, pixel);
     }
 }

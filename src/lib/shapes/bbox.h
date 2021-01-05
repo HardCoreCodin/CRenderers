@@ -136,7 +136,7 @@ inline void projectBBox(BBox *bbox, Camera *camera) {
                     y_factor);
 }
 
-inline void drawBBox(BBox *bbox, Pixel *pixel) {
+inline void drawBBox(BBox *bbox, Pixel pixel) {
     for (u8 i = 0; i < BBOX_EDGE_COUNT; i++)
         drawLine2D((i32)bbox->edge.buffer[i].from.x,
                    (i32)bbox->edge.buffer[i].from.y,

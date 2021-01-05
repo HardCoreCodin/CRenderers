@@ -1,5 +1,7 @@
 #pragma once
 
+#include <math.h>
+
 #include "lib/core/types.h"
 
 #define MAX_WIDTH 3840
@@ -26,6 +28,19 @@ typedef struct {
 HUD hud;
 
 typedef struct {
+    vec3* color;
+    vec2i position;
+    Color sliders;
+    Bounds2Di R, G, B;
+    bool is_visible,
+         is_controlled,
+         is_red_controlled,
+         is_green_controlled,
+         is_blue_controlled;
+} ColorControl;
+ColorControl color_control;
+
+typedef struct {
     u16 width, height;
     u32 width_times_height;
     f32 height_over_width,
@@ -35,16 +50,22 @@ typedef struct {
 } Dimentions;
 
 #define HUD_COLOR 0x0000FF00
+
+typedef union {
+    Color color;
+    u32 value;
+} Pixel;
+
 typedef struct FrameBuffer {
     Dimentions dimentions;
     Pixel* pixels;
 } FrameBuffer;
 FrameBuffer frame_buffer;
 
-
 #ifdef __CUDACC__
-__device__ u32 d_pixels[MAX_WIDTH * MAX_HEIGHT];
+    __device__ u32 d_pixels[MAX_WIDTH * MAX_HEIGHT];
     __constant__ Dimentions d_dimentions[1];
+//    __constant__ u8 d_GAMMA_LUT[256];
 #endif
 
 void updateFrameBufferDimensions(u16 width, u16 height) {

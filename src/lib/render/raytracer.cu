@@ -35,7 +35,7 @@ __global__ void d_renderNormals() { initShader(); renderNormals( &ray, &scene, d
 
 void renderOnGPU(vec3 *Ro, vec3 *start, vec3 *right, vec3 *down) {
     u32 count = frame_buffer.dimentions.width_times_height;
-    u16 threads = 32;
+    u16 threads = 640;
     u16 blocks  = count / threads;
     if (count < threads) {
         threads = count;

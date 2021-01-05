@@ -11,7 +11,6 @@ inline void swap(i32 *a, i32 *b) {
     *b = t;
 }
 
-inline bool inRange(i32 value, i32 end, i32 start) { return value >= start && value < end; }
 inline void subRange(i32 from, i32 to, i32 end, i32 start, i32 *first, i32 *last) {
     *first = from;
     *last  = to;
@@ -19,8 +18,13 @@ inline void subRange(i32 from, i32 to, i32 end, i32 start, i32 *first, i32 *last
     *first = max(*first, start);
     *last = min(*last, end) - 1;
 }
+inline bool inRange(i32 value, i32 end, i32 start) { return value >= start && value < end; }
+inline bool inBounds(Bounds2Di *bounds, vec2i pos) {
+    return inRange(pos.x, bounds->x_range.max, bounds->x_range.min) &&
+           inRange(pos.y, bounds->y_range.max, bounds->y_range.min);
+}
 
-inline void drawHLine2D(i32 from, i32 to, i32 at, Pixel *pixel) {
+inline void drawHLine2D(i32 from, i32 to, i32 at, Pixel pixel) {
 	if (!inRange(at, frame_buffer.dimentions.height, 0)) return;
 
 	i32 offset = at * (i32)frame_buffer.dimentions.width;
@@ -28,20 +32,20 @@ inline void drawHLine2D(i32 from, i32 to, i32 at, Pixel *pixel) {
     subRange(from, to, frame_buffer.dimentions.width, 0, &first, &last);
 	first += offset;
 	last += offset;
-	for (i32 i = first; i <= last; i++) frame_buffer.pixels[i] = *pixel;
+	for (i32 i = first; i <= last; i++) frame_buffer.pixels[i] = pixel;
 }
 
-inline void drawVLine2D(i32 from, i32 to, i32 at, Pixel *pixel) {
+inline void drawVLine2D(i32 from, i32 to, i32 at, Pixel pixel) {
     if (!inRange(at, frame_buffer.dimentions.width, 0)) return;
     i32 first, last;
 
     subRange(from, to, frame_buffer.dimentions.height, 0, &first, &last);
 	first *= frame_buffer.dimentions.width; first += at;
 	last  *= frame_buffer.dimentions.width; last  += at;
-	for (i32 i = first; i <= last; i += frame_buffer.dimentions.width) frame_buffer.pixels[i] = *pixel;
+	for (i32 i = first; i <= last; i += frame_buffer.dimentions.width) frame_buffer.pixels[i] = pixel;
 }
 
-inline void drawLine2D(i32 x0, i32 y0, i32 x1, i32 y1, Pixel *pixel) {
+inline void drawLine2D(i32 x0, i32 y0, i32 x1, i32 y1, Pixel pixel) {
     if (x0 < 0 &&
         y0 < 0 &&
         x1 < 0 &&
@@ -108,11 +112,11 @@ inline void drawLine2D(i32 x0, i32 y0, i32 x1, i32 y1, Pixel *pixel) {
             if (is_steap) {
                 if (inRange(current1, height, 0) &&
                     inRange(current2, width, 0))
-                    frame_buffer.pixels[index] = *pixel;
+                    frame_buffer.pixels[index] = pixel;
             } else {
                 if (inRange(current2, height, 0) &&
                     inRange(current1, width, 0))
-                    frame_buffer.pixels[index] = *pixel;
+                    frame_buffer.pixels[index] = pixel;
             }
         }
 

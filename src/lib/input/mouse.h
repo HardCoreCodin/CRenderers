@@ -12,8 +12,8 @@ void initMouse() {
     mouse_wheel_scroll_amount = 0;
     mouse_pos.x = 0;
     mouse_pos.y = 0;
-    mouse_pos_diff.x = 0;
-    mouse_pos_diff.y = 0;
+    mouse_pos_raw_diff.x = 0;
+    mouse_pos_raw_diff.y = 0;
 
     middle_mouse_button.is_pressed = false;
     middle_mouse_button.is_released = false;
@@ -58,7 +58,13 @@ void setMousePosition(i32 x, i32 y) {
 }
 
 void setMouseMovement(i32 x, i32 y) {
-    mouse_pos_diff.x += x;
-    mouse_pos_diff.y += y;
+    mouse_movement.x = x - mouse_pos.x;
+    mouse_movement.y = y - mouse_pos.y;
+    mouse_moved = true;
+}
+
+void setMouseRawMovement(i32 x, i32 y) {
+    mouse_pos_raw_diff.x += x;
+    mouse_pos_raw_diff.y += y;
     mouse_moved = true;
 }

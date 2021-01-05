@@ -83,7 +83,32 @@ void updateAndRender() {
     gpuErrchk(cudaMemcpyToSymbol(d_spheres, main_scene.spheres, sizeof(Sphere) * SPHERE_COUNT, 0, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpyToSymbol(d_tetrahedra, main_scene.tetrahedra, sizeof(Tetrahedron) * TETRAHEDRON_COUNT, 0, cudaMemcpyHostToDevice));
 #endif
-    if (mouse_moved)          current_camera_controller->onMouseMoved();
+    if (color_control.is_visible) {
+        if (left_mouse_button.is_pressed && !color_control.is_controlled) {
+            if (inBounds(&color_control.R, mouse_pos)) {color_control.is_controlled = true; color_control.is_red_controlled = true; }
+            if (inBounds(&color_control.G, mouse_pos)) {color_control.is_controlled = true; color_control.is_green_controlled = true; }
+            if (inBounds(&color_control.B, mouse_pos)) {color_control.is_controlled = true; color_control.is_blue_controlled = true; }
+        }
+        if (left_mouse_button.is_released) {
+            color_control.is_controlled = false;
+            color_control.is_red_controlled = false;
+            color_control.is_blue_controlled = false;
+            color_control.is_green_controlled = false;
+        }
+    }
+
+    if (mouse_moved) {
+        if (color_control.is_visible && color_control.is_controlled) {
+            if (color_control.is_red_controlled) updateRedColorControl(mouse_movement);
+            if (color_control.is_green_controlled) updateGreenColorControl(mouse_movement);
+            if (color_control.is_blue_controlled) updateBlueColorControl(mouse_movement);
+            mouse_movement.x = mouse_movement.y = 0;
+#ifdef __CUDACC__
+            gpuErrchk(cudaMemcpyToSymbol(d_point_lights, main_scene.point_lights, sizeof(PointLight) * POINT_LIGHT_COUNT, 0, cudaMemcpyHostToDevice));
+#endif
+        } else
+            current_camera_controller->onMouseMoved();
+    }
     current_camera_controller->onUpdate();
 
     if (current_camera_controller->zoomed) onZoom();
@@ -97,6 +122,7 @@ void updateAndRender() {
         if (!update_timer.accumulated_frame_count) setCountersInHUD(&update_timer);
         drawText(&frame_buffer, hud.text, HUD_COLOR, frame_buffer.dimentions.width - HUD_RIGHT - HUD_WIDTH, HUD_TOP);
     }
+    if (color_control.is_visible) drawColorControl();
 
     if (mouse_double_clicked) {
         mouse_double_clicked = false;
@@ -118,8 +144,10 @@ void initEngine(
     UpdateWindowTitle platformUpdateWindowTitle,
     PrintDebugString platformPrintDebugString,
     GetTicks platformGetTicks,
-    u64 platformTicksPerSecond
+    u64 platformTicksPerSecond,
+    KeyMap key_map
 ) {
+    keys = key_map;
     updateWindowTitle = platformUpdateWindowTitle;
     printDebugString  = platformPrintDebugString;
     initAppGlobals();
@@ -132,6 +160,10 @@ void initEngine(
     initOrbController(&main_camera);
     initRayTracer(&main_scene);
     initHUD();
+    initColorControl();
+    bindColorControl(&main_scene.point_lights->color);
+    color_control.is_visible = true;
+//    initGammaLUT();
 
     main_camera.transform.position.x = 5;
     main_camera.transform.position.y = 5;

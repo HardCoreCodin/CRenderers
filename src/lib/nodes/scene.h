@@ -127,9 +127,9 @@ void initScene(Scene *scene) {
     scene->planes = AllocN(Plane, PLANE_COUNT);
     scene->cubes = AllocN(Cube, CUBE_COUNT);
     scene->ambient_light = Alloc(AmbientLight);
-    scene->ambient_light->color.x = 0.08f;
-    scene->ambient_light->color.y = 0.08f;
-    scene->ambient_light->color.z = 0.16f;
+    scene->ambient_light->color.x = 0.008f;
+    scene->ambient_light->color.y = 0.008f;
+    scene->ambient_light->color.z = 0.014f;
 
     u8 wall_material_id = 0;
     u8 diffuse_material_id = 1;
@@ -168,7 +168,7 @@ void initScene(Scene *scene) {
     phong_material->diffuse_color.z = 0.4f;
     diffuse_material->diffuse_color.x = 0.3f;
     diffuse_material->diffuse_color.z = 0.2f;
-    diffuse_material->diffuse_color.z = 0.7f;
+    diffuse_material->diffuse_color.z = 0.5f;
 
     Node *node;
     vec3 positions[4];
@@ -357,17 +357,17 @@ void initScene(Scene *scene) {
 
     key_light->color.x = 1;
     key_light->color.y = 1;
-    key_light->color.z = 0.8f;
+    key_light->color.z = 0.65f;
     rim_light->color.x = 1;
-    rim_light->color.y = 0.5f;
-    rim_light->color.z = 0.5f;
-    fill_light->color.x = 0.8f;
-    fill_light->color.y = 0.8f;
+    rim_light->color.y = 0.25f;
+    rim_light->color.z = 0.25f;
+    fill_light->color.x = 0.65f;
+    fill_light->color.y = 0.65f;
     fill_light->color.z = 1;
 
-    key_light->intensity = 13;
-    rim_light->intensity = 15;
-    fill_light->intensity = 11;
+    key_light->intensity = 1.3f * 3;
+    rim_light->intensity = 1.5f * 3;
+    fill_light->intensity = 1.1f * 3;
 
 #ifdef __CUDACC__
     gpuErrchk(cudaMemcpyToSymbol(d_cube_indices, scene->cube_indices, sizeof(Indices) * 6, 0, cudaMemcpyHostToDevice));

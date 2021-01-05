@@ -17,7 +17,7 @@ typedef struct {
     u32 revolution_count;
 } Helix;
 
-void drawHelix(Camera *camera, Helix *helix, Pixel *pixel) {
+void drawHelix(Camera *camera, Helix *helix, Pixel pixel) {
     u32 step_count = (u32)3600;
     f32 orbit_angle_step = TAU / (f32)step_count,
         helix_angle_step = orbit_angle_step * (f32)helix->revolution_count;
@@ -100,7 +100,7 @@ typedef struct {
     u32 revolution_count;
 } Coil;
 
-void drawCoil(Camera *camera, Coil *coil, Pixel *pixel) {
+void drawCoil(Camera *camera, Coil *coil, Pixel pixel) {
     u32 step_count = (u32)3600;
     f32 angle_step = (TAU / (f32)step_count) * (f32)coil->revolution_count;
     f32 height_step = coil->height / (f32)step_count;

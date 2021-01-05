@@ -50,8 +50,8 @@ void onMouseMovedOrb() {
 
         // Compute new orientation at target position:
         rotateXform3(xform,
-                -mouse_pos_diff.x * ORBIT_SPEED,
-                -mouse_pos_diff.y * ORBIT_SPEED,
+                     -mouse_pos_raw_diff.x * ORBIT_SPEED,
+                     -mouse_pos_raw_diff.y * ORBIT_SPEED,
                 0);
 
         // Back-track from target position to new current position:
@@ -62,8 +62,8 @@ void onMouseMovedOrb() {
         orb_camera_controller.controller.moved = true;
     } else if (middle_mouse_button.is_pressed) { // Pan
         // Computed scaled up & right vectors:
-        scaleVec3(xform->right_direction, -mouse_pos_diff.x * PAN_SPEED, &orb_camera_controller.scaled_right);
-        scaleVec3(xform->up_direction, mouse_pos_diff.y * PAN_SPEED, &orb_camera_controller.scaled_up);
+        scaleVec3(xform->right_direction, -mouse_pos_raw_diff.x * PAN_SPEED, &orb_camera_controller.scaled_right);
+        scaleVec3(xform->up_direction, mouse_pos_raw_diff.y * PAN_SPEED, &orb_camera_controller.scaled_up);
 
         // Move current position by the combined movement:
         addVec3(&orb_camera_controller.scaled_right, &orb_camera_controller.scaled_up, movement);
@@ -73,8 +73,8 @@ void onMouseMovedOrb() {
     }
 
     mouse_moved = false;
-    mouse_pos_diff.x = 0;
-    mouse_pos_diff.y = 0;
+    mouse_pos_raw_diff.x = 0;
+    mouse_pos_raw_diff.y = 0;
 }
 
 void onUpdateOrb() {}
