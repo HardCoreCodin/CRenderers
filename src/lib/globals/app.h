@@ -37,6 +37,7 @@ UpdateWindowTitle updateWindowTitle;
 PrintDebugString printDebugString;
 
 Color WHITE,
+      GREY,
       BLACK,
       RED,
       GREEN,
@@ -49,40 +50,45 @@ void initAppGlobals() {
     BLACK.R = 0;
     BLACK.G = 0;
     BLACK.B = 0;
-    BLACK.A = 0;
+    BLACK.A = MAX_COLOR_VALUE;
 
     WHITE.R = MAX_COLOR_VALUE;
     WHITE.G = MAX_COLOR_VALUE;
     WHITE.B = MAX_COLOR_VALUE;
-    WHITE.A = 0;
+    WHITE.A = MAX_COLOR_VALUE;
+
+    GREY.R = MAX_COLOR_VALUE/2;
+    GREY.G = MAX_COLOR_VALUE/2;
+    GREY.B = MAX_COLOR_VALUE/2;
+    GREY.A = MAX_COLOR_VALUE;
 
     RED.R = MAX_COLOR_VALUE;
     RED.G = 0;
     RED.B = 0;
-    RED.A = 0;
+    RED.A = MAX_COLOR_VALUE;
 
     GREEN.R = 0;
     GREEN.G = MAX_COLOR_VALUE;
     GREEN.B = 0;
-    GREEN.A = 0;
+    GREEN.A = MAX_COLOR_VALUE;
 
     BLUE.R = 0;
     BLUE.G = 0;
     BLUE.B = MAX_COLOR_VALUE;
-    BLUE.A = 0;
+    BLUE.A = MAX_COLOR_VALUE;
 
     CYAN.R = 0;
     CYAN.G = MAX_COLOR_VALUE;
     CYAN.B = MAX_COLOR_VALUE;
-    CYAN.A = 0;
+    CYAN.A = MAX_COLOR_VALUE;
 
     MAGENTA.R = MAX_COLOR_VALUE;
     MAGENTA.G = 0;
     MAGENTA.B = MAX_COLOR_VALUE;
-    MAGENTA.A = 0;
+    MAGENTA.A = MAX_COLOR_VALUE;
 
     YELLOW.R = MAX_COLOR_VALUE;
     YELLOW.G = MAX_COLOR_VALUE;
     YELLOW.B = 0;
-    YELLOW.A = 0;
+    YELLOW.A = MAX_COLOR_VALUE;
 }

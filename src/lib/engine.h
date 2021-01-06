@@ -85,23 +85,37 @@ void updateAndRender() {
 #endif
     if (color_control.is_visible) {
         if (left_mouse_button.is_pressed && !color_control.is_controlled) {
-            if (inBounds(&color_control.R, mouse_pos)) {color_control.is_controlled = true; color_control.is_red_controlled = true; }
-            if (inBounds(&color_control.G, mouse_pos)) {color_control.is_controlled = true; color_control.is_green_controlled = true; }
-            if (inBounds(&color_control.B, mouse_pos)) {color_control.is_controlled = true; color_control.is_blue_controlled = true; }
+            if (inBounds(&color_control.R, mouse_pos)) {
+                color_control.is_controlled = true;
+                color_control.is_red_controlled = true;
+            } else
+            if (inBounds(&color_control.G, mouse_pos)) {
+                color_control.is_controlled = true;
+                color_control.is_green_controlled = true;
+            } else
+            if (inBounds(&color_control.B, mouse_pos)) {
+                color_control.is_controlled = true;
+                color_control.is_blue_controlled = true;
+            } else
+            if (inBounds(&color_control.RGB, mouse_pos)) {
+                color_control.is_controlled = true;
+                color_control.is_rgb_controlled = true;
+            }
         }
         if (left_mouse_button.is_released) {
             color_control.is_controlled = false;
             color_control.is_red_controlled = false;
             color_control.is_blue_controlled = false;
             color_control.is_green_controlled = false;
+            color_control.is_rgb_controlled = false;
         }
     }
 
     if (mouse_moved) {
         if (color_control.is_visible && color_control.is_controlled) {
-            if (color_control.is_red_controlled) updateRedColorControl(mouse_movement);
-            if (color_control.is_green_controlled) updateGreenColorControl(mouse_movement);
-            if (color_control.is_blue_controlled) updateBlueColorControl(mouse_movement);
+            if (color_control.is_green_controlled) updateGreenColorControl2(mouse_movement);
+            if (color_control.is_red_controlled || color_control.is_rgb_controlled) updateRedColorControl2(mouse_movement);
+            if (color_control.is_blue_controlled || color_control.is_rgb_controlled) updateBlueColorControl2(mouse_movement);
             mouse_movement.x = mouse_movement.y = 0;
 #ifdef __CUDACC__
             gpuErrchk(cudaMemcpyToSymbol(d_point_lights, main_scene.point_lights, sizeof(PointLight) * POINT_LIGHT_COUNT, 0, cudaMemcpyHostToDevice));
@@ -122,7 +136,7 @@ void updateAndRender() {
         if (!update_timer.accumulated_frame_count) setCountersInHUD(&update_timer);
         drawText(&frame_buffer, hud.text, HUD_COLOR, frame_buffer.dimentions.width - HUD_RIGHT - HUD_WIDTH, HUD_TOP);
     }
-    if (color_control.is_visible) drawColorControl();
+    if (color_control.is_visible) drawColorControl2();
 
     if (mouse_double_clicked) {
         mouse_double_clicked = false;
@@ -137,6 +151,7 @@ void resize(u16 width, u16 height) {
     updateFrameBufferDimensions(width, height);
     onResize(&main_scene);
     setDimesionsInHUD();
+    setColorControlPosition(color_control.position.x, frame_buffer.dimentions.height - 40 - COLOR_CONTROL__SLIDER_LENGTH*2);
     updateAndRender();
 }
 
@@ -160,8 +175,8 @@ void initEngine(
     initOrbController(&main_camera);
     initRayTracer(&main_scene);
     initHUD();
-    initColorControl();
-    bindColorControl(&main_scene.point_lights->color);
+    initColorControl(40, frame_buffer.dimentions.height - 40 - COLOR_CONTROL__SLIDER_LENGTH*2);
+    bindColorControl2(&main_scene.point_lights->color);
     color_control.is_visible = true;
 //    initGammaLUT();
 

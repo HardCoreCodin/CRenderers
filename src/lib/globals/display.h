@@ -31,12 +31,13 @@ typedef struct {
     vec3* color;
     vec2i position;
     Color sliders;
-    Bounds2Di R, G, B;
+    Bounds2Di R, G, B, RGB;
     bool is_visible,
          is_controlled,
          is_red_controlled,
          is_green_controlled,
-         is_blue_controlled;
+         is_blue_controlled,
+         is_rgb_controlled;
 } ColorControl;
 ColorControl color_control;
 
