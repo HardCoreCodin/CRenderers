@@ -157,98 +157,97 @@ f32 gammaCorrectedApproximately(f32 x) {
         color.z = gammaCorrectedApproximately(color.z);    \
         setPixelColor(pixel, color)
 
-#define COLOR_CONTROL__POSITION_X 40
-#define COLOR_CONTROL__POSITION_Y 40
-#define COLOR_CONTROL__SLIDER_THICKNESS 4
-#define COLOR_CONTROL__SLIDER_RANGE 128
-#define COLOR_CONTROL__SLIDER_LENGTH (COLOR_CONTROL__SLIDER_RANGE)
-#define COLOR_CONTROL__RED_MARKER_WIDTH 20
-#define COLOR_CONTROL__RED_MARKER_HEIGHT 10
-#define COLOR_CONTROL__GREEN_MARKER_WIDTH 20
-#define COLOR_CONTROL__GREEN_MARKER_HEIGHT 20
-#define COLOR_CONTROL__BLUE_MARKER_WIDTH 10
-#define COLOR_CONTROL__BLUE_MARKER_HEIGHT 20
-#define COLOR_CONTROL__MARKER_WIDTH 40
-#define COLOR_CONTROL__MARKER_HEIGHT 20
+#define CONTROL__SLIDER_RANGE 128
+#define CONTROL__SLIDER_LENGTH (CONTROL__SLIDER_RANGE)
+#define CONTROL__LENGTH 20
+#define CONTROL__THICKNESS 10
 
-inline void setColorControlRedBounds2() {
+#define COLOR_CONTROL__RED_MARKER_WIDTH (CONTROL__LENGTH)
+#define COLOR_CONTROL__RED_MARKER_HEIGHT (CONTROL__THICKNESS)
+#define COLOR_CONTROL__GREEN_MARKER_WIDTH (CONTROL__LENGTH)
+#define COLOR_CONTROL__GREEN_MARKER_HEIGHT (CONTROL__LENGTH)
+#define COLOR_CONTROL__BLUE_MARKER_WIDTH (CONTROL__THICKNESS)
+#define COLOR_CONTROL__BLUE_MARKER_HEIGHT (CONTROL__LENGTH)
+
+inline void setColorControlRedBounds() {
     color_control.R.x_range.min = color_control.position.x + color_control.sliders.R - COLOR_CONTROL__RED_MARKER_WIDTH/2;
-    color_control.R.y_range.min = color_control.position.y + COLOR_CONTROL__SLIDER_LENGTH - COLOR_CONTROL__RED_MARKER_HEIGHT/2;
+    color_control.R.y_range.min = color_control.position.y + CONTROL__SLIDER_LENGTH - COLOR_CONTROL__RED_MARKER_HEIGHT / 2;
     color_control.R.x_range.max = color_control.R.x_range.min + COLOR_CONTROL__RED_MARKER_WIDTH;
     color_control.R.y_range.max = color_control.R.y_range.min + COLOR_CONTROL__RED_MARKER_HEIGHT;
 }
 
-inline void setColorControlGreenBounds2() {
-    color_control.G.x_range.min = color_control.position.x - color_control.sliders.G + COLOR_CONTROL__GREEN_MARKER_WIDTH/2  + COLOR_CONTROL__SLIDER_LENGTH*2;
+inline void setColorControlGreenBounds() {
+    color_control.G.x_range.min = color_control.position.x - color_control.sliders.G + COLOR_CONTROL__GREEN_MARKER_WIDTH/2 + CONTROL__SLIDER_LENGTH * 2;
     color_control.G.y_range.min = color_control.position.y + color_control.sliders.G - COLOR_CONTROL__GREEN_MARKER_HEIGHT/2 - COLOR_CONTROL__RED_MARKER_HEIGHT/2;
     color_control.G.x_range.max = color_control.G.x_range.min + COLOR_CONTROL__GREEN_MARKER_WIDTH;
     color_control.G.y_range.max = color_control.G.y_range.min + COLOR_CONTROL__GREEN_MARKER_HEIGHT;
 }
 
-inline void setColorControlBlueBounds2() {
-    color_control.B.x_range.min = color_control.position.x + COLOR_CONTROL__RED_MARKER_WIDTH/2  + COLOR_CONTROL__SLIDER_LENGTH;
-    color_control.B.y_range.min = color_control.position.y + COLOR_CONTROL__RED_MARKER_HEIGHT/2 + COLOR_CONTROL__SLIDER_LENGTH*2 - color_control.sliders.B;
+inline void setColorControlBlueBounds() {
+    color_control.B.x_range.min = color_control.position.x + COLOR_CONTROL__RED_MARKER_WIDTH/2 + CONTROL__SLIDER_LENGTH;
+    color_control.B.y_range.min = color_control.position.y + COLOR_CONTROL__RED_MARKER_HEIGHT/2 + CONTROL__SLIDER_LENGTH * 2 - color_control.sliders.B;
     color_control.B.x_range.max = color_control.B.x_range.min + COLOR_CONTROL__BLUE_MARKER_WIDTH;
     color_control.B.y_range.max = color_control.B.y_range.min + COLOR_CONTROL__BLUE_MARKER_HEIGHT;
 }
 
-inline void setColorControlRGBBounds2() {
+inline void setColorControlRGBBounds() {
     color_control.RGB.x_range.min = color_control.R.x_range.min;
     color_control.RGB.y_range.min = color_control.B.y_range.min;
     color_control.RGB.x_range.max = color_control.R.x_range.max;
     color_control.RGB.y_range.max = color_control.B.y_range.max;
 }
 
-inline void bindColorControl2(vec3* color) {
+inline void bindColorControl(vec3* color, f32 factor) {
+    color_control.factor = factor;
     color_control.color = color;
-    color_control.sliders.R = (u8)(COLOR_CONTROL__SLIDER_RANGE * color->x);
-    color_control.sliders.G = (u8)(COLOR_CONTROL__SLIDER_RANGE * color->y);
-    color_control.sliders.B = (u8)(COLOR_CONTROL__SLIDER_RANGE * color->z);
-    setColorControlRedBounds2();
-    setColorControlGreenBounds2();
-    setColorControlBlueBounds2();
-    setColorControlRGBBounds2();
+    color_control.sliders.R = (u8)(CONTROL__SLIDER_RANGE * color->x * 1.0f / factor);
+    color_control.sliders.G = (u8)(CONTROL__SLIDER_RANGE * color->y * 1.0f / factor);
+    color_control.sliders.B = (u8)(CONTROL__SLIDER_RANGE * color->z * 1.0f / factor);
+    setColorControlRedBounds();
+    setColorControlGreenBounds();
+    setColorControlBlueBounds();
+    setColorControlRGBBounds();
 }
 
-inline void updateColorControlComponent(u8 *slider, f32 *value, i32 diff) {
+inline void updateColorControlComponent(u8 *slider, f32 *value, i32 diff, f32 factor) {
     i32 new_slider_pos = (i32)(*slider) + diff;
     if (new_slider_pos <= 0) {
         *value  = 0;
         *slider = 0;
-    } else if (new_slider_pos >= COLOR_CONTROL__SLIDER_RANGE) {
-        *value  = 1;
-        *slider = COLOR_CONTROL__SLIDER_RANGE;
+    } else if (new_slider_pos >= CONTROL__SLIDER_RANGE) {
+        *value  = factor;
+        *slider = CONTROL__SLIDER_RANGE;
     } else {
-        *value  += ((f32)diff / (f32)COLOR_CONTROL__SLIDER_RANGE);
+        *value  += ((f32)diff / (f32)CONTROL__SLIDER_RANGE) * factor;
         *slider += diff;
     }
 }
 
 
-inline void updateRedColorControl2(vec2i movement) {
-    updateColorControlComponent(&color_control.sliders.R, &color_control.color->x, movement.x);
-    setColorControlRedBounds2();
-    setColorControlRGBBounds2();
+inline void updateRedColorControl(vec2i movement) {
+    updateColorControlComponent(&color_control.sliders.R, &color_control.color->x, movement.x, color_control.factor);
+    setColorControlRedBounds();
+    setColorControlRGBBounds();
 }
 
-inline void updateGreenColorControl2(vec2i movement) {
-    updateColorControlComponent(&color_control.sliders.G, &color_control.color->y, abs(movement.y) > abs(movement.x) ? movement.y : -movement.x);
-    setColorControlGreenBounds2();
+inline void updateGreenColorControl(vec2i movement) {
+    updateColorControlComponent(&color_control.sliders.G, &color_control.color->y, abs(movement.y) > abs(movement.x) ? movement.y : -movement.x, color_control.factor);
+    setColorControlGreenBounds();
 }
 
-inline void updateBlueColorControl2(vec2i movement) {
-    updateColorControlComponent(&color_control.sliders.B, &color_control.color->z, -movement.y);
-    setColorControlBlueBounds2();
-    setColorControlRGBBounds2();
+inline void updateBlueColorControl(vec2i movement) {
+    updateColorControlComponent(&color_control.sliders.B, &color_control.color->z, -movement.y, color_control.factor);
+    setColorControlBlueBounds();
+    setColorControlRGBBounds();
 }
 
 void setColorControlPosition(u16 position_x, u16 position_y) {
     color_control.position.x = position_x;
     color_control.position.y = position_y;
-    setColorControlRedBounds2();
-    setColorControlGreenBounds2();
-    setColorControlBlueBounds2();
-    setColorControlRGBBounds2();
+    setColorControlRedBounds();
+    setColorControlGreenBounds();
+    setColorControlBlueBounds();
+    setColorControlRGBBounds();
 }
 
 void initColorControl(u16 initial_position_x, u16 initial_position_y) {
@@ -261,7 +260,7 @@ void initColorControl(u16 initial_position_x, u16 initial_position_y) {
     setColorControlPosition(initial_position_x, initial_position_y);
 }
 
-void drawColorControl2() {
+void drawColorControl() {
     Pixel R, G, B, RGB, border, inactive_border;
     border.color = WHITE;
     inactive_border.color = GREY;
@@ -275,18 +274,18 @@ void drawColorControl2() {
     u32 red_start, red_end, red_at, blue_start, blue_end, blue_at, green_start_x, green_end_x, green_start_y, green_end_y;
 
     red_start = red_end = x;
-    red_end  += COLOR_CONTROL__SLIDER_LENGTH;
-    red_at    = COLOR_CONTROL__SLIDER_LENGTH + y;
+    red_end  += CONTROL__SLIDER_LENGTH;
+    red_at    = CONTROL__SLIDER_LENGTH + y;
 
     u32 blue_offset = COLOR_CONTROL__RED_MARKER_WIDTH/2 + COLOR_CONTROL__BLUE_MARKER_WIDTH/2;
-    blue_start = blue_end = y + blue_offset + COLOR_CONTROL__SLIDER_LENGTH;
-    blue_end  += COLOR_CONTROL__SLIDER_LENGTH;
-    blue_at    = COLOR_CONTROL__SLIDER_LENGTH + x + blue_offset;
+    blue_start = blue_end = y + blue_offset + CONTROL__SLIDER_LENGTH;
+    blue_end  += CONTROL__SLIDER_LENGTH;
+    blue_at    = CONTROL__SLIDER_LENGTH + x + blue_offset;
 
-    green_start_x = x + COLOR_CONTROL__GREEN_MARKER_WIDTH + COLOR_CONTROL__SLIDER_LENGTH;
-    green_start_y = y - COLOR_CONTROL__RED_MARKER_HEIGHT / 2 + COLOR_CONTROL__SLIDER_LENGTH;
-    green_end_x   = green_start_x + COLOR_CONTROL__SLIDER_LENGTH;
-    green_end_y   = green_start_y - COLOR_CONTROL__SLIDER_LENGTH;
+    green_start_x = x + COLOR_CONTROL__GREEN_MARKER_WIDTH + CONTROL__SLIDER_LENGTH;
+    green_start_y = y - COLOR_CONTROL__RED_MARKER_HEIGHT / 2 + CONTROL__SLIDER_LENGTH;
+    green_end_x   = green_start_x + CONTROL__SLIDER_LENGTH;
+    green_end_y   = green_start_y - CONTROL__SLIDER_LENGTH;
 
     Bounds2Di main_rect;
     main_rect.x_range.min = red_start;
@@ -295,51 +294,17 @@ void drawColorControl2() {
     main_rect.y_range.max = blue_end;
 
     vec2i rect_offset;
-    rect_offset.x = green_start_x - red_end    + COLOR_CONTROL__SLIDER_LENGTH - color_control.sliders.G - COLOR_CONTROL__RED_MARKER_WIDTH;
-    rect_offset.y = green_start_y - blue_start + color_control.sliders.G - COLOR_CONTROL__SLIDER_LENGTH + COLOR_CONTROL__RED_MARKER_WIDTH;
-
-//    Bounds2Di green_rect = main_rect;
-//    green_rect.x_range.min += rect_offset.x;
-//    green_rect.x_range.max += rect_offset.x;
-//    green_rect.y_range.min += rect_offset.y;
-//    green_rect.y_range.max += rect_offset.y;
-//
-////    drawRect(&green_rect, G);
-//    drawHLine2D(green_rect.x_range.min, green_rect.x_range.max, green_rect.y_range.min, G);
-//    drawVLine2D(green_rect.y_range.min, green_rect.y_range.max, green_rect.x_range.max, G);
+    rect_offset.x = green_start_x - red_end + CONTROL__SLIDER_LENGTH - color_control.sliders.G - COLOR_CONTROL__RED_MARKER_WIDTH;
+    rect_offset.y = green_start_y - blue_start + color_control.sliders.G - CONTROL__SLIDER_LENGTH + COLOR_CONTROL__RED_MARKER_WIDTH;
 
     drawHLine2D(main_rect.x_range.min + rect_offset.x, main_rect.x_range.max + rect_offset.x, main_rect.y_range.min + rect_offset.y, G);
     drawVLine2D(main_rect.y_range.min + rect_offset.y, main_rect.y_range.max + rect_offset.y, main_rect.x_range.max + rect_offset.x, G);
 
-    rect_offset.x = green_start_x - red_end    + COLOR_CONTROL__SLIDER_LENGTH - COLOR_CONTROL__RED_MARKER_WIDTH;
-    rect_offset.y = green_start_y - blue_start - COLOR_CONTROL__SLIDER_LENGTH + COLOR_CONTROL__RED_MARKER_WIDTH;
-//    Bounds2Di back_rect = main_rect;
-//    back_rect.x_range.min += rect_offset.x;
-//    back_rect.x_range.max += rect_offset.x;
-//    back_rect.y_range.min += rect_offset.y;
-//    back_rect.y_range.max += rect_offset.y;
-
-//    drawRect(&back_rect, inactive_border);
-//    drawHLine2D(back_rect.x_range.min, back_rect.x_range.max, back_rect.y_range.min, inactive_border);
-//    drawVLine2D(back_rect.y_range.min, back_rect.y_range.max, back_rect.x_range.max, inactive_border);
+    rect_offset.x = green_start_x - red_end + CONTROL__SLIDER_LENGTH - COLOR_CONTROL__RED_MARKER_WIDTH;
+    rect_offset.y = green_start_y - blue_start - CONTROL__SLIDER_LENGTH + COLOR_CONTROL__RED_MARKER_WIDTH;
 
     drawHLine2D(main_rect.x_range.min + rect_offset.x, main_rect.x_range.max + rect_offset.x, main_rect.y_range.min + rect_offset.y, border);
     drawVLine2D(main_rect.y_range.min + rect_offset.y, main_rect.y_range.max + rect_offset.y, main_rect.x_range.max + rect_offset.x, border);
-
-//    rect_offset.x = COLOR_CONTROL__SLIDER_LENGTH - COLOR_CONTROL__SLIDER_RANGE;
-//    rect_offset.y = -rect_offset.x;
-//    rect_offset.x += green_start_x - red_end;
-//    rect_offset.y -= blue_start - green_start_y;
-//    Bounds2Di front_rect = main_rect;
-//    front_rect.x_range.min += rect_offset.x;
-//    front_rect.x_range.max += rect_offset.x;
-//    front_rect.y_range.min += rect_offset.y;
-//    front_rect.y_range.max += rect_offset.y;
-//
-//    drawRect(&front_rect, inactive_border);
-
-//    drawLine2D(front_rect.x_range.min, front_rect.y_range.min, back_rect.x_range.min, back_rect.y_range.min, inactive_border);
-//    drawLine2D(front_rect.x_range.max, front_rect.y_range.max, back_rect.x_range.max, back_rect.y_range.max, inactive_border);
 
     drawLine2D(main_rect.x_range.min, main_rect.y_range.min, main_rect.x_range.min + rect_offset.x, main_rect.y_range.min + rect_offset.y, border);
     drawLine2D(main_rect.x_range.max, main_rect.y_range.max, main_rect.x_range.max + rect_offset.x, main_rect.y_range.max + rect_offset.y, border);
@@ -360,15 +325,15 @@ void drawColorControl2() {
 
     vec3 color;
     color.z = 0;
-    f32 step = 1.0f / (f32)COLOR_CONTROL__SLIDER_RANGE;
+    f32 step = 1.0f / (f32)CONTROL__SLIDER_RANGE;
     u32 pixel_index_start = frame_buffer.dimentions.width * main_rect.y_range.max;
     u32 pixel_index;
-    for (y = 0; y < COLOR_CONTROL__SLIDER_RANGE; y++, color.z += step, pixel_index_start -= frame_buffer.dimentions.width) {
+    for (y = 0; y < CONTROL__SLIDER_RANGE; y++, color.z += step, pixel_index_start -= frame_buffer.dimentions.width) {
         RGB.color.B = (u8)(255.0f * gammaCorrected(color.z));
 
         color.x = 0;
         pixel_index = pixel_index_start + main_rect.x_range.min;
-        for (x = 0; x < COLOR_CONTROL__SLIDER_RANGE; x++, pixel_index++, color.x += step) {
+        for (x = 0; x < CONTROL__SLIDER_RANGE; x++, pixel_index++, color.x += step) {
             RGB.color.R = (u8)(255.0f * gammaCorrected(color.x));
 
             frame_buffer.pixels[pixel_index] = RGB;
@@ -393,157 +358,183 @@ void drawColorControl2() {
     drawRect(&color_control.RGB, color_control.is_rgb_controlled ? border : inactive_border);
 }
 
-inline void setColorControlRedBounds() {
-    color_control.R.x_range.min = color_control.position.x;
-    color_control.R.y_range.min = color_control.position.y + COLOR_CONTROL__SLIDER_LENGTH - color_control.sliders.R;
-    color_control.R.x_range.max = color_control.R.x_range.min + COLOR_CONTROL__MARKER_WIDTH;
-    color_control.R.y_range.max = color_control.R.y_range.min + COLOR_CONTROL__MARKER_HEIGHT;
+
+inline void setLightControlsKeyBounds() {
+    light_controlls.key_bounds.x_range.min = light_controlls.position.x + CONTROL__LENGTH / 2;
+    light_controlls.key_bounds.y_range.min = light_controlls.position.y + CONTROL__SLIDER_LENGTH - light_controlls.key_slider;
+    light_controlls.key_bounds.x_range.max = light_controlls.key_bounds.x_range.min + CONTROL__LENGTH;
+    light_controlls.key_bounds.y_range.max = light_controlls.key_bounds.y_range.min + CONTROL__THICKNESS;
 }
 
-inline void setColorControlGreenBounds() {
-    color_control.G.x_range.min = color_control.position.x + COLOR_CONTROL__MARKER_WIDTH;
-    color_control.G.y_range.min = color_control.position.y + COLOR_CONTROL__SLIDER_LENGTH - color_control.sliders.G;
-    color_control.G.x_range.max = color_control.G.x_range.min + COLOR_CONTROL__MARKER_WIDTH;
-    color_control.G.y_range.max = color_control.G.y_range.min + COLOR_CONTROL__MARKER_HEIGHT;
+inline void setLightControlsFillBounds() {
+    light_controlls.fill_bounds.x_range.min = light_controlls.position.x + CONTROL__LENGTH * 2 + CONTROL__LENGTH / 2;
+    light_controlls.fill_bounds.y_range.min = light_controlls.position.y + CONTROL__SLIDER_LENGTH - light_controlls.fill_slider;
+    light_controlls.fill_bounds.x_range.max = light_controlls.fill_bounds.x_range.min + CONTROL__LENGTH;
+    light_controlls.fill_bounds.y_range.max = light_controlls.fill_bounds.y_range.min + CONTROL__THICKNESS;
 }
 
-inline void setColorControlBlueBounds() {
-    color_control.B.x_range.min = color_control.position.x + COLOR_CONTROL__MARKER_WIDTH * 2;
-    color_control.B.y_range.min = color_control.position.y + COLOR_CONTROL__SLIDER_LENGTH - color_control.sliders.B;
-    color_control.B.x_range.max = color_control.B.x_range.min + COLOR_CONTROL__MARKER_WIDTH;
-    color_control.B.y_range.max = color_control.B.y_range.min + COLOR_CONTROL__MARKER_HEIGHT;
+inline void setLightControlsRimBounds() {
+    light_controlls.rim_bounds.x_range.min = light_controlls.position.x + CONTROL__LENGTH * 4 + CONTROL__LENGTH / 2;
+    light_controlls.rim_bounds.y_range.min = light_controlls.position.y + CONTROL__SLIDER_LENGTH - light_controlls.rim_slider;
+    light_controlls.rim_bounds.x_range.max = light_controlls.rim_bounds.x_range.min + CONTROL__LENGTH;
+    light_controlls.rim_bounds.y_range.max = light_controlls.rim_bounds.y_range.min + CONTROL__THICKNESS;
 }
 
+inline void bindLightControls(PointLight *key_light, PointLight *fill_light, PointLight *rim_light) {
+    light_controlls.key_intensity = &key_light->intensity;
+    light_controlls.fill_intensity = &fill_light->intensity;
+    light_controlls.rim_intensity = &rim_light->intensity;
 
-inline void bindColorControl(vec3* color) {
-    color_control.color = color;
-    color_control.sliders.R = (u8)(COLOR_CONTROL__SLIDER_RANGE * color->x);
-    color_control.sliders.G = (u8)(COLOR_CONTROL__SLIDER_RANGE * color->y);
-    color_control.sliders.B = (u8)(COLOR_CONTROL__SLIDER_RANGE * color->z);
-    setColorControlRedBounds();
-    setColorControlGreenBounds();
-    setColorControlBlueBounds();
+    light_controlls.key_slider = (u8)(CONTROL__SLIDER_RANGE * (*light_controlls.key_intensity) * 0.1f);
+    light_controlls.fill_slider = (u8)(CONTROL__SLIDER_RANGE * (*light_controlls.fill_intensity) * 0.1f);
+    light_controlls.rim_slider = (u8)(CONTROL__SLIDER_RANGE * (*light_controlls.rim_intensity) * 0.1f);
+    setLightControlsKeyBounds();
+    setLightControlsFillBounds();
+    setLightControlsRimBounds();
 }
 
-inline void updateRedColorControl(vec2i movement) {
-    i32 new_slider_pos = (i32)color_control.sliders.R - (i32)movement.y;
-    if (new_slider_pos <= 0) {
-        color_control.color->x = 0;
-        color_control.sliders.R = 0;
-    } else if (new_slider_pos >= COLOR_CONTROL__SLIDER_RANGE) {
-        color_control.color->x = 1;
-        color_control.sliders.R = COLOR_CONTROL__SLIDER_RANGE;
-    } else {
-        color_control.color->x -= ((f32)movement.y / (f32)COLOR_CONTROL__SLIDER_RANGE);
-        color_control.sliders.R -= movement.y;
-    }
-
-    setColorControlRedBounds();
+inline void updateKeyLightControl(vec2i movement) {
+    updateColorControlComponent(&light_controlls.key_slider, light_controlls.key_intensity, -movement.y, 10);
+    setLightControlsKeyBounds();
 }
 
-inline void updateGreenColorControl(vec2i movement) {
-    i32 new_slider_pos = (i32)color_control.sliders.G - (i32)movement.y;
-    if (new_slider_pos <= 0) {
-        color_control.color->y = 0;
-        color_control.sliders.G = 0;
-    } else if (new_slider_pos >= COLOR_CONTROL__SLIDER_RANGE) {
-        color_control.color->y = 1;
-        color_control.sliders.G = COLOR_CONTROL__SLIDER_RANGE;
-    } else {
-        color_control.color->y -= ((f32)movement.y / (f32)COLOR_CONTROL__SLIDER_RANGE);
-        color_control.sliders.G -= movement.y;
-    }
-
-    setColorControlGreenBounds();
+inline void updateFillLightControl(vec2i movement) {
+    updateColorControlComponent(&light_controlls.fill_slider, light_controlls.fill_intensity, -movement.y, 10);
+    setLightControlsFillBounds();
 }
 
-inline void updateBlueColorControl(vec2i movement) {
-    i32 new_slider_pos = (i32)color_control.sliders.B - (i32)movement.y;
-    if (new_slider_pos <= 0) {
-        color_control.color->z = 0;
-        color_control.sliders.B = 0;
-    } else if (new_slider_pos >= COLOR_CONTROL__SLIDER_RANGE) {
-        color_control.color->z = 1;
-        color_control.sliders.B = COLOR_CONTROL__SLIDER_RANGE;
-    } else {
-        color_control.color->z -= ((f32)movement.y / (f32)COLOR_CONTROL__SLIDER_RANGE);
-        color_control.sliders.B -= movement.y;
-    }
-
-    setColorControlBlueBounds();
+inline void updateRimLightControl(vec2i movement) {
+    updateColorControlComponent(&light_controlls.rim_slider, light_controlls.rim_intensity, -movement.y, 10);
+    setLightControlsRimBounds();
 }
 
-void drawColorControl() {
-    Pixel R, G, B, border;
+void setLightControlsPosition(u16 position_x, u16 position_y) {
+    light_controlls.position.x = position_x;
+    light_controlls.position.y = position_y;
+    setLightControlsKeyBounds();
+    setLightControlsFillBounds();
+    setLightControlsRimBounds();
+}
+
+void initLightControls(u16 initial_position_x, u16 initial_position_y) {
+    light_controlls.is_visible = false;
+    light_controlls.is_controlled = false;
+    light_controlls.is_key_controlled = false;
+    light_controlls.is_fill_controlled = false;
+    light_controlls.is_rim_controlled = false;
+    setLightControlsPosition(initial_position_x, initial_position_y);
+}
+
+void drawLightControls() {
+    Pixel key, fill, rim, border, inactive_border;
     border.color = WHITE;
-    R.color = RED;
-    G.color = GREEN;
-    B.color = BLUE;
+    inactive_border.color = GREY;
 
-    u32 x = color_control.position.x;
-    u32 y = color_control.position.y;
+    key.color.R = key.color.G = key.color.B    = (u8)(255.0f * (*light_controlls.key_intensity) * 0.1f);
+    fill.color.R = fill.color.G = fill.color.B = (u8)(255.0f * (*light_controlls.fill_intensity) * 0.1f);
+    rim.color.R = rim.color.G = rim.color.B    = (u8)(255.0f * (*light_controlls.rim_intensity) * 0.1f);
 
-    // Draw sliders:
-    Bounds2Di rect;
-    rect.y_range.min = y + COLOR_CONTROL__MARKER_HEIGHT / 2;;
-    rect.y_range.max = rect.y_range.min + COLOR_CONTROL__SLIDER_LENGTH;
-    rect.x_range.min = x + COLOR_CONTROL__MARKER_WIDTH / 2 - COLOR_CONTROL__SLIDER_THICKNESS / 2;
-    rect.x_range.max = rect.x_range.min + COLOR_CONTROL__SLIDER_THICKNESS;
-    fillRect(&rect, R);
+    u32 y_start = light_controlls.position.y + CONTROL__THICKNESS / 2;
+    u32 y_end = y_start + CONTROL__SLIDER_LENGTH;
+    u32 x = light_controlls.position.x + CONTROL__LENGTH;
 
-    rect.x_range.min += COLOR_CONTROL__MARKER_WIDTH;
-    rect.x_range.max += COLOR_CONTROL__MARKER_WIDTH;
-    fillRect(&rect, G);
+    drawVLine2D(y_start, y_end, x, inactive_border);
+    drawVLine2D(y_start, y_end, x-1, inactive_border);
+    drawVLine2D(y_start, y_end, x+1, inactive_border);
 
-    rect.x_range.min += COLOR_CONTROL__MARKER_WIDTH;
-    rect.x_range.max += COLOR_CONTROL__MARKER_WIDTH;
-    fillRect(&rect, B);
+    x += CONTROL__LENGTH*2;
 
-    R.color.R = (u8)(255.0f * color_control.color->x);
-    G.color.G = (u8)(255.0f * color_control.color->y);
-    B.color.B = (u8)(255.0f * color_control.color->z);
+    drawVLine2D(y_start, y_end, x, inactive_border);
+    drawVLine2D(y_start, y_end, x-1, inactive_border);
+    drawVLine2D(y_start, y_end, x+1, inactive_border);
 
-    fillRect(&color_control.R, R);
-    fillRect(&color_control.G, G);
-    fillRect(&color_control.B, B);
-    drawRect(&color_control.R, border);
-    drawRect(&color_control.G, border);
-    drawRect(&color_control.B, border);
+    x += CONTROL__LENGTH*2;
 
-    Pixel color_pixel;
-    vec3 color = *color_control.color;
-    Bounds2Di color_rect;
-    color_rect.x_range.min = color_control.R.x_range.min;
-    color_rect.x_range.max = color_control.B.x_range.max;
-    color_rect.y_range.min = rect.y_range.max + COLOR_CONTROL__MARKER_HEIGHT;
-    color_rect.y_range.max = rect.y_range.max + COLOR_CONTROL__MARKER_HEIGHT*2;
-    setPixelColor((&color_pixel), color);
-    fillRect(&color_rect, color_pixel);
-    drawRect(&color_rect, border);
+    drawVLine2D(y_start, y_end, x, inactive_border);
+    drawVLine2D(y_start, y_end, x-1, inactive_border);
+    drawVLine2D(y_start, y_end, x+1, inactive_border);
+
+    fillRect(&light_controlls.key_bounds,  key);
+    fillRect(&light_controlls.fill_bounds, fill);
+    fillRect(&light_controlls.rim_bounds,  rim);
+    drawRect(&light_controlls.key_bounds,  light_controlls.is_key_controlled  ? border : inactive_border);
+    drawRect(&light_controlls.fill_bounds, light_controlls.is_fill_controlled ? border : inactive_border);
+    drawRect(&light_controlls.rim_bounds,  light_controlls.is_rim_controlled  ? border : inactive_border);
 }
 
-//u8 GAMMA_LUT[256];
-//
-//#define setPixelColor1(pixel, color, gamma_lut) \
-//        color.x *= 255.0f; \
-//        color.y *= 255.0f; \
-//        color.z *= 255.0f; \
-//        pixel->color.R = color.x > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : gamma_lut[(u8)color.x]; \
-//        pixel->color.G = color.y > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : gamma_lut[(u8)color.y]; \
-//        pixel->color.B = color.z > MAX_COLOR_VALUE ? MAX_COLOR_VALUE : gamma_lut[(u8)color.z]
-//
-//void initGammaLUT() {
-//    f32 value;
-//    for (u16 i = 0; i < 256; i++) {
-//        value = (f32)i;
-//        value /= 256;
-//        value = value <= 0.0031308f ? (value * 12.92f) : (1.055f * powf(value, 1.0f/2.4f) - 0.055f);
-////        value = powf(value, 1.0f/2.2f);
-//        value *= 256;
-//        GAMMA_LUT[i] = (u8)value;
-//    }
-//
-//#ifdef __CUDACC__
-//    gpuErrchk(cudaMemcpyToSymbol(d_GAMMA_LUT, GAMMA_LUT, 256, 0, cudaMemcpyHostToDevice));
-//#endif
-//}
+
+
+inline void setLightSelectorKeyBounds() {
+    light_selector.key_bounds.x_range.min = light_selector.position.x;
+    light_selector.key_bounds.y_range.min = light_selector.position.y;
+    light_selector.key_bounds.x_range.max = light_selector.key_bounds.x_range.min + CONTROL__LENGTH*2;
+    light_selector.key_bounds.y_range.max = light_selector.key_bounds.y_range.min + CONTROL__THICKNESS*2;
+}
+
+inline void setLightSelectorFillBounds() {
+    light_selector.fill_bounds.x_range.min = light_selector.position.x + CONTROL__LENGTH * 2;
+    light_selector.fill_bounds.y_range.min = light_selector.position.y;
+    light_selector.fill_bounds.x_range.max = light_selector.fill_bounds.x_range.min + CONTROL__LENGTH*2;
+    light_selector.fill_bounds.y_range.max = light_selector.fill_bounds.y_range.min + CONTROL__THICKNESS*2;
+}
+
+inline void setLightSelectorRimBounds() {
+    light_selector.rim_bounds.x_range.min = light_selector.position.x + CONTROL__LENGTH * 4;
+    light_selector.rim_bounds.y_range.min = light_selector.position.y;
+    light_selector.rim_bounds.x_range.max = light_selector.rim_bounds.x_range.min + CONTROL__LENGTH*2;
+    light_selector.rim_bounds.y_range.max = light_selector.rim_bounds.y_range.min + CONTROL__THICKNESS*2;
+}
+
+inline void setLightSelectorAmbientBounds() {
+    light_selector.ambient_bounds.x_range.min = light_selector.position.x;
+    light_selector.ambient_bounds.y_range.min = light_selector.position.y + CONTROL__THICKNESS*2;
+    light_selector.ambient_bounds.x_range.max = light_selector.ambient_bounds.x_range.min + CONTROL__LENGTH*2;
+    light_selector.ambient_bounds.y_range.max = light_selector.ambient_bounds.y_range.min + CONTROL__THICKNESS*2;
+}
+
+inline void bindLightSelector(PointLight *key_light, PointLight *fill_light, PointLight *rim_light, AmbientLight *ambient_light) {
+    light_selector.key_color = &key_light->color;
+    light_selector.fill_color = &fill_light->color;
+    light_selector.rim_color = &rim_light->color;
+    light_selector.ambient_color = &ambient_light->color;
+
+    setLightSelectorKeyBounds();
+    setLightSelectorFillBounds();
+    setLightSelectorRimBounds();
+    setLightSelectorAmbientBounds();
+}
+
+void setLightSelectorPosition(u16 position_x, u16 position_y) {
+    light_selector.position.x = position_x;
+    light_selector.position.y = position_y;
+    setLightSelectorKeyBounds();
+    setLightSelectorFillBounds();
+    setLightSelectorRimBounds();
+    setLightSelectorAmbientBounds();
+}
+
+void initLightSelector(u16 initial_position_x, u16 initial_position_y) {
+    light_selector.is_visible = false;
+    light_selector.is_key_selected = true;
+    light_selector.is_fill_selected = false;
+    light_selector.is_rim_selected = false;
+    light_selector.is_ambient_selected = false;
+    setLightSelectorPosition(initial_position_x, initial_position_y);
+}
+
+void drawLightSelector() {
+    Pixel border, inactive_border, text;
+    border.color = WHITE;
+    inactive_border.color = GREY;
+    text.color = GREEN;
+
+    drawRect(&light_selector.key_bounds,  light_selector.is_key_selected  ? border : inactive_border);
+    drawRect(&light_selector.fill_bounds, light_selector.is_fill_selected ? border : inactive_border);
+    drawRect(&light_selector.rim_bounds,  light_selector.is_rim_selected  ? border : inactive_border);
+    drawRect(&light_selector.ambient_bounds,  light_selector.is_ambient_selected  ? border : inactive_border);
+
+    drawText(&frame_buffer, "Key", text.value, light_selector.key_bounds.x_range.min + 5, light_selector.key_bounds.y_range.min + 5);
+    drawText(&frame_buffer, "Fill", text.value, light_selector.fill_bounds.x_range.min + 5, light_selector.fill_bounds.y_range.min + 5);
+    drawText(&frame_buffer, "Rim", text.value, light_selector.rim_bounds.x_range.min + 5, light_selector.rim_bounds.y_range.min + 5);
+    drawText(&frame_buffer, "Amb", text.value, light_selector.ambient_bounds.x_range.min + 5, light_selector.ambient_bounds.y_range.min + 5);
+}

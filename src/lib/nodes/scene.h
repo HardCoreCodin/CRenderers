@@ -342,8 +342,8 @@ void initScene(Scene *scene) {
     right_plane->normal.x  = -1;
 
     PointLight *key_light = scene->point_lights;
-    PointLight *rim_light = scene->point_lights + 1;
-    PointLight *fill_light = scene->point_lights + 2;
+    PointLight *fill_light = scene->point_lights + 1;
+    PointLight *rim_light = scene->point_lights + 2;
 
     key_light->position.x = 10;
     key_light->position.y = 10;

@@ -31,6 +31,7 @@ typedef struct {
     vec3* color;
     vec2i position;
     Color sliders;
+    f32 factor;
     Bounds2Di R, G, B, RGB;
     bool is_visible,
          is_controlled,
@@ -40,6 +41,31 @@ typedef struct {
          is_rgb_controlled;
 } ColorControl;
 ColorControl color_control;
+
+typedef struct {
+    f32 *key_intensity, *fill_intensity, *rim_intensity;
+    vec2i position;
+    u8 key_slider, fill_slider, rim_slider;
+    Bounds2Di key_bounds, fill_bounds, rim_bounds;
+    bool is_visible,
+         is_controlled,
+         is_key_controlled,
+         is_fill_controlled,
+         is_rim_controlled;
+} LightControls;
+LightControls light_controlls;
+
+typedef struct {
+    vec2i position;
+    vec3 *key_color, *fill_color, *rim_color, *ambient_color;
+    Bounds2Di key_bounds, fill_bounds, rim_bounds, ambient_bounds;
+    bool is_visible,
+         is_key_selected,
+         is_fill_selected,
+         is_rim_selected,
+         is_ambient_selected;
+} LightSelector;
+LightSelector light_selector;
 
 typedef struct {
     u16 width, height;
